@@ -1,112 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHero, Prose } from "@/components/page-hero";
 import { IMAGES } from "@/lib/content";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
-    meta: [
-      { title: "About — M.M College Wairaka" },
-      {
-        name: "description",
-        content:
-          "Founded in 1953, M.M College Wairaka is built on one conviction: discipline, hard work, and self-reliance.",
-      },
-      { property: "og:title", content: "About — M.M College Wairaka" },
-      {
-        property: "og:description",
-        content:
-          "The story and mission of M.M College Wairaka, serving the Busoga region since 1953.",
-      },
-      { property: "og:url", content: "/about" },
-    ],
+    meta: [{ title: "About — M.M College Wairaka" },{ name: "description", content: "Founded in 1953, M.M College Wairaka is built on one conviction: discipline, hard work, and self-reliance." }],
     links: [{ rel: "canonical", href: "/about" }],
   }),
   component: AboutPage,
 });
 
-const MILESTONES = [
-  {
-    year: "1953",
-    text: "M.M College Wairaka opens its doors to the first cohort of students in the Busoga region.",
-  },
-  {
-    year: "1975",
-    text: "The school expands its campus and introduces the practical skills programme.",
-  },
-  {
-    year: "1985",
-    text: "The college moves to its current campus at Wairaka, with facilities built through community effort.",
-  },
-  {
-    year: "1995",
-    text: "Community outreach becomes a core part of the curriculum: students partner with local organisations.",
-  },
-  {
-    year: "2010",
-    text: "New science laboratories and workshops open, funded by old students and friends of the college.",
-  },
-  {
-    year: "2026",
-    text: "The college welcomes over 1,800 students from 58 districts across Uganda.",
-  },
-];
-
+const Q=[{l:"Our Identity",h:"#identity"},{l:"Our Mission",h:"#mission"},{l:"Our History",h:"#history"},{l:"Our Values",h:"#values"},{l:"Facilities",h:"#facilities"}];
+const M=[{y:"1953",t:"Founded",x:"The institution begins as a technical college, the brainchild of colonial governor Andrew Cohen, to provide skilled labour for the growing industries in Jinja."},{y:"1958",t:"Farm School Era",x:"Technical status transfers to Kyambogo. The institution becomes Muljibhai Madhvani Farm School."},{y:"1970",t:"Secondary School",x:"Parents demand conventional secondary education. The school becomes Muljibhai Madhvani College – Wairaka."},{y:"1973",t:"Wairaka College",x:"The Ugandan government abolishes foreign names. The school is renamed Wairaka College."},{y:"1982",t:"A-Level Introduced",x:"Wairaka College is upgraded to include A-Level, becoming a full secondary institution."},{y:"1986",t:"Madhvani Name Returns",x:"Following the return of Indians to Uganda, the Madhvani family reclaims the name."},{y:"2020",t:"Trust Fund Launched",x:"MMCWOSA establishes the Wairaka Trust Fund. Alumni contribute UGX 10,000 per month."},{y:"2024",t:"Revival Underway",x:"Alumni-led rehabilitation of laboratories. Asbestos removed from key buildings."}];
+const V=[{n:"Integrity",d:"We act with honesty and transparency in all we do."},{n:"Discipline",d:"Self-control and commitment to excellence define our students."},{n:"Hard Work",d:"Nothing of value is achieved without sustained effort."},{n:"Teamwork",d:"We achieve more together than we ever could alone."},{n:"Efficiency",d:"We use our resources wisely and purposefully."},{n:"Industry",d:"We are productive, resourceful, and enterprising."},{n:"Commitment",d:"We see things through, especially when it gets difficult."},{n:"Determination",d:"We persist. We do it ourselves."}];
+const F=[{n:"Physics Laboratory",d:"Renovated with alumni support. Equipped for UNEB practical examinations."},{n:"Chemistry Laboratory",d:"Fully renovated. One of the first projects completed by the Trust Fund."},{n:"Biology Laboratory",d:"Supporting science education with practical facilities."},{n:"Resource Centre",d:"Internet-connected hub for research and learning."},{n:"School Farm",d:"A nod to our origins as a farm school. Agriculture is part of our identity."},{n:"Boarding Facilities",d:"Accommodation for students from across Uganda’s 58 districts."}];
 function AboutPage() {
-  return (
-    <main>
-      <PageHero
-        title="About WACOS"
-        subtitle="One hundred ten years of tuition-free, merit-based education"
-        image={IMAGES.campus}
-        imageAlt="M.M College Wairaka campus"
-      />
-      <section className="py-20">
-        <Prose>
-          <h2 className="font-display text-3xl font-semibold text-foreground">
-            Our story
-          </h2>
-          <p>
-            M.M College Wairaka was founded in 1953 with a clear mission: to provide
-            quality education rooted in discipline, hard work, and self-reliance.
-            From humble beginnings, the college has grown into one of the leading
-            secondary schools in the Busoga region, serving students from across Uganda.
-          </p>
-          <p>
-            Today M.M College Wairaka enrolls over 1,800 students drawn from
-            58 districts across Uganda. Admission is based on merit, and the
-            college has built a reputation for academic excellence, practical
-            skills development, and character formation.
-          </p>
-          <h2 className="pt-6 font-display text-3xl font-semibold text-foreground">
-            What we believe
-          </h2>
-          <p>
-            We hold that intellectual seriousness and personal decency are
-            taught together or not at all. Students read difficult books, write
-            every day, compete hard, and serve their neighbors — and they do it
-            alongside classmates from 184 different zip codes.
-          </p>
-        </Prose>
-      </section>
-      <section className="bg-secondary py-20">
-        <div className="mx-auto max-w-4xl px-6">
-          <h2 className="text-center font-display text-4xl font-semibold text-foreground">
-            Milestones
-          </h2>
-          <div className="mt-12 space-y-8">
-            {MILESTONES.map((m) => (
-              <div key={m.year} className="flex gap-6">
-                <p className="w-20 shrink-0 font-display text-2xl font-semibold text-primary">
-                  {m.year}
-                </p>
-                <p className="border-l border-border pl-6 text-muted-foreground">
-                  {m.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    </main>
-  );
+  return (<main>
+    <section className="relative flex min-h-[60vh] items-end bg-foreground pb-16 pt-32">
+      <img src={IMAGES.campus} alt="M.M College Wairaka campus" className="absolute inset-0 h-full w-full object-cover opacity-40" width={1600} height={900} />
+      <div className="relative mx-auto max-w-6xl px-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60">About the College</p>
+        <h1 className="mt-3 font-display text-5xl font-semibold leading-tight text-white md:text-6xl lg:text-7xl">Muljibhai Madhvani<br />College – Wairaka</h1>
+        <p className="mt-4 max-w-xl text-lg text-white/70">A government-aided secondary school in Wairaka, Jinja — built on merit, service and self-reliance since 1953.</p>
+      </div>
+    </section>
+    <section className="border-b border-border bg-cream"><div className="mx-auto flex max-w-6xl gap-6 overflow-x-auto px-6 py-4 text-sm font-medium text-muted-foreground">{Q.map((l)=>(<a key={l.h} href={l.h} className="shrink-0 transition-colors hover:text-primary">{l.l}</a>))}</div></section>
+    <section id="identity" className="py-20"><div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-2"><div><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Our Identity</p><h2 className="mt-4 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">Government-aided. Mixed. Boarding.</h2><p className="mt-6 leading-relaxed text-muted-foreground">Muljibhai Madhvani College – Wairaka is a government-aided, mixed, O-Level and A-Level boarding school located approximately 11 km from Jinja City, along the Jinja–Iganga Highway.</p><p className="mt-4 leading-relaxed text-muted-foreground">The school serves students from across Uganda, offering a comprehensive curriculum that combines academic rigour with practical skills development.</p></div><div className="space-y-6"><div className="rounded-2xl border border-border p-6"><p className="text-xs font-semibold uppercase tracking-wider text-primary">Motto</p><p className="mt-2 font-display text-2xl font-semibold text-foreground">“We Do It Ourselves”</p></div><div className="rounded-2xl border border-border p-6"><p className="text-xs font-semibold uppercase tracking-wider text-primary">Vision</p><p className="mt-2 leading-relaxed text-foreground">To expose students to quality all-round education and make our school a quality centre for excellence.</p></div><div className="rounded-2xl border border-border p-6"><p className="text-xs font-semibold uppercase tracking-wider text-primary">Location</p><p className="mt-2 text-foreground">Wairaka, Jinja, Uganda — along the Jinja–Iganga Highway</p></div></div></div></section>
+    <section id="mission" className="bg-secondary py-20"><div className="mx-auto max-w-4xl px-6 text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Our Mission</p><h2 className="mt-4 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">To produce self-reliant, patriotic, development-oriented, God-fearing and socially acceptable citizens.</h2><p className="mx-auto mt-6 max-w-2xl leading-relaxed text-muted-foreground">Our principal activity is the provision of secondary education while endeavouring to meet national educational standards and prepare young people for the future.</p></div></section>
+    <section id="history" className="py-20"><div className="mx-auto max-w-4xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Our History</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">From technical college to revival</h2><p className="mx-auto mt-4 max-w-xl text-muted-foreground">A school born in 1953 to produce technical skills for Uganda’s industrial growth. It became a farm school, evolved into a secondary school, produced an Olympic champion, and is now being rebuilt by the community it produced.</p></div><div className="mt-14">{M.map((m,i)=>(<div key={m.y} className="relative flex gap-8 pb-12 last:pb-0"><div className="relative flex flex-col items-center"><div className="h-4 w-4 rounded-full border-2 border-primary bg-cream" />{i<M.length-1&&<div className="mt-1 w-0.5 flex-1 bg-border" />}</div><div><div className="flex items-baseline gap-3"><p className="font-display text-2xl font-semibold text-primary">{m.y}</p><p className="text-sm font-semibold text-foreground">{m.t}</p></div><p className="mt-2 leading-relaxed text-muted-foreground">{m.x}</p></div></div>))}</div></div></section>
+    <section id="values" className="bg-foreground py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Core Values</p><h2 className="mt-4 font-display text-4xl font-semibold text-white md:text-5xl">What we stand for</h2></div><div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">{V.map((v)=>(<div key={v.n} className="rounded-2xl border border-white/10 p-6"><h3 className="font-display text-xl font-semibold text-white">{v.n}</h3><p className="mt-2 text-sm leading-relaxed text-white/60">{v.d}</p></div>))}</div></div></section>
+    <section id="facilities" className="py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Campus &amp; Facilities</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">Built by the community</h2><p className="mx-auto mt-4 max-w-xl text-muted-foreground">Our laboratories, resource centre, and school farm are being actively rebuilt through alumni contributions and the Wairaka Trust Fund.</p></div><div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{F.map((f)=>(<div key={f.n} className="rounded-2xl border border-border p-6 transition-shadow hover:shadow-md"><h3 className="font-display text-xl font-semibold text-foreground">{f.n}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.d}</p></div>))}</div></div></section>
+    <section className="bg-primary py-16"><div className="mx-auto max-w-3xl px-6 text-center"><h2 className="font-display text-3xl font-semibold text-primary-foreground md:text-4xl">Be part of the revival</h2><p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">Every contribution rebuilds a laboratory, a classroom, a future. Join MMCWOSA and the Wairaka Trust Fund.</p><div className="mt-8 flex flex-wrap justify-center gap-4"><a href="/giving" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90">Support Wairaka</a><a href="/admissions" className="rounded-full border border-white/40 px-7 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10">Apply Now</a></div></div></section>
+  </main>);
 }
