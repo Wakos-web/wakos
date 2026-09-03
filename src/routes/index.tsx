@@ -99,14 +99,14 @@ function HeroSection() {
           loop
           playsInline
           preload="metadata"
-          className={"absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_15%] transition-opacity duration-1000 " + (loaded ? "opacity-100" : "opacity-0")}
+          className={"absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_30%] transition-opacity duration-1000 " + (loaded ? "opacity-100" : "opacity-0")}
         />
         {/* Fallback poster if video has not loaded */}
         {!loaded && (
           <img
             src={HERO_POSTER}
             alt="M.M College Wairaka campus"
-            className="absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_15%]"
+            className="absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_30%]"
             width={1920}
             height={1080}
             fetchPriority="high"
