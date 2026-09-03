@@ -71,25 +71,39 @@ function HeroSection() {
     setMuted(v.muted);
   }, []);
 
-  const NAV_CARDS = [
-    { label: "About", to: "/about" },
-    { label: "Admissions", to: "/admissions" },
-    { label: "Academics", to: "/academics" },
-  ];
-
   return (
     <section className="relative">
-      {/* Desktop hero — framed video with pillar background */}
-      <div className="relative hidden lg:flex min-h-[85vh] flex-col items-center justify-center px-6 py-24">
-        {/* Pillar image fills background */}
+      {/* Desktop hero - WUR.nl style: video fills wide frame + content card on left */}
+      <div className="relative hidden lg:block min-h-[85vh]">
+        {/* Pillar background */}
         <img src={HERO_PILLAR} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-foreground/30" />
+        <div className="absolute inset-0 bg-foreground/20" />
 
-        {/* Framed video container */}
-        <div
-          className={"relative z-10 flex flex-col items-center transition-all duration-700 ease-out " + (visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-6 scale-95")}
-        >
-          <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/20 shadow-2xl" style={{ aspectRatio: "9/16", maxHeight: "65vh" }}>
+        {/* Hero container - rounded, padded from edges */}
+        <div className="relative z-10 mx-6 my-20 flex h-[calc(85vh-10rem)] overflow-hidden rounded-[2rem] ring-1 ring-white/10 shadow-2xl">
+          {/* Left: content card */}
+          <div className="relative z-10 flex w-[32%] min-w-[300px] flex-col justify-between bg-primary p-8 lg:p-10">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground/60">Event</p>
+              <h2 className="mt-4 font-display text-2xl font-semibold leading-snug text-primary-foreground lg:text-3xl">Discipline, hard work and self-reliance since 1965</h2>
+            </div>
+            <div className="mt-8 flex items-center gap-4">
+              <Link to="/about" className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gold text-gold-foreground transition-transform hover:scale-110">
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <div className="flex gap-2">
+                <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary-foreground/30 text-primary-foreground transition-colors hover:bg-primary-foreground/10">
+                  {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                </button>
+                <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary-foreground/30 text-primary-foreground transition-colors hover:bg-primary-foreground/10">
+                  {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: video fills completely */}
+          <div className="relative flex-1 overflow-hidden">
             <video
               ref={videoRef}
               src={HERO_VIDEO}
@@ -99,41 +113,13 @@ function HeroSection() {
               loop
               playsInline
               preload="metadata"
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
-          </div>
-
-          {/* Tagline */}
-          <h1 className="mt-8 max-w-2xl text-center font-display text-4xl font-medium leading-[1.15] text-white drop-shadow-lg">
-            {SCHOOL_TAGLINE}
-          </h1>
-
-          {/* Controls */}
-          <div className="mt-6 flex items-center gap-4">
-            <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
-              {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
-            </button>
-            <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
-              {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-            </button>
-          </div>
-
-          {/* Navigation cards */}
-          <div className="mt-10 flex gap-4">
-            {NAV_CARDS.map((card) => (
-              <Link
-                key={card.to}
-                to={card.to}
-                className="rounded-2xl bg-white/10 px-8 py-4 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/20 transition-all hover:bg-white/20 hover:ring-white/40 hover:scale-105"
-              >
-                {card.label}
-              </Link>
-            ))}
           </div>
         </div>
       </div>
 
-      {/* Mobile hero — portrait video fills naturally */}
+      {/* Mobile hero */}
       <div className="relative lg:hidden">
         <div className="relative h-[85vh] overflow-hidden">
           <video src={HERO_VIDEO} poster={HERO_POSTER} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
