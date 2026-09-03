@@ -70,8 +70,8 @@ function HeroSection() {
       {/* Desktop hero */}
       <div className="relative hidden lg:block mx-3 my-3">
         <div className="relative h-[calc(100vh-0.75rem*2)]">
-          {/* Video container - full width with scalloped right edge */}
-          <div className="relative h-full overflow-hidden rounded-l-[30px]" style={{clipPath: 'polygon(0 0, calc(100% - 3rem) 0, calc(100% - 3rem) 28%, calc(100% - 1rem) 28%, calc(100% - 1rem) 40%, calc(100% - 3rem) 40%, calc(100% - 3rem) 60%, calc(100% - 1rem) 60%, calc(100% - 1rem) 72%, calc(100% - 3rem) 72%, calc(100% - 3rem) 100%, 0 100%)'}}>
+          {/* Video container - full width rounded left corners */}
+          <div className="relative h-full overflow-hidden rounded-l-[30px]">
             <video
               ref={videoRef}
               src={HERO_VIDEO}
@@ -83,19 +83,32 @@ function HeroSection() {
               preload="metadata"
               className="absolute inset-0 h-full w-full object-cover object-center"
             />
+            {/* Scallop overlay - cream bezier curves on right edge */}
+            <svg
+              className="absolute top-0 right-0 h-full w-24 z-10 pointer-events-none"
+              viewBox="0 0 96 1000"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              {/* Upper scallop - curves inward then outward */}
+              <path
+                d="M96,0 L96,260 C60,300 60,340 96,380 L96,500 C60,540 60,580 96,620 L96,740 C60,780 60,820 96,860 L96,1000 L96,1000 L96,0 Z"
+                fill="#FBF6E5"
+              />
+            </svg>
             {/* Play/Pause button - bottom right */}
             <button
               type="button"
               aria-label={paused ? "Play video" : "Pause video"}
               onClick={togglePlay}
-              className="absolute bottom-6 right-12 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white shadow-lg transition-transform hover:scale-110"
+              className="absolute bottom-6 right-16 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white shadow-lg transition-transform hover:scale-110"
             >
               {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
             </button>
           </div>
 
-          {/* Scroll-down arrow - sits in the scallop notch */}
-          <div className="absolute right-0 top-[34%] z-30 translate-x-1/4">
+          {/* Scroll-down arrow - sits in the middle scallop notch */}
+          <div className="absolute right-0 top-[50%] z-30 -translate-y-1/2 translate-x-1/4">
             <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-[#FBF6E5] shadow-lg">
               <button
                 type="button"
