@@ -33,7 +33,7 @@ export function SiteHeader() {
         <div className={"hidden items-center justify-between px-6 py-4 lg:flex xl:px-10 " + textColor}>
           <Link to="/" className="flex items-center gap-3">
             <img src={LOGO_URL} alt="" className="h-14 w-auto" aria-hidden="true" />
-            <span className="font-display text-lg font-semibold tracking-[0.1em] xl:text-xl" style={{textShadow: "0 0 8px rgba(255,255,255,0.35), 0 0 14px rgba(255,255,255,0.15)"}}>{SCHOOL_NAME}</span>
+            <div className="flex flex-col leading-none"><span className="font-display text-lg font-semibold tracking-[0.1em] xl:text-xl" style={{textShadow: "0 0 8px rgba(255,255,255,0.35), 0 0 14px rgba(255,255,255,0.15)"}}>M.M College</span><span className="font-display text-sm font-medium tracking-[0.15em] xl:text-base" style={{textShadow: "0 0 6px rgba(255,255,255,0.3)"}}>Wairaka</span></div>
           </Link>
           <nav className="flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
             {NAV_ITEMS.map((item) => (
@@ -45,7 +45,7 @@ export function SiteHeader() {
         <div className={"flex items-center justify-between px-4 py-3 lg:hidden " + textColor}>
           <Link to="/" className="flex items-center gap-2">
             <img src={LOGO_URL} alt="" className="h-10 w-auto" aria-hidden="true" />
-            <span className="font-display text-base font-semibold tracking-[0.1em]" style={{textShadow: "0 0 6px rgba(255,255,255,0.35)"}}>{SCHOOL_NAME}</span>
+            <div className="flex flex-col leading-none"><span className="font-display text-sm font-semibold tracking-[0.1em]">M.M College</span><span className="font-display text-xs font-medium tracking-[0.12em]">Wairaka</span></div>
           </Link>
           <button type="button" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className={"rounded-full p-2.5 transition-colors " + (isHome && !scrolled ? "bg-white/15 text-white hover:bg-white/25" : "bg-secondary text-foreground hover:bg-secondary/80")}>
             <Menu className="h-5 w-5" />
