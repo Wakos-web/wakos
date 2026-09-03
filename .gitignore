@@ -23,6 +23,9 @@ dist-ssr
 # Vercel build output
 .vercel
 
+# Source assets (not part of the site)
+mm college/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
