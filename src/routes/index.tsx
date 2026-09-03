@@ -204,7 +204,7 @@ function NewsSection() {
           Recent News
         </h2>
         <Link
-          to="/news"
+          to="/campus-stores"
           className="hidden items-center gap-2 text-sm font-semibold text-primary hover:underline hover:underline-offset-4 md:inline-flex"
         >
           All news <ArrowRight className="h-4 w-4" />
@@ -241,7 +241,7 @@ function NewsSection() {
         ))}
       </div>
       <Link
-        to="/news"
+        to="/campus-stores"
         className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground md:hidden"
       >
         All news <ArrowRight className="h-4 w-4" />
