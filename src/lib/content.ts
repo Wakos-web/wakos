@@ -29,7 +29,6 @@ export const IMAGES = {
 
 export const NAV_ITEMS = [
   { label: "About", to: "/about" },
-  { label: "Admissions", to: "/admissions" },
   { label: "Academics", to: "/academics" },
   { label: "Student Life", to: "/student-life" },
   { label: "Athletics", to: "/athletics" },
