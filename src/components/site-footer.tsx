@@ -42,7 +42,7 @@ export function SiteFooter() {
         <div className="mt-6 pt-4 border-t border-[#FBF6E5]/10 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
           <p className="text-[10px] text-[#FBF6E5]/50">Copyright 2026 {SCHOOL_NAME}. All rights reserved.</p>
           <p className="text-[10px] text-[#FBF6E5]/50">{SCHOOL_MOTTO}</p>
-          <p className="text-[10px] text-[#FBF6E5]/50">Powered by <a href="https://www.alerotek.co.ke" target="_blank" rel="noopener noreferrer" className="hover:text-[#97C600] transition-colors">Alerotek</a></p>
+          <p className="text-[10px] text-[#FBF6E5]/50">Powered by <a href="https://www.alerotek.co.ke" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity" style={{color:"#16a34a"}}>Alerotek</a></p>
         </div>
       </div>
     </footer>
