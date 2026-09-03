@@ -1,74 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHero } from "@/components/page-hero";
 import { IMAGES } from "@/lib/content";
 
 export const Route = createFileRoute("/student-life")({
   head: () => ({
-    meta: [
-      { title: "Student Life — M.M College Wairaka" },
-      {
-        name: "description",
-        content:
-          "Clubs, service, outreach, and traditions: what life looks like between classes at M.M College Wairaka.",
-      },
-      { property: "og:title", content: "Student Life — M.M College Wairaka" },
-      {
-        property: "og:description",
-        content:
-          "Sixty clubs, a schoolwide service program, and a century of traditions.",
-      },
-      { property: "og:url", content: "/student-life" },
-    ],
+    meta: [{ title: "Student Life — M.M College Wairaka" },{ name: "description", content: "Clubs, service, outreach, and traditions: what life looks like between classes at M.M College Wairaka." }],
     links: [{ rel: "canonical", href: "/student-life" }],
   }),
   component: StudentLifePage,
 });
 
-const PILLARS = [
-  {
-    title: "Clubs & Societies",
-    text: "More than sixty student-run organizations — from the Debate Union and the Astronomy Society to the longest continuously published student literary magazine in the city.",
-  },
-  {
-    title: "Service",
-    text: "Every senior completes forty hours with a single community partner. Last year students logged 29,400 hours across forty-one organizations.",
-  },
-  {
-    title: "Retreats & Reflection",
-    text: "Class retreats each year give students room to step back, unplug, and ask the bigger questions together.",
-  },
-  {
-    title: "Traditions",
-    text: "Founders' Day, the winter concert, senior-freshman mentorship, and the courtyard commencement that has closed every school year since 1920.",
-  },
-];
-
+const FEATURES=[{n:"Sports & Athletics",d:"Football, athletics, netball, volleyball, basketball, cricket, swimming, and rugby. Students compete at district and regional level. The school won the Busoga Schools Football Championship.",c:"When we take part, we win."},{n:"Clubs & Societies",d:"Student-run organisations including the Science Club, Girl Guides, Agriculture Club, and Debating Society. Students lead, organise, and learn by doing.",c:"We do it ourselves."},{n:"Mentoring & Career Guidance",d:"Senior students receive mentoring from teachers and alumni. Career guidance seminars help students choose subject combinations and prepare for university.",c:""},{n:"Community Outreach",d:"Students partner with neighbouring households on reforestation, public health, and agricultural projects. Last year students planted 4,000 tree seedlings in a single Saturday.",c:"The motto is not decoration."},{n:"Science & Research",d:"The Science Club competes nationally. Students build practical projects like solar-powered irrigation controllers and present at the National Schools Science Fair.",c:""},{n:"Practical Skills & School Farm",d:"Agriculture is part of our identity — the school began as a farm school. Students run the school farm, learning crop management, animal husbandry, and land stewardship.",c:""},{n:"Alumni Events & Community",d:"MMCWOSA returns every October to encourage students, share experiences, and participate in alumni activities. The Wairaka Trust Fund keeps old students connected to the college.",c:""},{n:"Medical Bootcamps & Wellness",d:"Periodic health camps and medical bootcamps bring healthcare professionals to campus, supporting student wellbeing beyond the classroom.",c:""}];
+const SPORTS=[{s:"Football",t:"Term 1 & 2",l:"First XI / Junior"},{s:"Athletics",t:"Term 2",l:"Track & Field"},{s:"Netball",t:"Term 1",l:"Senior / Junior"},{s:"Volleyball",t:"Term 2",l:"Senior / Junior"},{s:"Basketball",t:"Term 3",l:"Senior"},{s:"Cricket",t:"Term 3",l:"Senior"},{s:"Swimming",t:"Term 1",l:"Open"},{s:"Rugby",t:"Term 2",l:"Senior"}];
 function StudentLifePage() {
-  return (
-    <main>
-      <PageHero
-        title="Student Life"
-        subtitle="Sixty clubs, one community, a century of traditions"
-        image={IMAGES.studentLife}
-        imageAlt="Students at M.M College Wairaka"
-      />
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="grid gap-6 md:grid-cols-2">
-          {PILLARS.map((pillar) => (
-            <div
-              key={pillar.title}
-              className="rounded-[1.75rem] bg-secondary p-8"
-            >
-              <h3 className="font-display text-2xl font-semibold text-foreground">
-                {pillar.title}
-              </h3>
-              <p className="mt-3 leading-relaxed text-muted-foreground">
-                {pillar.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
+  return (<main>
+    <section className="relative flex min-h-[50vh] items-end bg-foreground pb-16 pt-32"><img src={IMAGES.studentLife} alt="Students at M.M College Wairaka" className="absolute inset-0 h-full w-full object-cover opacity-40" width={1600} height={900} /><div className="relative mx-auto max-w-6xl px-6"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60">Life at Wairaka</p><h1 className="mt-3 font-display text-5xl font-semibold leading-tight text-white md:text-6xl lg:text-7xl">Student Life</h1><p className="mt-4 max-w-2xl text-lg text-white/70">Beyond the classroom, our students build character through sports, clubs, community service, and practical skills — living the motto every day.</p></div></section>
+    <section className="border-b border-border bg-cream"><div className="mx-auto flex max-w-6xl gap-6 overflow-x-auto px-6 py-4 text-sm font-medium text-muted-foreground">{[{l:"Activities",h:"#activities"},{l:"Sports",h:"#sports"},{l:"Motto in Action",h:"#motto"}].map((a)=><a key={a.h} href={a.h} className="shrink-0 transition-colors hover:text-primary">{a.l}</a>)}</div></section>
+    <section id="activities" className="py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Beyond the Classroom</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">Where character is built</h2><p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Students at Wairaka are encouraged to explore their interests, develop leadership, and serve their community through a broad range of co-curricular activities.</p></div><div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">{FEATURES.map((f)=><div key={f.n} className="rounded-2xl border border-border p-6 transition-shadow hover:shadow-md"><h3 className="font-display text-xl font-semibold text-foreground">{f.n}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.d}</p>{f.c&&<p className="mt-3 text-xs font-semibold italic text-primary">“{f.c}”</p>}</div>)}</div></div></section>
+    <section id="sports" className="bg-secondary py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Sports &amp; Athletics</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">When we take part, we win</h2><p className="mx-auto mt-4 max-w-xl text-muted-foreground">Our sports programmes run across all three terms, offering students the chance to compete at school, district, and regional level.</p></div><div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{SPORTS.map((sp)=><div key={sp.s} className="rounded-2xl bg-card border border-border p-5"><h3 className="font-display text-lg font-semibold text-foreground">{sp.s}</h3><p className="mt-1 text-xs text-muted-foreground">{sp.t}</p><p className="text-xs text-muted-foreground">{sp.l}</p></div>)}</div></div></section>
+    <section id="motto" className="py-20"><div className="mx-auto max-w-4xl px-6 text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">The Motto in Action</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">“We Do It Ourselves”</h2><p className="mx-auto mt-6 max-w-2xl leading-relaxed text-muted-foreground">Our motto is not decoration — it is an instruction. Students plant trees, build irrigation systems, renovate laboratories, and run the school farm. Every project is theirs. Every result is earned.</p><div className="mt-10 grid gap-6 md:grid-cols-3"><div className="rounded-2xl bg-foreground p-6"><p className="font-display text-3xl font-semibold text-primary">4,000</p><p className="mt-1 text-sm text-white/60">tree seedlings planted in one Saturday</p></div><div className="rounded-2xl bg-foreground p-6"><p className="font-display text-3xl font-semibold text-primary">2nd</p><p className="mt-1 text-sm text-white/60">place at the National Science Fair</p></div><div className="rounded-2xl bg-foreground p-6"><p className="font-display text-3xl font-semibold text-primary">Busoga</p><p className="mt-1 text-sm text-white/60">Football Champions</p></div></div></div></section>
+    <section className="bg-primary py-16"><div className="mx-auto max-w-3xl px-6 text-center"><h2 className="font-display text-3xl font-semibold text-primary-foreground md:text-4xl">Experience it for yourself</h2><p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">Visit M.M College Wairaka and see our community in action.</p><div className="mt-8 flex flex-wrap justify-center gap-4"><a href="/admissions" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90">Apply Now</a><a href="/about" className="rounded-full border border-white/40 px-7 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10">Learn About Us</a></div></div></section>
+  </main>);
 }
