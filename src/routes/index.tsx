@@ -50,12 +50,6 @@ function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100);
-    return () => clearTimeout(t);
-  }, []);
 
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
@@ -71,25 +65,14 @@ function HeroSection() {
     setMuted(v.muted);
   }, []);
 
-  const NAV_CARDS = [
-    { label: "About", to: "/about" },
-    { label: "Admissions", to: "/admissions" },
-    { label: "Academics", to: "/academics" },
-  ];
-
   return (
-    <section className="relative">
-      {/* Desktop hero — framed video with pillar background */}
-      <div className="relative hidden lg:flex min-h-[85vh] flex-col items-center justify-center px-6 py-24">
-        {/* Pillar image fills background */}
-        <img src={HERO_PILLAR} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-foreground/30" />
-
-        {/* Framed video container */}
-        <div
-          className={"relative z-10 flex flex-col items-center transition-all duration-700 ease-out " + (visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-6 scale-95")}
-        >
-          <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/20 shadow-2xl" style={{ aspectRatio: "9/16", maxHeight: "65vh" }}>
+    <section className="relative bg-[#FBF6E5]">
+      {/* Desktop hero */}
+      <div className="relative hidden lg:block mx-3 my-3">
+        {/* Outer container for video + event card layout */}
+        <div className="relative h-[calc(100vh-0.75rem*2)]">
+          {/* Video container with scalloped right edge */}
+          <div className="relative h-full overflow-hidden rounded-l-[30px] rounded-r-[60px]">
             <video
               ref={videoRef}
               src={HERO_VIDEO}
@@ -99,45 +82,58 @@ function HeroSection() {
               loop
               playsInline
               preload="metadata"
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover object-center"
             />
-          </div>
-
-          {/* Tagline */}
-          <h1 className="mt-8 max-w-2xl text-center font-display text-4xl font-medium leading-[1.15] text-white drop-shadow-lg">
-            {SCHOOL_TAGLINE}
-          </h1>
-
-          {/* Controls */}
-          <div className="mt-6 flex items-center gap-4">
-            <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
+            {/* SVG scallop mask on right edge */}
+            <svg className="absolute -right-1 top-0 h-full w-16 z-10 fill-[#FBF6E5]" viewBox="0 0 64 100" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0,0 L64,0 L64,100 L0,100 C20,100 20,80 0,80 C-20,80 -20,60 0,60 C20,60 20,40 0,40 C-20,40 -20,20 0,20 C20,20 20,0 0,0 Z" />
+            </svg>
+            {/* Pause button - bottom left */}
+            <button
+              type="button"
+              aria-label={paused ? "Play video" : "Pause video"}
+              onClick={togglePlay}
+              className="absolute bottom-6 left-6 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white shadow-lg transition-transform hover:scale-110"
+            >
               {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
             </button>
-            <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
-              {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-            </button>
           </div>
 
-          {/* Navigation cards */}
-          <div className="mt-10 flex gap-4">
-            {NAV_CARDS.map((card) => (
-              <Link
-                key={card.to}
-                to={card.to}
-                className="rounded-2xl bg-white/10 px-8 py-4 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/20 transition-all hover:bg-white/20 hover:ring-white/40 hover:scale-105"
+          {/* Scroll down arrow - right edge notch */}
+          <div className="absolute right-0 top-1/2 z-30 -translate-y-1/2 translate-x-1/2">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FBF6E5] shadow-lg">
+              <button
+                type="button"
+                aria-label="Scroll down"
+                onClick={() => window.scrollBy({ top: window.innerHeight, behavior: "smooth" })}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white transition-transform hover:scale-110"
               >
-                {card.label}
-              </Link>
-            ))}
+                <svg fill="none" viewBox="0 0 24 24" className="h-5 w-5" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Event card - floating, overlaps bottom-left corner with inner radius */}
+          <div className="absolute -bottom-8 left-0 z-30 w-[22rem] overflow-hidden rounded-tl-[30px] rounded-tr-[30px] rounded-br-[30px] bg-[#97C600] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)] border-2 border-[#FBF6E5] border-b-0 border-l-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#002B47]/60">Event</p>
+            <h2 className="mt-3 font-display text-xl font-semibold leading-snug text-[#002B47]">
+              Discipline, hard work and self-reliance since 1965
+            </h2>
+            <Link
+              to="/about"
+              className="mt-5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#002B47] text-white transition-transform hover:scale-110"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Mobile hero — portrait video fills naturally */}
-      <div className="relative lg:hidden">
-        <div className="relative h-[85vh] overflow-hidden">
+      {/* Mobile hero */}
+      <div className="relative lg:hidden mx-3 my-3">
+        <div className="relative h-[calc(100vh-0.75rem*2)] overflow-hidden rounded-[30px]">
           <video src={HERO_VIDEO} poster={HERO_POSTER} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
           <div className="absolute inset-x-0 bottom-28 text-center">
             <h1 className="mx-auto max-w-sm font-display text-3xl font-semibold leading-tight text-white drop-shadow-lg">{SCHOOL_TAGLINE}</h1>
             <div className="mt-6 flex items-center justify-center gap-4">
@@ -149,16 +145,15 @@ function HeroSection() {
               </button>
             </div>
           </div>
-          <Link to="/admissions" className="absolute bottom-6 left-4 right-4 flex items-end justify-between rounded-3xl bg-gold p-5 text-gold-foreground">
+          <Link to="/admissions" className="absolute bottom-6 left-4 right-4 flex items-end justify-between rounded-3xl bg-[#97C600] p-5 text-[#002B47]">
             <span><span className="text-xs font-semibold uppercase tracking-[0.2em]">Admissions open</span><span className="mt-1 block text-lg font-semibold leading-snug">Apply for the Class of 2031</span></span>
-            <span className="rounded-full bg-primary p-3 text-primary-foreground"><ArrowRight className="h-5 w-5" /></span>
+            <span className="rounded-full bg-[#002B47] p-3 text-white"><ArrowRight className="h-5 w-5" /></span>
           </Link>
         </div>
       </div>
     </section>
   );
 }
-
 function StatsSection() {
   return (
     <section className="border-y border-border bg-cream">
