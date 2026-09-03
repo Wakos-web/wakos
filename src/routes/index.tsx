@@ -56,8 +56,12 @@ function HeroSection() {
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPaused(false); }
-    else { v.pause(); setPaused(true); }
+    if (v.paused) {
+      v.play().then(() => setPaused(false)).catch(() => setPaused(true));
+    } else {
+      v.pause();
+      setPaused(true);
+    }
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -71,7 +75,7 @@ function HeroSection() {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    v.play().catch(() => { setPaused(true); });
+    v.play().then(() => setPaused(false)).catch(() => setPaused(true));
     const onCanPlay = () => setLoaded(true);
     v.addEventListener("canplay", onCanPlay, { once: true });
     return () => v.removeEventListener("canplay", onCanPlay);
