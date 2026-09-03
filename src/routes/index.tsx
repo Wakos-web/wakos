@@ -12,7 +12,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ARTICLES, HERO_POSTER, HERO_PILLAR, HERO_VIDEO, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
 
 export const Route = createFileRoute("/")({
@@ -50,6 +50,12 @@ function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 100);
+    return () => clearTimeout(t);
+  }, []);
 
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
@@ -65,26 +71,64 @@ function HeroSection() {
     setMuted(v.muted);
   }, []);
 
+  const NAV_CARDS = [
+    { label: "About", to: "/about" },
+    { label: "Admissions", to: "/admissions" },
+    { label: "Academics", to: "/academics" },
+  ];
+
   return (
     <section className="relative">
-      {/* Desktop hero — portrait video centered with pillar images on sides */}
-      <div className="relative hidden lg:block h-[85vh] overflow-hidden">
+      {/* Desktop hero — framed video with pillar background */}
+      <div className="relative hidden lg:flex min-h-[85vh] flex-col items-center justify-center px-6 py-24">
+        {/* Pillar image fills background */}
         <img src={HERO_PILLAR} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative h-full max-w-[min(56.25vh,100vw)] overflow-hidden">
-            <video ref={videoRef} src={HERO_VIDEO} poster={HERO_POSTER} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-foreground/30" />
+
+        {/* Framed video container */}
+        <div
+          className={"relative z-10 flex flex-col items-center transition-all duration-700 ease-out " + (visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-6 scale-95")}
+        >
+          <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/20 shadow-2xl" style={{ aspectRatio: "9/16", maxHeight: "65vh" }}>
+            <video
+              ref={videoRef}
+              src={HERO_VIDEO}
+              poster={HERO_POSTER}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="h-full w-full object-cover"
+            />
           </div>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent pointer-events-none" />
-        <div className="absolute inset-x-0 bottom-24 text-center pointer-events-auto">
-          <h1 className="mx-auto max-w-4xl font-display text-6xl font-medium leading-[1.1] text-white drop-shadow-lg">{SCHOOL_TAGLINE}</h1>
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+
+          {/* Tagline */}
+          <h1 className="mt-8 max-w-2xl text-center font-display text-4xl font-medium leading-[1.15] text-white drop-shadow-lg">
+            {SCHOOL_TAGLINE}
+          </h1>
+
+          {/* Controls */}
+          <div className="mt-6 flex items-center gap-4">
+            <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
               {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
             </button>
-            <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+            <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
               {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </button>
+          </div>
+
+          {/* Navigation cards */}
+          <div className="mt-10 flex gap-4">
+            {NAV_CARDS.map((card) => (
+              <Link
+                key={card.to}
+                to={card.to}
+                className="rounded-2xl bg-white/10 px-8 py-4 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/20 transition-all hover:bg-white/20 hover:ring-white/40 hover:scale-105"
+              >
+                {card.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
@@ -97,10 +141,10 @@ function HeroSection() {
           <div className="absolute inset-x-0 bottom-28 text-center">
             <h1 className="mx-auto max-w-sm font-display text-3xl font-semibold leading-tight text-white drop-shadow-lg">{SCHOOL_TAGLINE}</h1>
             <div className="mt-6 flex items-center justify-center gap-4">
-              <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+              <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
                 {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
               </button>
-              <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+              <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
                 {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
               </button>
             </div>
