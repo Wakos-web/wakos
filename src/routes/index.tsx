@@ -13,7 +13,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ARTICLES, HERO_POSTER, HERO_PILLAR, HERO_VIDEO, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
+import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
 
 export const Route = createFileRoute("/")({
   head: () => ({
