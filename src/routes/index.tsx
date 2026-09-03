@@ -114,7 +114,7 @@ function HeroSection() {
           </div>
 
           {/* Event card - floating, overlaps bottom-left corner with inner radius */}
-          <div className="absolute -bottom-8 left-0 z-30 w-[22rem] overflow-hidden rounded-tl-[30px] rounded-tr-[30px] rounded-br-[30px] bg-[#97C600] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)] border-2 border-[#FBF6E5] border-b-0 border-l-0">
+          <div className="absolute -bottom-8 left-4 z-30 w-[22rem] overflow-hidden rounded-[30px] bg-[#97C600] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#002B47]/60">Event</p>
             <h2 className="mt-3 font-display text-xl font-semibold leading-snug text-[#002B47]">
               Discipline, hard work and self-reliance since 1965
