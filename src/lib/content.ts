@@ -15,6 +15,8 @@ export const SCHOOL_MOTTO = "We Do It Ourselves";
 export const SCHOOL_TAGLINE =
   "Discipline, hard work and self-reliance since 1965";
 export const LOGO_URL = "/wacos-logo.png";
+export const HERO_VIDEO = "/hero-video.mp4";
+export const HERO_POSTER = "/hero-poster.png";
 
 export const IMAGES = {
   hero: heroImg,
