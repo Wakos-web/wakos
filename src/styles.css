@@ -57,27 +57,27 @@
 
 :root {
   /* WACOS Brand Green Palette */
-  --brand-50: #f0fdf4;
-  --brand-100: #dcfce7;
-  --brand-200: #bbf7d0;
-  --brand-300: #86efac;
-  --brand-400: #4ade80;
-  --brand-500: #22c55e;
-  --brand-600: #16a34a;
-  --brand-700: #15803d;
-  --brand-800: #166534;
-  --brand-900: #14532d;
-  --brand-950: #052e16;
+  --brand-50: #e8f5e9;
+  --brand-100: #c8e6c9;
+  --brand-200: #a5d6a7;
+  --brand-300: #81c784;
+  --brand-400: #66bb6a;
+  --brand-500: #008A00;
+  --brand-600: #007A00;
+  --brand-700: #004D00;
+  --brand-800: #153816;
+  --brand-900: #0d2d0e;
+  --brand-950: #071a08;
 
   --radius: 0.625rem;
-  --background: #faf9f6;
+  --background: #FBF6E5;
   --foreground: #1c1917;
-  --card: #ffffff;
+  --card: #F3ECD3;
   --card-foreground: #1c1917;
   --popover: oklch(0.99 0.004 95);
   --popover-foreground: oklch(0.22 0.02 30);
-  --primary: var(--brand-800);
-  --primary-foreground: #ffffff;
+  --primary: #004D00;
+  --primary-foreground: #FBF6E5;
   --secondary: oklch(0.93 0.015 90);
   --secondary-foreground: oklch(0.32 0.05 25);
   --muted: oklch(0.94 0.012 92);
@@ -88,10 +88,10 @@
   --destructive-foreground: oklch(0.97 0.008 95);
   --border: #e7e5e4;
   --input: #e7e5e4;
-  --ring: var(--brand-600);
-  --gold: #d4a843;
-  --gold-foreground: #1a1a1a;
-  --cream: #faf8f0;
+  --ring: #008A00;
+  --gold: #97C600;
+  --gold-foreground: #153816;
+  --cream: #FBF6E5;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
