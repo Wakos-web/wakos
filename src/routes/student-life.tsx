@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { IMAGES } from "@/lib/content";
+import { IMAGES, SCHOOL_NAME, SCHOOL_MOTTO } from "@/lib/content";
 
 export const Route = createFileRoute("/student-life")({
   head: () => ({
@@ -9,98 +9,23 @@ export const Route = createFileRoute("/student-life")({
   component: StudentLifePage,
 });
 
-const AREAS = [
-  { title: "Residential Life", subtitle: "Living & Learning Together", desc: "Boarding students live, study, and grow together in supervised dormitories. House parents mentor and support students through their secondary school years, creating a second family away from home.", img: IMAGES.studentLife, align: "left" as const },
-  { title: "Clubs & Societies", subtitle: "Lead, Organise, Do", desc: "Student-run organisations including the Science Club, Girl Guides, Agriculture Club, and Debating Society. Students lead, organise, and learn by doing — the motto in action.", img: IMAGES.campus, align: "right" as const },
-  { title: "Community Service", subtitle: "We Do It Ourselves", desc: "Students partner with neighbouring households on reforestation, public health, and agricultural projects. Last year students planted 4,000 tree seedlings in a single Saturday.", img: IMAGES.giving, align: "left" as const },
-  { title: "Arts & Culture", subtitle: "Express & Create", desc: "Cultural performances, music, drama, and creative expression. Students showcase talent at school events and inter-school competitions throughout the year.", img: IMAGES.studentLife, align: "right" as const },
-  { title: "Wellness & Mentoring", subtitle: "Body, Mind & Character", desc: "Career guidance seminars, medical bootcamps, and peer mentoring help students develop holistically. Every student is known, supported, and challenged.", img: IMAGES.academics, align: "left" as const },
-];
-
 const QUICK_NAV = [
-  { label: "Residential Life", href: "#residential" },
-  { label: "Clubs", href: "#clubs" },
-  { label: "Service", href: "#service" },
-  { label: "Arts", href: "#arts" },
-  { label: "Wellness", href: "#wellness" },
+  { title: "Residential Life", icon: "home", href: "#residential" },
+  { title: "Clubs & Societies", icon: "users", href: "#clubs" },
+  { title: "Sports", icon: "trophy", href: "#sports" },
+  { title: "Community Service", icon: "heart", href: "#service" },
+  { title: "Arts & Culture", icon: "palette", href: "#arts" },
+  { title: "Wellness", icon: "sparkles", href: "#wellness" },
 ];
-
-function HeroSection() {
-  return (
-    <section className="relative h-[60vh] min-h-[420px] flex items-end overflow-hidden">
-      <div className="absolute inset-0">
-        <img src={IMAGES.studentLife} alt="Students at M.M College Wairaka" className="h-full w-full object-cover object-center" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-      </div>
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
-        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Student Life</h1>
-        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Life beyond the classroom is where character is built. At M.M College Wairaka, every student is encouraged to participate, lead, and grow.</p>
-      </div>
-    </section>
-  );
-}
-
-function QuickNav() {
-  return (
-    <nav className="sticky top-0 z-20 bg-white border-b border-stone-200">
-      <div className="max-w-6xl mx-auto px-6 flex gap-6 overflow-x-auto py-3 scrollbar-hide">
-        {QUICK_NAV.map((item) => (
-          <a key={item.href} href={item.href} className="whitespace-nowrap text-sm font-medium text-stone-600 hover:text-green-800 transition-colors uppercase tracking-wider">
-            {item.label}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-function FeatureCard({ area, index }: { area: typeof AREAS[number]; index: number }) {
-  const isRight = area.align === "right";
-  const ids = ["residential", "clubs", "service", "arts", "wellness"];
-  return (
-    <section id={ids[index]} className="scroll-mt-16">
-      <div className={`flex flex-col ${isRight ? "md:flex-row-reverse" : "md:flex-row"} min-h-[500px]`}>
-        <div className="md:w-1/2 relative overflow-hidden">
-          <img src={area.img} alt={area.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-        </div>
-        <div className="md:w-1/2 flex items-center bg-stone-50">
-          <div className="p-8 md:p-12 lg:p-16 max-w-lg">
-            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">{area.subtitle}</p>
-            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-4">{area.title}</h2>
-            <p className="text-stone-600 text-lg leading-relaxed font-body">{area.desc}</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function CTASection() {
-  return (
-    <section className="bg-green-900 py-20">
-      <div className="max-w-4xl mx-auto px-6 text-center">
-        <h2 className="font-display text-4xl md:text-5xl text-white font-bold mb-4">Experience it for yourself</h2>
-        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Come see what a day in the life of a WACOS student looks like. We welcome prospective students and families to visit our campus in Wairaka.</p>
-        <a href="/admissions" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">
-          Apply Now
-          <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-        </a>
-      </div>
-    </section>
-  );
-}
-
-function StudentLifePage() {
-  return (
-    <div>
-      <HeroSection />
-      <QuickNav />
-      <main>
-        {AREAS.map((area, i) => (
-          <FeatureCard key={area.title} area={area} index={i} />
-        ))}
-      </main>
-      <CTASection />
-    </div>
-  );
-}
+function HeroSection() {  return (    <section className="relative h-[60vh] min-h-[420px] flex items-end overflow-hidden">      <div className="absolute inset-0">        <img src={IMAGES.studentLife} alt="Students at M.M College Wairaka" className="h-full w-full object-cover object-center" />        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />      </div>      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Student Life</h1>        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">The Heart of Our School</p>      </div>    </section>  );}
+function PhilosophySection() {  return (    <section className="py-16 bg-white">      <div className="max-w-4xl mx-auto px-6 text-center">        <p className="text-stone-600 text-lg leading-relaxed font-body mb-6">At {SCHOOL_NAME}, student life is grounded in our core values: Discipline, Hard work, and Self-reliance. Our motto — "{SCHOOL_MOTTO}" — is not decoration. It is an instruction. Through house-parent mentoring, clubs, sports, community service, and practical skills programmes, students are encouraged to embrace responsibility, explore their potential, and build character that lasts well beyond graduation.</p>        <p className="text-stone-600 text-lg leading-relaxed font-body">We believe that education is not confined to the classroom. Every interaction, every game, every outreach drive, and every dormitory conversation is an opportunity to learn, to grow, and to serve.</p>      </div>    </section>  );}
+function QuickNavCards() {  return (    <section className="py-12 bg-stone-50 border-y border-stone-200">      <div className="max-w-6xl mx-auto px-6">        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">          {QUICK_NAV.map((item) => (            <a key={item.href} href={item.href} className="group flex flex-col items-center gap-3 rounded-2xl bg-white p-5 border border-stone-200 hover:border-green-800 hover:shadow-md transition-all text-center">              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-800 group-hover:bg-green-800 group-hover:text-white transition-colors">                <span className="text-sm font-bold">{item.title.charAt(0)}</span>              </div>              <p className="text-sm font-semibold text-stone-800 group-hover:text-green-800 transition-colors">{item.title}</p>            </a>          ))}        </div>      </div>    </section>  );}
+function ResidentialLife() {  return (    <section id="residential" className="py-20 scroll-mt-16">      <div className="max-w-6xl mx-auto px-6">        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">          <div className="relative overflow-hidden rounded-2xl aspect-[4/5]">            <img src={IMAGES.studentLife} alt="Boarding life at WACOS" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />            <div className="absolute bottom-0 left-0 p-6">              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Boarding</p>              <p className="mt-1 font-display text-lg font-semibold text-white">A second family away from home</p>            </div>          </div>          <div>            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Residential Life</p>            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-6">Living and Learning Together</h2>            <p className="text-stone-600 text-lg leading-relaxed font-body mb-4">Boarding students at {SCHOOL_NAME} live, study, and grow together in supervised dormitories. House parents who mentor and support students through their secondary school years create a second family environment — one built on structure, accountability, and genuine care.</p>            <p className="text-stone-600 text-lg leading-relaxed font-body mb-4">Throughout the year, conversations in the dorm — both formal and informal — provide moments for students to reflect on core values, health and wellness, and their relationships with peers. Faculty residents guide students through discussions and activities at moments in the year when the content is most relevant.</p>            <p className="text-stone-600 text-lg leading-relaxed font-body">More than anything, our residential community provides a healthy environment for students to explore who they are and who they hope to become. With support from adults, students build relationships and flourish.</p>          </div>        </div>      </div>    </section>  );}
+const CLUBS = [  { name: "Science Club", desc: "Students design, build, and test prototypes. The club earned second place at the National Schools Science Fair with a solar-powered irrigation controller built entirely in the college workshop." },  { name: "Agriculture Club", desc: "Running the school nursery and farm, students grow seedlings from seed, manage crops, and learn practical agricultural skills that connect directly to the school’s founding identity as a farm school." },  { name: "Girl Guides", desc: "Building leadership, service, and resilience through structured programmes and community engagement." },  { name: "Debating Society", desc: "Students sharpen critical thinking and public speaking through inter-school competitions and weekly practice sessions." },];
+function ClubsSection() {  return (    <section id="clubs" className="py-20 bg-stone-50 scroll-mt-16">      <div className="max-w-6xl mx-auto px-6">        <div className="text-center mb-12">          <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Clubs & Societies</p>          <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Lead, Organise, Do</h2>          <p className="mt-4 text-stone-600 text-lg font-body max-w-3xl mx-auto">Student-run organisations are where the motto comes alive. Students lead, organise, and learn by doing — not by watching. Every club is an opportunity to take responsibility and discover what you are capable of.</p>        </div>        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">          {CLUBS.map((club) => (            <div key={club.name} className="rounded-2xl bg-white p-8 border border-stone-200">              <h3 className="font-display text-xl font-bold text-stone-900 mb-3">{club.name}</h3>              <p className="text-stone-600 leading-relaxed font-body">{club.desc}</p>            </div>          ))}        </div>      </div>    </section>  );}
+function SportsSection() {  return (    <section id="sports" className="py-20 scroll-mt-16">      <div className="max-w-6xl mx-auto px-6">        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">          <div>            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Sports & Athletics</p>            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-6">When we take part, we win</h2>            <p className="text-stone-600 text-lg leading-relaxed font-body mb-4">Eight sports across three terms. Football, athletics, netball, volleyball, basketball, cricket, swimming, and rugby. Students compete at school, district, and regional level.</p>            <p className="text-stone-600 text-lg leading-relaxed font-body mb-6">Sport at WACOS is not a distraction from academics — it is an extension of the school motto. We compete with discipline, we train with hard work, and we rely on ourselves and each other.</p>            <div className="grid grid-cols-3 gap-4">              <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 text-center">                <p className="font-display text-2xl font-bold text-green-800">8</p>                <p className="text-xs text-stone-500">Sports</p>              </div>              <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 text-center">                <p className="font-display text-2xl font-bold text-green-800">3</p>                <p className="text-xs text-stone-500">Terms</p>              </div>              <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 text-center">                <p className="font-display text-2xl font-bold text-green-800">1st</p>                <p className="text-xs text-stone-500">Busoga Champions</p>              </div>            </div>          </div>          <div className="relative overflow-hidden rounded-2xl aspect-[4/5]">            <img src={IMAGES.athletics} alt="WACOS sports" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />            <div className="absolute bottom-0 left-0 p-6">              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Athletics</p>              <p className="mt-1 font-display text-lg font-semibold text-white">Busoga Schools Champions</p>            </div>          </div>        </div>      </div>    </section>  );}
+function ServiceSection() {  return (    <section id="service" className="py-20 bg-stone-50 scroll-mt-16">      <div className="max-w-6xl mx-auto px-6">        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">          <div className="relative overflow-hidden rounded-2xl aspect-[4/5]">            <img src={IMAGES.giving} alt="Community service at WACOS" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />            <div className="absolute bottom-0 left-0 p-6">              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Outreach</p>              <p className="mt-1 font-display text-lg font-semibold text-white">4,000 seedlings in a single Saturday</p>            </div>          </div>          <div>            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Community Service</p>            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-6">The Motto in Action</h2>            <p className="text-stone-600 text-lg leading-relaxed font-body mb-4">Students partner with neighbouring households on reforestation, public health, and agricultural projects. Last year students planted 4,000 tree seedlings in a single Saturday — the seedlings raised entirely by the Agriculture Club in the school nursery.</p>            <p className="text-stone-600 text-lg leading-relaxed font-body mb-4">The nursery is run entirely by students, who grow seedlings from seed collected during the holidays. Every seedling is theirs. Every hour of labour is theirs. The shade will be the community’s.</p>            <p className="text-stone-600 text-lg leading-relaxed font-body">The motto is not decoration. We do it ourselves means the seedlings are ours, the labour is ours, and the result belongs to everyone.</p>          </div>        </div>      </div>    </section>  );}
+function ArtsSection() {  return (    <section id="arts" className="py-20 scroll-mt-16">      <div className="max-w-6xl mx-auto px-6">        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">          <div>            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Arts & Culture</p>            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-6">Express and Create</h2>            <p className="text-stone-600 text-lg leading-relaxed font-body mb-4">Cultural performances, music, drama, and creative expression are part of life at WACOS. Students showcase talent at school events and inter-school competitions throughout the year.</p>            <p className="text-stone-600 text-lg leading-relaxed font-body">From cultural dance to drama productions, students find platforms to express who they are and where they come from. The arts programme connects students to Busoga heritage while building confidence and creativity.</p>          </div>          <div className="relative overflow-hidden rounded-2xl aspect-[4/5]">            <img src={IMAGES.campus} alt="Arts and culture at WACOS" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />            <div className="absolute bottom-0 left-0 p-6">              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Culture</p>              <p className="mt-1 font-display text-lg font-semibold text-white">Express, create, perform</p>            </div>          </div>        </div>      </div>    </section>  );}
+function WellnessSection() {  return (    <section id="wellness" className="py-20 bg-stone-50 scroll-mt-16">      <div className="max-w-6xl mx-auto px-6">        <div className="text-center mb-12">          <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Wellness & Mentoring</p>          <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Body, Mind and Character</h2>        </div>        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">          <div className="rounded-2xl bg-white p-8 border border-stone-200">            <h3 className="font-display text-xl font-bold text-stone-900 mb-3">Career Guidance</h3>            <p className="text-stone-600 leading-relaxed font-body">Seminars and one-on-one sessions help students understand their options after O-Level and A-Level. From university pathways to vocational training, students leave with a plan.</p>          </div>          <div className="rounded-2xl bg-white p-8 border border-stone-200">            <h3 className="font-display text-xl font-bold text-stone-900 mb-3">Medical Bootcamps</h3>            <p className="text-stone-600 leading-relaxed font-body">Health education and medical outreach ensure students understand their bodies, their rights, and how to stay well — in school and beyond.</p>          </div>          <div className="rounded-2xl bg-white p-8 border border-stone-200">            <h3 className="font-display text-xl font-bold text-stone-900 mb-3">Peer Mentoring</h3>            <p className="text-stone-600 leading-relaxed font-body">Senior students guide juniors through the transition to secondary school. Every student is known, supported, and challenged to grow.</p>          </div>        </div>      </div>    </section>  );}
+function CTASection() {  return (    <section className="bg-green-900 py-20">      <div className="max-w-4xl mx-auto px-6 text-center">        <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Experience it for yourself</h2>        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Come see what a day in the life of a WACOS student looks like. We welcome prospective students and families to visit our campus in Wairaka.</p>        <div className="flex flex-wrap justify-center gap-4">          <a href="/admissions" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">Apply Now</a>          <a href="/contact" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Visit Us</a>        </div>      </div>    </section>  );}
+function StudentLifePage() {  return (    <div>      <HeroSection />      <PhilosophySection />      <QuickNavCards />      <main>        <ResidentialLife />        <ClubsSection />        <SportsSection />        <ServiceSection />        <ArtsSection />        <WellnessSection />      </main>      <CTASection />    </div>  );}
