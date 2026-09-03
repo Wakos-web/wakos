@@ -9,6 +9,9 @@ const CLUBS = [
   { slug: 'debate', name: 'Debate Club', tagline: 'Think. Argue. Persuade.', img: IMAGES.academics },
   { slug: 'writers', name: 'Writers Club', tagline: 'Write. Read. Share.', img: IMAGES.studentLife },
   { slug: 'red-cross', name: 'Red Cross Club', tagline: 'Care. Respond. Serve.', img: IMAGES.giving },
+  { slug: "entertainment", name: "Entertainment Club", tagline: "Perform. Inspire. Entertain.", img: IMAGES.studentLife },
+  { slug: "home-science", name: "Home Science Club", tagline: "Cook. Create. Care.", img: IMAGES.campus },
+  { slug: "current-affairs", name: "Current Affairs Club", tagline: "Read. Discuss. Understand.", img: IMAGES.academics }
 ];
 export const Route = createFileRoute('/clubs')({
   head: () => ({
