@@ -38,3 +38,8 @@ mm college/
 *.sw?
 
 .vercel
+
+_*.b64
+_gen.js
+_build.js
+_write-header.js
