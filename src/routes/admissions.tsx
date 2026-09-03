@@ -12,12 +12,12 @@ export const Route = createFileRoute("/admissions")({
 const STEPS = [
   { num: "01", title: "Inquire", desc: "Fill out the inquiry form below or visit the college. Our admissions team will guide you through the process and answer your questions." },
   { num: "02", title: "Apply", desc: "Submit your application with a recommendation or pass slip from your previous school, two plastic folders, and the admission letter from the college." },
-  { num: "03", title: "Entrance", desc: "Sit the entrance examination at the college. The exam covers core subjects and is designed to identify students with the aptitude to thrive." },
-  { num: "04", title: "Enrol", desc: "Successful candidates receive their admission letter and join the college. Admission opens every term." },
+  { num: "03", title: "Review", desc: "The college reviews your application and school report. Admission is based on merit and available places. Contact the college to check your status." },
+  { num: "04", title: "Enrol", desc: "Successful applicants receive their admission letter and join the college. Bring your uniform: black trousers and white shirt for boys, caribbean black skirt and white shirt for girls." },
 ];
 
 const SCHOLARSHIPS = [
-  { title: "Academic Scholarship", desc: "For students who demonstrate exceptional academic potential. Awarded based on entrance examination performance and previous school results. Covers tuition and boarding fees.", criteria: ["Top entrance exam scores", "Strong previous school report", "Demonstrated academic curiosity"] },
+  { title: "Academic Scholarship", desc: "For students who demonstrate exceptional academic potential. Awarded based on previous school results and interview. Covers tuition and boarding fees.", criteria: ["Strong previous school report", "Demonstrated academic curiosity", "Good conduct and character"] },
   { title: "Sports Scholarship", desc: "For talented athletes who show promise in football, athletics, netball, or other sports. The school has a proven track record of developing athletes like Joshua Cheptegei.", criteria: ["Demonstrated athletic talent", "Coach recommendation", "Commitment to training"] },
   { title: "Need-Based Bursary", desc: "For bright students from families who cannot afford school fees. The college and alumni fund bursaries to ensure no student is turned away for financial reasons.", criteria: ["Financial need demonstrated", "Good academic performance", "Character and determination"] },
 ];
