@@ -17,17 +17,17 @@ import { ARTICLES, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aldermont Hall School — Tuition-Free, Merit-Based Education" },
+      { title: "M.M College Wairaka — Discipline, Hard Work and Self-Reliance" },
       {
         name: "description",
         content:
-          "Aldermont Hall is a tuition-free, merit-based college preparatory school. Every student attends on a full scholarship. Est. 1916.",
+          "M.M College Wairaka — Discipline, hard work and self-reliance since 1965.",
       },
-      { property: "og:title", content: "Aldermont Hall School" },
+      { property: "og:title", content: "M.M College Wairaka" },
       {
         property: "og:description",
         content:
-          "Tuition-free, merit-based college preparatory education since 1916.",
+          "Discipline, hard work and self-reliance since 1965.",
       },
       { property: "og:url", content: "/" },
     ],
@@ -55,7 +55,7 @@ function HeroSection() {
       <div className="relative hidden lg:block">
         <img
           src={IMAGES.hero}
-          alt="Aldermont Hall students walking through the trophy hallway"
+          alt="M.M College Wairaka students"
           width={1920}
           height={1080}
           className={`h-[85vh] w-full object-cover transition-transform duration-[8000ms] ease-linear ${
@@ -83,7 +83,7 @@ function HeroSection() {
         <div ref={ref} className="relative overflow-hidden rounded-[2rem]">
           <img
             src={IMAGES.hero}
-            alt="Aldermont Hall students walking through the trophy hallway"
+            alt="M.M College Wairaka students"
             width={1920}
             height={1080}
             className="h-[26rem] w-full object-cover"
@@ -205,7 +205,7 @@ function MissionSection() {
         <div className="overflow-hidden rounded-[2rem]">
           <img
             src={IMAGES.campus}
-            alt="The historic Aldermont Hall building"
+            alt="M.M College Wairaka campus"
             width={1600}
             height={900}
             loading="lazy"
@@ -220,11 +220,10 @@ function MissionSection() {
             An education money cannot buy, earned by merit alone
           </h2>
           <p className="mt-6 leading-relaxed text-muted-foreground">
-            Founded in 1916 on a single conviction — that brilliance is evenly
-            distributed but opportunity is not — Aldermont Hall charges no
-            tuition and never has. Every seat is earned through a rigorous,
-            citywide merit examination, and every graduate leaves owing nothing
-            but service to others.
+            Founded in 1965 on a single conviction — that discipline, hard work,
+            and self-reliance are the foundations of greatness — M.M College Wairaka
+            has grown to serve over 1,800 students from 58 districts across Uganda,
+            with a reputation for academic excellence and practical skills development.
           </p>
           <Link
             to="/about"
@@ -243,7 +242,7 @@ function GivingCta() {
     <section className="relative overflow-hidden">
       <img
         src={IMAGES.giving}
-        alt="Alumni gathered in the Aldermont great hall"
+        alt="Alumni gathered at M.M College Wairaka"
         width={1200}
         height={800}
         loading="lazy"
@@ -255,14 +254,14 @@ function GivingCta() {
           Every seat is a scholarship. Every scholarship is a gift.
         </h2>
         <p className="mx-auto mt-6 max-w-xl leading-relaxed text-primary-foreground/80">
-          Aldermont is sustained entirely by alumni and friends who believe the
+          M.M College Wairaka is sustained entirely by alumni and friends who believe the
           next generation deserves the same chance they were given.
         </p>
         <Link
           to="/giving"
           className="mt-8 inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3.5 text-sm font-semibold text-gold-foreground transition-transform hover:scale-105"
         >
-          Support Aldermont <ArrowRight className="h-4 w-4" />
+          Support WACOS <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
     </section>

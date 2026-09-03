@@ -5,13 +5,13 @@ import { IMAGES } from "@/lib/content";
 export const Route = createFileRoute("/student-life")({
   head: () => ({
     meta: [
-      { title: "Student Life — Aldermont Hall School" },
+      { title: "Student Life — M.M College Wairaka" },
       {
         name: "description",
         content:
-          "Clubs, service, retreats, and traditions: what life looks like between classes at Aldermont Hall.",
+          "Clubs, service, outreach, and traditions: what life looks like between classes at M.M College Wairaka.",
       },
-      { property: "og:title", content: "Student Life — Aldermont Hall School" },
+      { property: "og:title", content: "Student Life — M.M College Wairaka" },
       {
         property: "og:description",
         content:
@@ -50,7 +50,7 @@ function StudentLifePage() {
         title="Student Life"
         subtitle="Sixty clubs, one community, a century of traditions"
         image={IMAGES.studentLife}
-        imageAlt="Students at the Aldermont activities fair"
+        imageAlt="Students at M.M College Wairaka"
       />
       <section className="mx-auto max-w-6xl px-6 py-20">
         <div className="grid gap-6 md:grid-cols-2">

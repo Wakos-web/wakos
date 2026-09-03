@@ -5,17 +5,17 @@ import { IMAGES, TEAMS } from "@/lib/content";
 export const Route = createFileRoute("/athletics")({
   head: () => ({
     meta: [
-      { title: "Athletics — Aldermont Hall School" },
+      { title: "Athletics — M.M College Wairaka" },
       {
         name: "description",
         content:
-          "Aldermont Lions athletics: eight varsity sports, three seasons, and a tradition of scholar-athletes.",
+          "WACOS athletics: eight sports, three seasons, and a tradition of scholar-athletes.",
       },
-      { property: "og:title", content: "Athletics — Aldermont Hall School" },
+      { property: "og:title", content: "Athletics — M.M College Wairaka" },
       {
         property: "og:description",
         content:
-          "Meet the Aldermont Lions: eight varsity sports across three seasons.",
+          "Meet WACOS athletics: eight sports across three seasons.",
       },
       { property: "og:url", content: "/athletics" },
     ],
@@ -31,12 +31,12 @@ function AthleticsPage() {
         title="Athletics"
         subtitle="Eight varsity sports. One standard: scholar first."
         image={IMAGES.athletics}
-        imageAlt="Aldermont runners training at sunset"
+        imageAlt="WACOS athletes training"
       />
       <section className="mx-auto max-w-6xl px-6 py-20">
         <p className="mx-auto max-w-3xl text-center leading-relaxed text-muted-foreground">
-          Nearly three in four Aldermont students wear the maroon and white.
-          Practices end in time for dinner and study hall, and no athlete has
+          Nearly three in four WACOS students participate in at least one sport.
+          Practices are scheduled around academics, and no athlete has
           ever been excused from the academic standard that admits them.
         </p>
         <div className="mt-14 overflow-hidden rounded-[1.75rem] ring-1 ring-border">

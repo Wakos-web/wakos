@@ -1,33 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { CalendarDays, Menu, Search, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { NAV_ITEMS, SCHOOL_NAME } from "@/lib/content";
+import { NAV_ITEMS, SCHOOL_NAME, LOGO_URL } from "@/lib/content";
 
-function Crest({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 48 48"
-      fill="none"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="24" cy="24" r="22" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M24 10 L34 15 V26 C34 32 29.5 36.5 24 38.5 C18.5 36.5 14 32 14 26 V15 Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-      />
-      <path
-        d="M19 24.5 L22.5 28 L29.5 20"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -50,9 +26,9 @@ export function SiteHeader() {
         {/* Desktop bar (Regis-style) */}
         <div className="hidden items-center justify-between px-8 py-5 lg:flex">
           <Link to="/" className="flex items-center gap-3 text-white">
-            <Crest className="h-12 w-12" />
-            <span className="font-display text-4xl font-semibold tracking-[0.18em]">
-              ALDERMONT
+            <img src={LOGO_URL} alt="WACOS" className="h-12 w-auto" />
+            <span className="font-display text-3xl font-semibold tracking-[0.18em]">
+              M.M COLLEGE WAIRAKA
             </span>
           </Link>
           <nav className="flex items-center gap-7">
@@ -80,9 +56,9 @@ export function SiteHeader() {
             to="/"
             className="flex items-center gap-2 rounded-full bg-cream/95 px-4 py-2 text-foreground shadow-sm"
           >
-            <Crest className="h-7 w-7 text-primary" />
-            <span className="font-display text-xl font-semibold tracking-[0.14em]">
-              ALDERMONT
+            <img src={LOGO_URL} alt="WACOS" className="h-7 w-auto" />
+            <span className="font-display text-lg font-semibold tracking-[0.14em]">
+              M.M COLLEGE WAIRAKA
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -139,7 +115,7 @@ export function SiteHeader() {
               ))}
             </nav>
             <div className="border-t border-border px-6 py-4 text-sm text-muted-foreground">
-              {SCHOOL_NAME} &mdash; Est. 1916
+              {SCHOOL_NAME} &mdash; Est. 1965
             </div>
           </div>
         </div>

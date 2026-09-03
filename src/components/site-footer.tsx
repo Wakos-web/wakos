@@ -7,8 +7,8 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-12 md:grid-cols-3">
           <div>
-            <p className="font-display text-3xl font-semibold tracking-[0.18em]">
-              ALDERMONT
+            <p className="font-display text-2xl font-semibold tracking-[0.18em]">
+              M.M COLLEGE WAIRAKA
             </p>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-primary-foreground/80">
               {SCHOOL_TAGLINE}.
@@ -36,18 +36,16 @@ export function SiteFooter() {
               Visit
             </p>
             <address className="mt-4 text-sm not-italic leading-relaxed text-primary-foreground/90">
-              12 Aldermont Place
+              Wairaka, Jinja
               <br />
-              New York, NY 10028
+              Uganda
               <br />
-              (212) 555-0116
-              <br />
-              hello@aldermonthall.edu
+              info@wacos.ac.ug
             </address>
           </div>
         </div>
         <div className="mt-14 flex flex-col gap-2 border-t border-primary-foreground/20 pt-6 text-xs text-primary-foreground/60 md:flex-row md:items-center md:justify-between">
-          <p>&copy; {new Date().getFullYear()} {SCHOOL_NAME} School. A fictional demonstration site.</p>
+          <p>&copy; {new Date().getFullYear()} {SCHOOL_NAME}. All rights reserved.</p>
           <p>Ad maiora natus sum &mdash; born for greater things.</p>
         </div>
       </div>

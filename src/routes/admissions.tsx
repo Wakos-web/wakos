@@ -6,17 +6,17 @@ import { IMAGES } from "@/lib/content";
 export const Route = createFileRoute("/admissions")({
   head: () => ({
     meta: [
-      { title: "Admissions — Aldermont Hall School" },
+      { title: "Admissions — M.M College Wairaka" },
       {
         name: "description",
         content:
-          "How to apply to Aldermont Hall: one merit examination, one interview, no tuition — ever. Key dates and steps for applicants.",
+          "How to apply to M.M College Wairaka: entrance examination, interview, and key dates for applicants.",
       },
-      { property: "og:title", content: "Admissions — Aldermont Hall School" },
+      { property: "og:title", content: "Admissions — M.M College Wairaka" },
       {
         property: "og:description",
         content:
-          "Admission to Aldermont Hall rests on merit alone. Learn the steps and key dates.",
+          "Admission to M.M College Wairaka rests on merit alone. Learn the steps and key dates.",
       },
       { property: "og:url", content: "/admissions" },
     ],
@@ -34,7 +34,7 @@ const STEPS = [
   {
     icon: PencilLine,
     title: "2. Sit the examination",
-    text: "Applicants take the Aldermont Merit Examination in January: mathematics, reading, and a written essay, designed to be studied for by no one and passed by anyone prepared to think.",
+    text: "Applicants sit the entrance examination in January: mathematics, English, and general knowledge, designed to identify students with the aptitude and determination to thrive.",
   },
   {
     icon: UsersRound,
@@ -46,7 +46,7 @@ const STEPS = [
 const FAQS = [
   {
     q: "What does it cost to attend?",
-    a: "Nothing. Every student attends on a full scholarship covering tuition, books, meals, and travel. That has been true every year since 1916.",
+    a: "Nothing. Every student attends on a full scholarship covering tuition, books, meals, and travel. That has been true every year since 1965.",
   },
   {
     q: "Who may apply?",
@@ -69,7 +69,7 @@ function AdmissionsPage() {
         title="Admissions"
         subtitle="One examination. One interview. No tuition — ever."
         image={IMAGES.hero}
-        imageAlt="Students in the Aldermont Hall trophy hallway"
+        imageAlt="Students at M.M College Wairaka"
       />
       <section className="mx-auto max-w-6xl px-6 py-20">
         <h2 className="text-center font-display text-4xl font-semibold text-foreground">
