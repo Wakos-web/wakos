@@ -32,7 +32,7 @@ export const NAV_ITEMS = [
   { label: "Academics", to: "/academics" },
   { label: "Student Life", to: "/student-life" },
   { label: "Athletics", to: "/athletics" },
-  { label: "Outreach", to: "/outreach" },
+  { label: "Clubs", to: "/clubs" },
   { label: "Alumni", to: "/alumni" },
   { label: "Giving", to: "/giving" },
   { label: "News", to: "/news" },
@@ -75,6 +75,17 @@ export const STATS = [
     label: "of students take part in a practical skills programme",
   },
 ];
+
+export const CLUBS = [
+  { slug: "wildlife", name: "Wildlife Club", tagline: "Protect. Observe. Conserve.", desc: "The Wildlife Club connects students with Uganda’s rich biodiversity. Members participate in nature walks, wildlife surveys, and conservation campaigns. The club fosters awareness of environmental stewardship and the importance of protecting local ecosystems around the Busoga region.", activities: ["Nature walks and wildlife surveys", "Conservation campaigns in local communities", "Tree planting drives", "Guest speakers from Uganda Wildlife Authority"], img: "IMAGES.campus" },
+  { slug: "arts-culture", name: "Arts & Culture Club", tagline: "Express. Create. Celebrate.", desc: "The Arts & Culture Club is the creative heartbeat of WACOS. Members explore traditional Busoga dance, music, drama, and visual arts. The club performs at school events, inter-school competitions, and community celebrations, keeping cultural heritage alive while building confidence and creativity.", activities: ["Traditional dance and music performances", "Drama productions and inter-school competitions", "Visual arts exhibitions", "Cultural heritage awareness"], img: "IMAGES.studentLife" },
+  { slug: "scouts-guides", name: "Scouts & Girl Guides", tagline: "Prepared. Responsible. Service.", desc: "Scouts and Girl Guides build leadership, service, and resilience through structured programmes. Members develop outdoor skills, community awareness, and the discipline to serve others. The programme connects students to a global movement while rooting them in local community needs.", activities: ["Outdoor survival and camping skills", "Community service projects", "Leadership training", "First aid certification"], img: "IMAGES.giving" },
+  { slug: "agriculture", name: "Agriculture Club", tagline: "Grow. Learn. Sustain.", desc: "Running the school nursery and farm, the Agriculture Club is central to WACOS identity. Students grow seedlings from seed, manage crops, and learn practical agricultural skills that connect directly to the school’s founding identity as a farm school. The club supplied 4,000 seedlings for the community reforestation drive.", activities: ["School nursery and farm management", "Seedling production for community outreach", "Crop rotation and soil management", "Agricultural science experiments"], img: "IMAGES.campus" },
+  { slug: "debate", name: "Debate Club", tagline: "Think. Argue. Persuade.", desc: "The Debate Club sharpens critical thinking and public speaking. Students research, construct arguments, and compete in inter-school tournaments. The club builds the confidence to speak clearly, think independently, and engage respectfully with differing viewpoints.", activities: ["Weekly practice sessions", "Inter-school debate tournaments", "Public speaking workshops", "Model United Nations simulations"], img: "IMAGES.academics" },
+  { slug: "writers", name: "Writers Club", tagline: "Write. Read. Share.", desc: "The Writers Club nurtures a love of language. Members write poetry, short stories, essays, and journalism. The club produces the school magazine and provides a platform for students to find their voice through the written word.", activities: ["School magazine production", "Creative writing workshops", "Poetry slams and open mic events", "Journalism and reporting"], img: "IMAGES.studentLife" },
+  { slug: "red-cross", name: "Red Cross Club", tagline: "Care. Respond. Serve.", desc: "The Red Cross Club teaches students the principles of humanitarian service. Members learn first aid, disaster preparedness, and health education. The club organises blood drives, health camps, and community outreach programmes that directly serve the Wairaka community.", activities: ["First aid training and certification", "Blood donation drives", "Health education campaigns", "Disaster preparedness workshops"], img: "IMAGES.giving" },
+];
+
 
 export type Article = {
   slug: string;
