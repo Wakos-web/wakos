@@ -9,13 +9,13 @@ export const Route = createFileRoute("/about")({
       {
         name: "description",
         content:
-          "Founded in 1965, M.M College Wairaka is built on one conviction: discipline, hard work, and self-reliance.",
+          "Founded in 1953, M.M College Wairaka is built on one conviction: discipline, hard work, and self-reliance.",
       },
       { property: "og:title", content: "About — M.M College Wairaka" },
       {
         property: "og:description",
         content:
-          "The story and mission of M.M College Wairaka, serving the Busoga region since 1965.",
+          "The story and mission of M.M College Wairaka, serving the Busoga region since 1953.",
       },
       { property: "og:url", content: "/about" },
     ],
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/about")({
 
 const MILESTONES = [
   {
-    year: "1965",
+    year: "1953",
     text: "M.M College Wairaka opens its doors to the first cohort of students in the Busoga region.",
   },
   {
@@ -66,7 +66,7 @@ function AboutPage() {
             Our story
           </h2>
           <p>
-            M.M College Wairaka was founded in 1965 with a clear mission: to provide
+            M.M College Wairaka was founded in 1953 with a clear mission: to provide
             quality education rooted in discipline, hard work, and self-reliance.
             From humble beginnings, the college has grown into one of the leading
             secondary schools in the Busoga region, serving students from across Uganda.

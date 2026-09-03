@@ -46,7 +46,7 @@ const STEPS = [
 const FAQS = [
   {
     q: "What does it cost to attend?",
-    a: "Nothing. Every student attends on a full scholarship covering tuition, books, meals, and travel. That has been true every year since 1965.",
+    a: "Nothing. Every student attends on a full scholarship covering tuition, books, meals, and travel. That has been true every year since 1953.",
   },
   {
     q: "Who may apply?",

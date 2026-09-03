@@ -66,7 +66,7 @@ export const STATS = [
   },
   {
     icon: "graduation-cap",
-    value: "61",
+    value: "73",
     label: "years of continuous service to the Busoga region",
   },
   {
