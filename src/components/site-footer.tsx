@@ -4,7 +4,7 @@ import { NAV_ITEMS, SCHOOL_NAME, SCHOOL_TAGLINE } from "@/lib/content";
 export function SiteFooter() {
   return (
     <footer className="bg-primary text-primary-foreground">
-      <div className="mx-auto max-w-6xl px-6 py-16">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="grid gap-12 md:grid-cols-3">
           <div>
             <p className="font-display text-2xl font-semibold tracking-[0.18em]">
@@ -44,9 +44,9 @@ export function SiteFooter() {
             </address>
           </div>
         </div>
-        <div className="mt-14 flex flex-col gap-2 border-t border-primary-foreground/20 pt-6 text-xs text-primary-foreground/60 md:flex-row md:items-center md:justify-between">
+        <div className="mt-8 flex flex-col gap-2 border-t border-primary-foreground/20 pt-6 text-xs text-primary-foreground/60 md:flex-row md:items-center md:justify-between">
           <p>&copy; {new Date().getFullYear()} {SCHOOL_NAME}. All rights reserved.</p>
-          <p>Ad maiora natus sum &mdash; born for greater things.</p>
+          <p>Powered by <a href="https://www.alerotek.co.ke" target="_blank" rel="noopener noreferrer" class="hover:underline hover:underline-offset-4">Alerotek</a></p>
         </div>
       </div>
     </footer>
