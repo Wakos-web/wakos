@@ -32,7 +32,7 @@ export function SiteHeader() {
       <header className={"fixed inset-x-0 top-0 z-40 transition-all duration-300 " + headerBg} role="banner">
         <div className={"hidden items-center justify-between px-6 py-4 lg:flex xl:px-10 " + textColor}>
           <Link to="/" className="flex items-center gap-3">
-            <img src={LOGO_URL} alt="" className="h-10 w-auto mix-blend-multiply" aria-hidden="true" />
+            <img src={LOGO_URL} alt="" className={(isHome && !scrolled) ? "h-10 w-auto mix-blend-screen" : "h-10 w-auto mix-blend-multiply"} aria-hidden="true" />
             <span className="font-display text-xl font-semibold tracking-[0.12em] xl:text-2xl">{SCHOOL_NAME}</span>
           </Link>
           <nav className="flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
@@ -44,7 +44,7 @@ export function SiteHeader() {
         </div>
         <div className={"flex items-center justify-between px-4 py-3 lg:hidden " + textColor}>
           <Link to="/" className="flex items-center gap-2">
-            <img src={LOGO_URL} alt="" className="h-8 w-auto mix-blend-multiply" aria-hidden="true" />
+            <img src={LOGO_URL} alt="" className={(isHome && !scrolled) ? "h-8 w-auto mix-blend-screen" : "h-8 w-auto mix-blend-multiply"} aria-hidden="true" />
             <span className="font-display text-lg font-semibold tracking-[0.12em]">{SCHOOL_NAME}</span>
           </Link>
           <button type="button" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className={"rounded-full p-2.5 transition-colors " + (isHome && !scrolled ? "bg-white/15 text-white hover:bg-white/25" : "bg-secondary text-foreground hover:bg-secondary/80")}>
