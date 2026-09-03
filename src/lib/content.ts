@@ -8,14 +8,13 @@ import academics from "@/assets/academics.jpg";
 import athletics from "@/assets/athletics.jpg";
 import studentLife from "@/assets/student-life.jpg";
 import giving from "@/assets/giving.jpg";
-import logoAsset from "@/assets/wacos-logo.png.asset.json";
 
 export const SCHOOL_NAME = "M.M College Wairaka";
 export const SCHOOL_SHORT = "WACOS";
 export const SCHOOL_MOTTO = "We Do It Ourselves";
 export const SCHOOL_TAGLINE =
   "Discipline, hard work and self-reliance since 1965";
-export const LOGO_URL = logoAsset.url;
+export const LOGO_URL = "/wacos-logo.png";
 
 export const IMAGES = {
   hero: heroImg,
