@@ -1,0 +1,282 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  Award,
+  BadgeCheck,
+  Globe,
+  GraduationCap,
+  HeartHandshake,
+  MapPin,
+  Pause,
+  Play,
+  Search,
+} from "lucide-react";
+import { useRef, useState } from "react";
+import { ARTICLES, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
+
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Aldermont Hall School — Tuition-Free, Merit-Based Education" },
+      {
+        name: "description",
+        content:
+          "Aldermont Hall is a tuition-free, merit-based college preparatory school. Every student attends on a full scholarship. Est. 1916.",
+      },
+      { property: "og:title", content: "Aldermont Hall School" },
+      {
+        property: "og:description",
+        content:
+          "Tuition-free, merit-based college preparatory education since 1916.",
+      },
+      { property: "og:url", content: "/" },
+    ],
+    links: [{ rel: "canonical", href: "/" }],
+  }),
+  component: HomePage,
+});
+
+const STAT_ICONS: Record<string, typeof MapPin> = {
+  "map-pin": MapPin,
+  globe: Globe,
+  award: Award,
+  "heart-handshake": HeartHandshake,
+  "graduation-cap": GraduationCap,
+  "badge-check": BadgeCheck,
+};
+
+function HeroSection() {
+  const [paused, setPaused] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <section className="relative">
+      {/* Desktop hero (Regis-style full-bleed) */}
+      <div className="relative hidden lg:block">
+        <img
+          src={IMAGES.hero}
+          alt="Aldermont Hall students walking through the trophy hallway"
+          width={1920}
+          height={1080}
+          className={`h-[85vh] w-full object-cover transition-transform duration-[8000ms] ease-linear ${
+            paused ? "scale-100" : "scale-110"
+          }`}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/30 to-foreground/40" />
+        <div className="absolute inset-x-0 bottom-24 text-center">
+          <h1 className="mx-auto max-w-4xl font-display text-6xl font-medium leading-[1.1] text-white">
+            {SCHOOL_TAGLINE}
+          </h1>
+          <button
+            type="button"
+            aria-label={paused ? "Play motion" : "Pause motion"}
+            onClick={() => setPaused((p) => !p)}
+            className="mt-8 inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10"
+          >
+            {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile hero (WUR-style rounded card + search pill + CTA card) */}
+      <div className="px-4 pt-24 lg:hidden">
+        <div ref={ref} className="relative overflow-hidden rounded-[2rem]">
+          <img
+            src={IMAGES.hero}
+            alt="Aldermont Hall students walking through the trophy hallway"
+            width={1920}
+            height={1080}
+            className="h-[26rem] w-full object-cover"
+          />
+          <div className="absolute inset-x-4 top-4 flex items-center gap-2 rounded-full bg-cream/95 px-5 py-3 shadow-md">
+            <Search className="h-5 w-5 text-primary" />
+            <input
+              type="search"
+              placeholder="Search or ask..."
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <Link
+            to="/admissions"
+            className="absolute bottom-4 left-4 right-4 flex items-end justify-between rounded-3xl bg-gold p-5 text-gold-foreground"
+          >
+            <span>
+              <span className="text-xs font-semibold uppercase tracking-[0.2em]">
+                Admissions open
+              </span>
+              <span className="mt-1 block text-lg font-semibold leading-snug">
+                Apply for the Class of 2031
+              </span>
+            </span>
+            <span className="rounded-full bg-primary p-3 text-primary-foreground">
+              <ArrowRight className="h-5 w-5" />
+            </span>
+          </Link>
+        </div>
+        <h1 className="mt-10 text-center font-display text-4xl font-semibold leading-tight text-primary">
+          {SCHOOL_TAGLINE}
+        </h1>
+      </div>
+    </section>
+  );
+}
+
+function StatsSection() {
+  return (
+    <section className="border-y border-border bg-cream">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 px-6 py-14 md:grid-cols-3 lg:grid-cols-6">
+        {STATS.map((stat) => {
+          const Icon = STAT_ICONS[stat.icon] ?? Award;
+          return (
+            <div key={stat.label} className="text-center">
+              <Icon className="mx-auto h-7 w-7 text-primary" strokeWidth={1.5} />
+              <p className="mt-3 font-display text-4xl font-semibold text-primary">
+                {stat.value}
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {stat.label}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function NewsSection() {
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-20">
+      <div className="flex items-end justify-between">
+        <h2 className="font-display text-4xl font-semibold text-foreground md:text-5xl">
+          Recent News
+        </h2>
+        <Link
+          to="/news"
+          className="hidden items-center gap-2 text-sm font-semibold text-primary hover:underline hover:underline-offset-4 md:inline-flex"
+        >
+          All news <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+      <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {ARTICLES.map((article) => (
+          <Link
+            key={article.slug}
+            to="/news/$slug"
+            params={{ slug: article.slug }}
+            className="group"
+          >
+            <div className="overflow-hidden rounded-2xl">
+              <img
+                src={article.image}
+                alt={article.title}
+                width={1024}
+                height={683}
+                loading="lazy"
+                className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            </div>
+            <h3 className="mt-4 font-display text-xl font-semibold leading-snug text-foreground group-hover:text-primary">
+              {article.title}
+            </h3>
+            <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-semibold uppercase tracking-wider text-gold">
+                {article.category}
+              </span>
+              {article.date}
+            </p>
+          </Link>
+        ))}
+      </div>
+      <Link
+        to="/news"
+        className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground md:hidden"
+      >
+        All news <ArrowRight className="h-4 w-4" />
+      </Link>
+    </section>
+  );
+}
+
+function MissionSection() {
+  return (
+    <section className="bg-secondary">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
+        <div className="overflow-hidden rounded-[2rem]">
+          <img
+            src={IMAGES.campus}
+            alt="The historic Aldermont Hall building"
+            width={1600}
+            height={900}
+            loading="lazy"
+            className="aspect-[16/10] w-full object-cover"
+          />
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
+            Our Mission
+          </p>
+          <h2 className="mt-4 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+            An education money cannot buy, earned by merit alone
+          </h2>
+          <p className="mt-6 leading-relaxed text-muted-foreground">
+            Founded in 1916 on a single conviction — that brilliance is evenly
+            distributed but opportunity is not — Aldermont Hall charges no
+            tuition and never has. Every seat is earned through a rigorous,
+            citywide merit examination, and every graduate leaves owing nothing
+            but service to others.
+          </p>
+          <Link
+            to="/about"
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Our story <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function GivingCta() {
+  return (
+    <section className="relative overflow-hidden">
+      <img
+        src={IMAGES.giving}
+        alt="Alumni gathered in the Aldermont great hall"
+        width={1200}
+        height={800}
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-primary/85" />
+      <div className="relative mx-auto max-w-3xl px-6 py-24 text-center">
+        <h2 className="font-display text-4xl font-semibold leading-tight text-primary-foreground md:text-5xl">
+          Every seat is a scholarship. Every scholarship is a gift.
+        </h2>
+        <p className="mx-auto mt-6 max-w-xl leading-relaxed text-primary-foreground/80">
+          Aldermont is sustained entirely by alumni and friends who believe the
+          next generation deserves the same chance they were given.
+        </p>
+        <Link
+          to="/giving"
+          className="mt-8 inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3.5 text-sm font-semibold text-gold-foreground transition-transform hover:scale-105"
+        >
+          Support Aldermont <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function HomePage() {
+  return (
+    <main>
+      <HeroSection />
+      <StatsSection />
+      <NewsSection />
+      <MissionSection />
+      <GivingCta />
+    </main>
+  );
+}
