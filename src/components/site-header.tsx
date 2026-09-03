@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NAV_ITEMS, SCHOOL_NAME, SCHOOL_SHORT, LOGO_URL } from "@/lib/content";
+import { NAV_ITEMS, SCHOOL_NAME, LOGO_URL } from "@/lib/content";
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,7 +33,7 @@ export function SiteHeader() {
         <div className={"hidden items-center justify-between px-6 py-4 lg:flex xl:px-10 " + textColor}>
           <Link to="/" className="flex items-center gap-3">
             <img src={LOGO_URL} alt="" className="h-10 w-auto" aria-hidden="true" />
-            <span className="font-display text-2xl font-semibold tracking-[0.16em] xl:text-3xl">{SCHOOL_SHORT}</span>
+            <span className="font-display text-xl font-semibold tracking-[0.12em] xl:text-2xl">{SCHOOL_SHORT}</span>
           </Link>
           <nav className="flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
             {NAV_ITEMS.map((item) => (
