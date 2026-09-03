@@ -13,7 +13,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
+import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS } from "@/lib/content";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,6 +50,8 @@ function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
 
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
@@ -65,99 +67,104 @@ function HeroSection() {
     setMuted(v.muted);
   }, []);
 
+  // Autoplay with fallback
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.play().catch(() => { setPaused(true); });
+    const onCanPlay = () => setLoaded(true);
+    v.addEventListener("canplay", onCanPlay, { once: true });
+    return () => v.removeEventListener("canplay", onCanPlay);
+  }, []);
+
+  const scrollToContent = () => {
+    const next = sectionRef.current?.nextElementSibling;
+    if (next) next.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
-    <section className="relative bg-[#FBF6E5]">
-      {/* Desktop hero */}
-      <div className="relative hidden lg:block mx-3 my-3">
-        <div className="relative h-[calc(100vh-0.75rem*2)]">
-          {/* Video container - full width rounded left corners */}
-          <div className="relative h-full overflow-hidden rounded-l-[30px]">
-            <video
-              ref={videoRef}
-              src={HERO_VIDEO}
-              poster={HERO_POSTER}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              className="absolute inset-0 h-full w-full object-cover object-center"
-            />
-            {/* Scallop overlay - cream bezier curves on right edge */}
-            <svg
-              className="absolute top-0 right-0 h-full w-24 z-10 pointer-events-none"
-              viewBox="0 0 96 1000"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              {/* Upper scallop - curves inward then outward */}
-              <path
-                d="M96,0 L96,260 C60,300 60,340 96,380 L96,500 C60,540 60,580 96,620 L96,740 C60,780 60,820 96,860 L96,1000 L96,1000 L96,0 Z"
-                fill="#FBF6E5"
-              />
-            </svg>
-            {/* Play/Pause button - bottom right */}
-            <button
-              type="button"
-              aria-label={paused ? "Play video" : "Pause video"}
-              onClick={togglePlay}
-              className="absolute bottom-6 right-16 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white shadow-lg transition-transform hover:scale-110"
-            >
-              {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
-            </button>
-          </div>
+    <section ref={sectionRef} className="relative h-screen min-h-[600px] max-h-[1100px] overflow-hidden bg-foreground">
+      {/* Video / Poster */}
+      <div className="absolute inset-0">
+        <video
+          ref={videoRef}
+          src={HERO_VIDEO}
+          poster={HERO_POSTER}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className={"absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 " + (loaded ? "opacity-100" : "opacity-0")}
+        />
+        {/* Fallback poster if video has not loaded */}
+        {!loaded && (
+          <img
+            src={HERO_POSTER}
+            alt="M.M College Wairaka campus"
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            width={1920}
+            height={1080}
+            fetchPriority="high"
+          />
+        )}
+      </div>
 
-          {/* Scroll-down arrow - sits in the middle scallop notch */}
-          <div className="absolute right-0 top-[50%] z-30 -translate-y-1/2 translate-x-1/4">
-            <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-[#FBF6E5] shadow-lg">
-              <button
-                type="button"
-                aria-label="Scroll down"
-                onClick={() => window.scrollBy({ top: window.innerHeight, behavior: "smooth" })}
-                className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white transition-transform hover:scale-110"
-              >
-                <svg fill="none" viewBox="0 0 24 24" className="h-5 w-5" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-              </button>
-            </div>
-          </div>
+      {/* Layered overlays */}
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-          {/* Event card - floating at bottom-left */}
-          <div className="absolute -bottom-8 left-4 z-30 w-[22rem] overflow-hidden rounded-[30px] bg-[#97C600] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#002B47]/60">Event</p>
-            <h2 className="mt-3 font-display text-xl font-semibold leading-snug text-[#002B47]">
-              Discipline, hard work and self-reliance since 1965
-            </h2>
-            <Link
-              to="/about"
-              className="mt-5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#002B47] text-white transition-transform hover:scale-110"
-            >
-              <ArrowRight className="h-4 w-4" />
+      {/* Hero content - lower left */}
+      <div className="hero-content relative z-10 flex h-full flex-col justify-end px-6 pb-24 sm:px-10 lg:px-16 xl:px-24">
+        <div className="max-w-3xl">
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/70" style={{ animationDelay: "0.2s" }}>Est. 1965</p>
+          <h1 className="font-display text-5xl font-semibold leading-[0.95] tracking-tight text-white sm:text-6xl md:text-7xl lg:text-8xl">
+            Discipline, hard work<br className="hidden sm:block" /> and self-reliance
+          </h1>
+          <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/80 sm:text-xl">
+            Shaping young people for greater things since 1965. A government-aided secondary school in Wairaka, Jinja, built on merit, service and self-reliance.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Link to="/admissions" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90 hover:shadow-lg">
+              Admissions
+            </Link>
+            <Link to="/about" className="rounded-full border border-white/40 px-7 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10">
+              Explore Wairaka
             </Link>
           </div>
         </div>
-      </div>
 
-      {/* Mobile hero */}
-      <div className="relative lg:hidden mx-3 my-3">
-        <div className="relative h-[calc(100vh-0.75rem*2)] overflow-hidden rounded-[30px]">
-          <video src={HERO_VIDEO} poster={HERO_POSTER} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-          <div className="absolute inset-x-0 bottom-28 text-center">
-            <h1 className="mx-auto max-w-sm font-display text-3xl font-semibold leading-tight text-white drop-shadow-lg">{SCHOOL_TAGLINE}</h1>
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
-                {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
-              </button>
-              <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/40 bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20">
-                {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-              </button>
-            </div>
-          </div>
-          <Link to="/admissions" className="absolute bottom-6 left-4 right-4 flex items-end justify-between rounded-3xl bg-[#97C600] p-5 text-[#002B47]">
-            <span><span className="text-xs font-semibold uppercase tracking-[0.2em]">Admissions open</span><span className="mt-1 block text-lg font-semibold leading-snug">Apply for the Class of 2031</span></span>
-            <span className="rounded-full bg-[#002B47] p-3 text-white"><ArrowRight className="h-5 w-5" /></span>
-          </Link>
+        {/* Video controls */}
+        <div className="absolute bottom-8 right-8 flex items-center gap-3 lg:bottom-12 lg:right-12">
+          <button
+            type="button"
+            aria-label={paused ? "Play video" : "Pause video"}
+            onClick={togglePlay}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+          >
+            {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            aria-label={muted ? "Unmute video" : "Mute video"}
+            onClick={toggleMute}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+          >
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
         </div>
+
+        {/* Scroll indicator */}
+        <button
+          type="button"
+          aria-label="Scroll to content"
+          onClick={scrollToContent}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/60 transition-colors hover:text-white lg:bottom-12"
+        >
+          <span className="text-xs font-medium uppercase tracking-[0.2em]">Scroll</span>
+          <svg className="h-5 w-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+        </button>
       </div>
     </section>
   );
