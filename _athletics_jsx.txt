@@ -1,24 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { IMAGES } from "@/lib/content";
 
-export const Route = createFileRoute("/athletics")({
-  head: () => ({
-    meta: [{ title: "Athletics — M.M College Wairaka" },{ name: "description", content: "Eight sports across three terms. Scholar first, competitor always." }],
-    links: [{ rel: "canonical", href: "/athletics" }],
-  }),
-  component: AthleticsPage,
-});
-
-const SPORTS = [
-  { name: "Football", term: "Term 1 & 2", badge: "Busoga Champions", img: IMAGES.athletics },
-  { name: "Athletics", term: "Term 2", badge: "Regional Competitors", img: IMAGES.athletics },
-  { name: "Netball", term: "Term 1", badge: "", img: IMAGES.studentLife },
-  { name: "Volleyball", term: "Term 2", badge: "", img: IMAGES.studentLife },
-  { name: "Basketball", term: "Term 3", badge: "", img: IMAGES.campus },
-  { name: "Cricket", term: "Term 3", badge: "", img: IMAGES.campus },
-  { name: "Swimming", term: "Term 1", badge: "", img: IMAGES.academics },
-  { name: "Rugby", term: "Term 2", badge: "", img: IMAGES.academics },
-];
 const QUICK_NAV = [{ l: "Sports", h: "#sports" }, { l: "Highlights", h: "#highlights" }, { l: "Notable Athletes", h: "#athletes" }];
 function HeroSection() {  return (    <section className="relative h-[60vh] min-h-[420px] flex items-end overflow-hidden">      <div className="absolute inset-0">        <img src={IMAGES.athletics} alt="WACOS athletes in action" className="h-full w-full object-cover object-center" />        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />      </div>      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Athletics</h1>        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Eight sports. Three terms. Scholar first, competitor always.</p>      </div>    </section>  );}
 function QuickNav() {  return (    <nav className="sticky top-0 z-20 bg-white border-b border-stone-200">      <div className="max-w-6xl mx-auto px-6 flex gap-6 overflow-x-auto py-3 scrollbar-hide">        {QUICK_NAV.map((item) => (          <a key={item.h} href={item.h} className="whitespace-nowrap text-sm font-medium text-stone-600 hover:text-green-800 transition-colors uppercase tracking-wider">            {item.l}          </a>        ))}      </div>    </nav>  );}
