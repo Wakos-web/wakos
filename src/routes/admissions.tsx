@@ -39,6 +39,12 @@ const FAQ = [
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Admissions</h1>
         <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Admission every term. Scholarships for bright students. Discipline, hard work, and self-reliance.</p>
+        <div className="mt-6 flex flex-wrap gap-4">
+          <a href="/WACOS-Prospectus.pdf" download className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/30 text-white px-6 py-3 rounded-full font-semibold hover:bg-white/20 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            Download Prospectus
+          </a>
+        </div>
       </div>
     </section>
   );
