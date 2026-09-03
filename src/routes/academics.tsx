@@ -1,88 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHero } from "@/components/page-hero";
 import { IMAGES } from "@/lib/content";
 
 export const Route = createFileRoute("/academics")({
   head: () => ({
-    meta: [
-      { title: "Academics — M.M College Wairaka" },
-      {
-        name: "description",
-        content:
-          "M.M College Wairaka's curriculum: sciences, humanities, practical skills, and character development.",
-      },
-      { property: "og:title", content: "Academics — M.M College Wairaka" },
-      {
-        property: "og:description",
-        content:
-          "Explore the curriculum and departments of M.M College Wairaka.",
-      },
-      { property: "og:url", content: "/academics" },
-    ],
+    meta: [{ title: "Academics — M.M College Wairaka" },{ name: "description", content: "M.M College Wairaka’s curriculum: sciences, humanities, practical skills." }],
     links: [{ rel: "canonical", href: "/academics" }],
   }),
   component: AcademicsPage,
 });
 
-const DEPARTMENTS = [
-  {
-    name: "Humanities",
-    text: "Four years of literature, history, and philosophy taught in seminar. Every student writes a thesis-length essay senior year.",
-  },
-  {
-    name: "Mathematics & Computer Science",
-    text: "From accelerated algebra through multivariable calculus and machine learning electives in the Lovelace Lab.",
-  },
-  {
-    name: "Natural Sciences",
-    text: "Laboratory-first physics, chemistry, and biology, with research placements for juniors and seniors.",
-  },
-  {
-    name: "Classical & Modern Languages",
-    text: "Latin for all; Greek, Spanish, French, and Mandarin through the advanced seminar level.",
-  },
-  {
-    name: "Fine & Performing Arts",
-    text: "Studio art, orchestra, choir, and a cultural production staged at the college auditorium.",
-  },
-  {
-    name: "Theology & Ethics",
-    text: "A capstone sequence examining moral questions across traditions, anchored in the school's founding values.",
-  },
-];
-
+const OL=["English Language","Mathematics","Physics","Chemistry","Biology","Geography","History","Civic Education","Religious Education","Agriculture","Computer Studies","Commerce"];
+const AS=["Mathematics","Physics","Chemistry","Biology","Computer Studies"];
+const AR=["Literature in English","History","Economics","Divinity","Geography","Government"];
+const DP=[{n:"Science & Laboratory",d:"Well-stocked physics, chemistry, and biology laboratories. Renovated through alumni support."},{n:"Humanities",d:"Literature, history, civic education, and religious studies."},{n:"Mathematics",d:"From O-Level foundational maths through A-Level pure and applied mathematics."},{n:"Agriculture & Practical Skills",d:"A school farm and practical sessions honouring our farm-school origins."},{n:"Technology",d:"Computer studies with internet-connected resource centre."},{n:"Sports & Co-Curricular",d:"Football, athletics, netball, volleyball, basketball, cricket, and clubs."}];
+const SP=[{n:"O-Level (S1–S4)",d:"Four years covering both arts and science subjects. UNEB UCE examination centre.",i:["Arts + Science subjects","UNEB UCE examination centre","Comprehensive curriculum","Practical skills integration"]},{n:"A-Level (S5–S6)",d:"Two years of specialised study. Three essential + two subsidiary subjects.",i:["Arts or Sciences track","Three essential + two subsidiary subjects","Theory + practical lessons","Mock examinations + career guidance"]},{n:"Practical Skills Programme",d:"Every student participates in hands-on learning through agriculture, workshops, and community service.",i:["School farm operations","Laboratory practicals","Community outreach projects","Workshop sessions"]}];
 function AcademicsPage() {
-  return (
-    <main>
-      <PageHero
-        title="Academics"
-        subtitle="A classical curriculum taught at college depth"
-        image={IMAGES.academics}
-        imageAlt="Students studying at M.M College Wairaka"
-      />
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <p className="mx-auto max-w-3xl text-center leading-relaxed text-muted-foreground">
-          M.M College Wairaka's course of study combines academic rigour with
-          practical skills training. Students benefit from small class sizes,
-          well-equipped laboratories, and a curriculum designed to prepare them
-          for university and life beyond.
-        </p>
-        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {DEPARTMENTS.map((dept) => (
-            <div
-              key={dept.name}
-              className="rounded-[1.75rem] bg-card p-8 shadow-sm ring-1 ring-border transition-shadow hover:shadow-md"
-            >
-              <h3 className="font-display text-2xl font-semibold text-primary">
-                {dept.name}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                {dept.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
+  return (<main>
+    <section className="relative flex min-h-[50vh] items-end bg-foreground pb-16 pt-32"><img src={IMAGES.academics} alt="Students at M.M College Wairaka" className="absolute inset-0 h-full w-full object-cover opacity-40" width={1600} height={900} /><div className="relative mx-auto max-w-6xl px-6"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60">Academic Programmes</p><h1 className="mt-3 font-display text-5xl font-semibold leading-tight text-white md:text-6xl lg:text-7xl">Academics</h1><p className="mt-4 max-w-2xl text-lg text-white/70">A rich, rigorous academic environment combining classroom learning with practical skills. High challenge, high support — every student is prepared for university and life beyond.</p></div></section>
+    <section className="border-b border-border bg-cream"><div className="mx-auto flex max-w-6xl gap-6 overflow-x-auto px-6 py-4 text-sm font-medium text-muted-foreground">{[{l:"Programmes",h:"#programs"},{l:"O-Level",h:"#olevel"},{l:"A-Level",h:"#alevel"},{l:"Departments",h:"#departments"},{l:"Resources",h:"#resources"}].map((a)=><a key={a.h} href={a.h} className="shrink-0 transition-colors hover:text-primary">{a.l}</a>)}</div></section>
+    <section id="programs" className="py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Our Programmes</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">High challenge, high support</h2><p className="mx-auto mt-4 max-w-2xl text-muted-foreground">M.M College Wairaka offers a comprehensive curriculum combining academic rigour with practical skills training.</p></div><div className="mt-14 grid gap-8 md:grid-cols-3">{SP.map((p)=><div key={p.n} className="rounded-2xl border border-border p-8"><h3 className="font-display text-2xl font-semibold text-foreground">{p.n}</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.d}</p><ul className="mt-4 space-y-2">{p.i.map((x)=><li key={x} className="flex items-start gap-2 text-sm text-muted-foreground"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{x}</li>)}</ul></div>)}</div></div></section>
+    <section id="olevel" className="bg-secondary py-20"><div className="mx-auto max-w-6xl px-6"><div className="grid gap-12 lg:grid-cols-2"><div><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">O-Level</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">Senior 1 – Senior 4</h2><p className="mt-4 leading-relaxed text-muted-foreground">O-Level students study both arts and science subjects over four years. The school is a UNEB examination centre for UCE.</p><p className="mt-4 leading-relaxed text-muted-foreground">The curriculum balances academic subjects with practical skills, true to our farm-school origins.</p></div><div><h3 className="font-display text-xl font-semibold text-foreground mb-4">Core Subjects</h3><div className="grid grid-cols-2 gap-3">{OL.map((s)=><div key={s} className="rounded-xl bg-card border border-border px-4 py-3 text-sm font-medium text-foreground">{s}</div>)}</div></div></div></div></section>
+    <section id="alevel" className="py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">A-Level</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">Senior 5 – Senior 6</h2><p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Students select subject combinations under Arts or Sciences. Three essential + two subsidiary subjects. UNEB UACE examination centre.</p></div><div className="mt-12 grid gap-8 md:grid-cols-2"><div className="rounded-2xl border border-border p-8"><h3 className="font-display text-2xl font-semibold text-foreground">Sciences</h3><div className="mt-4 space-y-2">{AS.map((s)=><div key={s} className="flex items-center gap-3 text-sm text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-primary" />{s}</div>)}</div></div><div className="rounded-2xl border border-border p-8"><h3 className="font-display text-2xl font-semibold text-foreground">Arts</h3><div className="mt-4 space-y-2">{AR.map((s)=><div key={s} className="flex items-center gap-3 text-sm text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-primary" />{s}</div>)}</div></div></div><div className="mt-12 rounded-2xl bg-foreground p-8 text-center"><p className="text-sm font-semibold uppercase tracking-wider text-white/60">Examination Process</p><p className="mt-2 text-lg text-white">Admission → Subject Selection → Theory + Practical → Mocks → Career Guidance → UACE</p></div></div></section>
+    <section id="departments" className="bg-foreground py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Academic Departments</p><h2 className="mt-4 font-display text-4xl font-semibold text-white md:text-5xl">Where learning happens</h2></div><div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{DP.map((d)=><div key={d.n} className="rounded-2xl border border-white/10 p-6"><h3 className="font-display text-xl font-semibold text-white">{d.n}</h3><p className="mt-2 text-sm leading-relaxed text-white/60">{d.d}</p></div>)}</div></div></section>
+    <section id="resources" className="py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Academic Resources</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">Supporting every student</h2></div><div className="mt-12 grid gap-6 md:grid-cols-3"><div className="rounded-2xl border border-border p-8"><h3 className="font-display text-xl font-semibold text-foreground">Resource Centre</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Internet-connected hub for research and learning.</p></div><div className="rounded-2xl border border-border p-8"><h3 className="font-display text-xl font-semibold text-foreground">Career Guidance</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Seminars and counselling help students determine their future paths.</p></div><div className="rounded-2xl border border-border p-8"><h3 className="font-display text-xl font-semibold text-foreground">UNEB Centre</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Examination centre for both UCE and UACE.</p></div></div></div></section>
+    <section className="bg-primary py-16"><div className="mx-auto max-w-3xl px-6 text-center"><h2 className="font-display text-3xl font-semibold text-primary-foreground md:text-4xl">Ready to join?</h2><p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">Begin your application to M.M College Wairaka. Admission is based on merit.</p><div className="mt-8 flex flex-wrap justify-center gap-4"><a href="/admissions" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90">Apply Now</a><a href="/about" className="rounded-full border border-white/40 px-7 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10">Learn About Us</a></div></div></section>
+  </main>);
 }
