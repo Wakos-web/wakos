@@ -9,15 +9,98 @@ export const Route = createFileRoute("/student-life")({
   component: StudentLifePage,
 });
 
-const FEATURES=[{n:"Sports & Athletics",d:"Football, athletics, netball, volleyball, basketball, cricket, swimming, and rugby. Students compete at district and regional level. The school won the Busoga Schools Football Championship.",c:"When we take part, we win."},{n:"Clubs & Societies",d:"Student-run organisations including the Science Club, Girl Guides, Agriculture Club, and Debating Society. Students lead, organise, and learn by doing.",c:"We do it ourselves."},{n:"Mentoring & Career Guidance",d:"Senior students receive mentoring from teachers and alumni. Career guidance seminars help students choose subject combinations and prepare for university.",c:""},{n:"Community Outreach",d:"Students partner with neighbouring households on reforestation, public health, and agricultural projects. Last year students planted 4,000 tree seedlings in a single Saturday.",c:"The motto is not decoration."},{n:"Science & Research",d:"The Science Club competes nationally. Students build practical projects like solar-powered irrigation controllers and present at the National Schools Science Fair.",c:""},{n:"Practical Skills & School Farm",d:"Agriculture is part of our identity — the school began as a farm school. Students run the school farm, learning crop management, animal husbandry, and land stewardship.",c:""},{n:"Alumni Events & Community",d:"MMCWOSA returns every October to encourage students, share experiences, and participate in alumni activities. The Wairaka Trust Fund keeps old students connected to the college.",c:""},{n:"Medical Bootcamps & Wellness",d:"Periodic health camps and medical bootcamps bring healthcare professionals to campus, supporting student wellbeing beyond the classroom.",c:""}];
-const SPORTS=[{s:"Football",t:"Term 1 & 2",l:"First XI / Junior"},{s:"Athletics",t:"Term 2",l:"Track & Field"},{s:"Netball",t:"Term 1",l:"Senior / Junior"},{s:"Volleyball",t:"Term 2",l:"Senior / Junior"},{s:"Basketball",t:"Term 3",l:"Senior"},{s:"Cricket",t:"Term 3",l:"Senior"},{s:"Swimming",t:"Term 1",l:"Open"},{s:"Rugby",t:"Term 2",l:"Senior"}];
+const AREAS = [
+  { title: "Residential Life", subtitle: "Living & Learning Together", desc: "Boarding students live, study, and grow together in supervised dormitories. House parents mentor and support students through their secondary school years, creating a second family away from home.", img: IMAGES.studentLife, align: "left" as const },
+  { title: "Clubs & Societies", subtitle: "Lead, Organise, Do", desc: "Student-run organisations including the Science Club, Girl Guides, Agriculture Club, and Debating Society. Students lead, organise, and learn by doing — the motto in action.", img: IMAGES.campus, align: "right" as const },
+  { title: "Community Service", subtitle: "We Do It Ourselves", desc: "Students partner with neighbouring households on reforestation, public health, and agricultural projects. Last year students planted 4,000 tree seedlings in a single Saturday.", img: IMAGES.giving, align: "left" as const },
+  { title: "Arts & Culture", subtitle: "Express & Create", desc: "Cultural performances, music, drama, and creative expression. Students showcase talent at school events and inter-school competitions throughout the year.", img: IMAGES.studentLife, align: "right" as const },
+  { title: "Wellness & Mentoring", subtitle: "Body, Mind & Character", desc: "Career guidance seminars, medical bootcamps, and peer mentoring help students develop holistically. Every student is known, supported, and challenged.", img: IMAGES.academics, align: "left" as const },
+];
+
+const QUICK_NAV = [
+  { label: "Residential Life", href: "#residential" },
+  { label: "Clubs", href: "#clubs" },
+  { label: "Service", href: "#service" },
+  { label: "Arts", href: "#arts" },
+  { label: "Wellness", href: "#wellness" },
+];
+
+function HeroSection() {
+  return (
+    <section className="relative h-[60vh] min-h-[420px] flex items-end overflow-hidden">
+      <div className="absolute inset-0">
+        <img src={IMAGES.studentLife} alt="Students at M.M College Wairaka" className="h-full w-full object-cover object-center" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+      </div>
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
+        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Student Life</h1>
+        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Life beyond the classroom is where character is built. At M.M College Wairaka, every student is encouraged to participate, lead, and grow.</p>
+      </div>
+    </section>
+  );
+}
+
+function QuickNav() {
+  return (
+    <nav className="sticky top-0 z-20 bg-white border-b border-stone-200">
+      <div className="max-w-6xl mx-auto px-6 flex gap-6 overflow-x-auto py-3 scrollbar-hide">
+        {QUICK_NAV.map((item) => (
+          <a key={item.href} href={item.href} className="whitespace-nowrap text-sm font-medium text-stone-600 hover:text-green-800 transition-colors uppercase tracking-wider">
+            {item.label}
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function FeatureCard({ area, index }: { area: typeof AREAS[number]; index: number }) {
+  const isRight = area.align === "right";
+  const ids = ["residential", "clubs", "service", "arts", "wellness"];
+  return (
+    <section id={ids[index]} className="scroll-mt-16">
+      <div className={`flex flex-col ${isRight ? "md:flex-row-reverse" : "md:flex-row"} min-h-[500px]`}>
+        <div className="md:w-1/2 relative overflow-hidden">
+          <img src={area.img} alt={area.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+        </div>
+        <div className="md:w-1/2 flex items-center bg-stone-50">
+          <div className="p-8 md:p-12 lg:p-16 max-w-lg">
+            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">{area.subtitle}</p>
+            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-4">{area.title}</h2>
+            <p className="text-stone-600 text-lg leading-relaxed font-body">{area.desc}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CTASection() {
+  return (
+    <section className="bg-green-900 py-20">
+      <div className="max-w-4xl mx-auto px-6 text-center">
+        <h2 className="font-display text-4xl md:text-5xl text-white font-bold mb-4">Experience it for yourself</h2>
+        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Come see what a day in the life of a WACOS student looks like. We welcome prospective students and families to visit our campus in Wairaka.</p>
+        <a href="/admissions" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">
+          Apply Now
+          <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+        </a>
+      </div>
+    </section>
+  );
+}
+
 function StudentLifePage() {
-  return (<main>
-    <section className="relative flex min-h-[50vh] items-end bg-foreground pb-16 pt-32"><img src={IMAGES.studentLife} alt="Students at M.M College Wairaka" className="absolute inset-0 h-full w-full object-cover opacity-40" width={1600} height={900} /><div className="relative mx-auto max-w-6xl px-6"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60">Life at Wairaka</p><h1 className="mt-3 font-display text-5xl font-semibold leading-tight text-white md:text-6xl lg:text-7xl">Student Life</h1><p className="mt-4 max-w-2xl text-lg text-white/70">Beyond the classroom, our students build character through sports, clubs, community service, and practical skills — living the motto every day.</p></div></section>
-    <section className="border-b border-border bg-cream"><div className="mx-auto flex max-w-6xl gap-6 overflow-x-auto px-6 py-4 text-sm font-medium text-muted-foreground">{[{l:"Activities",h:"#activities"},{l:"Sports",h:"#sports"},{l:"Motto in Action",h:"#motto"}].map((a)=><a key={a.h} href={a.h} className="shrink-0 transition-colors hover:text-primary">{a.l}</a>)}</div></section>
-    <section id="activities" className="py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Beyond the Classroom</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">Where character is built</h2><p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Students at Wairaka are encouraged to explore their interests, develop leadership, and serve their community through a broad range of co-curricular activities.</p></div><div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">{FEATURES.map((f)=><div key={f.n} className="rounded-2xl border border-border p-6 transition-shadow hover:shadow-md"><h3 className="font-display text-xl font-semibold text-foreground">{f.n}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.d}</p>{f.c&&<p className="mt-3 text-xs font-semibold italic text-primary">“{f.c}”</p>}</div>)}</div></div></section>
-    <section id="sports" className="bg-secondary py-20"><div className="mx-auto max-w-6xl px-6"><div className="text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Sports &amp; Athletics</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">When we take part, we win</h2><p className="mx-auto mt-4 max-w-xl text-muted-foreground">Our sports programmes run across all three terms, offering students the chance to compete at school, district, and regional level.</p></div><div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{SPORTS.map((sp)=><div key={sp.s} className="rounded-2xl bg-card border border-border p-5"><h3 className="font-display text-lg font-semibold text-foreground">{sp.s}</h3><p className="mt-1 text-xs text-muted-foreground">{sp.t}</p><p className="text-xs text-muted-foreground">{sp.l}</p></div>)}</div></div></section>
-    <section id="motto" className="py-20"><div className="mx-auto max-w-4xl px-6 text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">The Motto in Action</p><h2 className="mt-4 font-display text-4xl font-semibold text-foreground md:text-5xl">“We Do It Ourselves”</h2><p className="mx-auto mt-6 max-w-2xl leading-relaxed text-muted-foreground">Our motto is not decoration — it is an instruction. Students plant trees, build irrigation systems, renovate laboratories, and run the school farm. Every project is theirs. Every result is earned.</p><div className="mt-10 grid gap-6 md:grid-cols-3"><div className="rounded-2xl bg-foreground p-6"><p className="font-display text-3xl font-semibold text-primary">4,000</p><p className="mt-1 text-sm text-white/60">tree seedlings planted in one Saturday</p></div><div className="rounded-2xl bg-foreground p-6"><p className="font-display text-3xl font-semibold text-primary">2nd</p><p className="mt-1 text-sm text-white/60">place at the National Science Fair</p></div><div className="rounded-2xl bg-foreground p-6"><p className="font-display text-3xl font-semibold text-primary">Busoga</p><p className="mt-1 text-sm text-white/60">Football Champions</p></div></div></div></section>
-    <section className="bg-primary py-16"><div className="mx-auto max-w-3xl px-6 text-center"><h2 className="font-display text-3xl font-semibold text-primary-foreground md:text-4xl">Experience it for yourself</h2><p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">Visit M.M College Wairaka and see our community in action.</p><div className="mt-8 flex flex-wrap justify-center gap-4"><a href="/admissions" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90">Apply Now</a><a href="/about" className="rounded-full border border-white/40 px-7 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10">Learn About Us</a></div></div></section>
-  </main>);
+  return (
+    <div>
+      <HeroSection />
+      <QuickNav />
+      <main>
+        {AREAS.map((area, i) => (
+          <FeatureCard key={area.title} area={area} index={i} />
+        ))}
+      </main>
+      <CTASection />
+    </div>
+  );
 }
