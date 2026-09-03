@@ -35,7 +35,7 @@ export const NAV_ITEMS = [
   { label: "Clubs", to: "/clubs" },
   { label: "Alumni", to: "/alumni" },
   { label: "Giving", to: "/giving" },
-  { label: "News", to: "/news" },
+  { label: "Campus Stores", to: "/campus-stores" },
 ] as const;
 
 export const MORE_ITEMS = [
