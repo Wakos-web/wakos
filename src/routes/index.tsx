@@ -9,9 +9,11 @@ import {
   MapPin,
   Pause,
   Play,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
+import { ARTICLES, HERO_POSTER, HERO_PILLAR, HERO_VIDEO, IMAGES, SCHOOL_TAGLINE, STATS } from "@/lib/content";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,105 +49,65 @@ const STAT_ICONS: Record<string, typeof MapPin> = {
 function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(true);
 
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) {
-      v.play();
-      setPaused(false);
-    } else {
-      v.pause();
-      setPaused(true);
-    }
+    if (v.paused) { v.play(); setPaused(false); }
+    else { v.pause(); setPaused(true); }
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setMuted(v.muted);
   }, []);
 
   return (
     <section className="relative">
-      {/* Desktop hero — portrait video centered with blurred sides */}
-      <div className="relative hidden lg:block">
-        {/* Blurred background layer — fills the full width */}
-        <img
-          src={HERO_POSTER}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover scale-110 blur-[40px] saturate-150"
-        />
-        {/* Main video — centered, fills height */}
-        <div className="relative mx-auto h-[85vh] max-w-[min(56.25vh,100vw)] overflow-hidden">
-          <video
-            ref={videoRef}
-            src={HERO_VIDEO}
-            poster={HERO_POSTER}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className="h-full w-full object-cover"
-          />
+      {/* Desktop hero — portrait video centered with pillar images on sides */}
+      <div className="relative hidden lg:block h-[85vh] overflow-hidden">
+        <img src={HERO_PILLAR} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative h-full max-w-[min(56.25vh,100vw)] overflow-hidden">
+            <video ref={videoRef} src={HERO_VIDEO} poster={HERO_POSTER} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
+          </div>
         </div>
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent pointer-events-none" />
-        {/* Text + controls */}
         <div className="absolute inset-x-0 bottom-24 text-center pointer-events-auto">
-          <h1 className="mx-auto max-w-4xl font-display text-6xl font-medium leading-[1.1] text-white drop-shadow-lg">
-            {SCHOOL_TAGLINE}
-          </h1>
-          <button
-            type="button"
-            aria-label={paused ? "Play video" : "Pause video"}
-            onClick={togglePlay}
-            className="mt-8 inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10"
-          >
-            {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
-          </button>
+          <h1 className="mx-auto max-w-4xl font-display text-6xl font-medium leading-[1.1] text-white drop-shadow-lg">{SCHOOL_TAGLINE}</h1>
+          <div className="mt-8 flex items-center justify-center gap-4">
+            <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+              {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+            </button>
+            <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+              {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Mobile hero — portrait video fills naturally */}
       <div className="relative lg:hidden">
         <div className="relative h-[85vh] overflow-hidden">
-          <video
-            src={HERO_VIDEO}
-            poster={HERO_POSTER}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className="h-full w-full object-cover"
-          />
+          <video src={HERO_VIDEO} poster={HERO_POSTER} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
           <div className="absolute inset-x-0 bottom-28 text-center">
-            <h1 className="mx-auto max-w-sm font-display text-3xl font-semibold leading-tight text-white drop-shadow-lg">
-              {SCHOOL_TAGLINE}
-            </h1>
-            <button
-              type="button"
-              aria-label={paused ? "Play video" : "Pause video"}
-              onClick={togglePlay}
-              className="mt-6 inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10"
-            >
-              {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
-            </button>
+            <h1 className="mx-auto max-w-sm font-display text-3xl font-semibold leading-tight text-white drop-shadow-lg">{SCHOOL_TAGLINE}</h1>
+            <div className="mt-6 flex items-center justify-center gap-4">
+              <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={togglePlay} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+                {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+              </button>
+              <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={toggleMute} className="inline-flex rounded-full border border-white/60 p-3 text-white transition-colors hover:bg-white/10">
+                {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
-          {/* Admissions CTA card */}
-          <Link
-            to="/admissions"
-            className="absolute bottom-6 left-4 right-4 flex items-end justify-between rounded-3xl bg-gold p-5 text-gold-foreground"
-          >
-            <span>
-              <span className="text-xs font-semibold uppercase tracking-[0.2em]">
-                Admissions open
-              </span>
-              <span className="mt-1 block text-lg font-semibold leading-snug">
-                Apply for the Class of 2031
-              </span>
-            </span>
-            <span className="rounded-full bg-primary p-3 text-primary-foreground">
-              <ArrowRight className="h-5 w-5" />
-            </span>
+          <Link to="/admissions" className="absolute bottom-6 left-4 right-4 flex items-end justify-between rounded-3xl bg-gold p-5 text-gold-foreground">
+            <span><span className="text-xs font-semibold uppercase tracking-[0.2em]">Admissions open</span><span className="mt-1 block text-lg font-semibold leading-snug">Apply for the Class of 2031</span></span>
+            <span className="rounded-full bg-primary p-3 text-primary-foreground"><ArrowRight className="h-5 w-5" /></span>
           </Link>
         </div>
       </div>
