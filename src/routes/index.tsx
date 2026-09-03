@@ -69,10 +69,9 @@ function HeroSection() {
     <section className="relative bg-[#FBF6E5]">
       {/* Desktop hero */}
       <div className="relative hidden lg:block mx-3 my-3">
-        {/* Outer container for video + event card layout */}
         <div className="relative h-[calc(100vh-0.75rem*2)]">
-          {/* Video container with scalloped right edge */}
-          <div className="relative h-full overflow-hidden rounded-l-[30px] rounded-r-[60px]">
+          {/* Video container - full width with scalloped right edge */}
+          <div className="relative h-full overflow-hidden rounded-l-[30px]" style={{clipPath: 'polygon(0 0, calc(100% - 3rem) 0, calc(100% - 3rem) 28%, calc(100% - 1rem) 28%, calc(100% - 1rem) 40%, calc(100% - 3rem) 40%, calc(100% - 3rem) 60%, calc(100% - 1rem) 60%, calc(100% - 1rem) 72%, calc(100% - 3rem) 72%, calc(100% - 3rem) 100%, 0 100%)'}}>
             <video
               ref={videoRef}
               src={HERO_VIDEO}
@@ -84,24 +83,20 @@ function HeroSection() {
               preload="metadata"
               className="absolute inset-0 h-full w-full object-cover object-center"
             />
-            {/* SVG scallop mask on right edge */}
-            <svg className="absolute -right-1 top-0 h-full w-16 z-10 fill-[#FBF6E5]" viewBox="0 0 64 100" preserveAspectRatio="none" aria-hidden="true">
-              <path d="M0,0 L64,0 L64,100 L0,100 C20,100 20,80 0,80 C-20,80 -20,60 0,60 C20,60 20,40 0,40 C-20,40 -20,20 0,20 C20,20 20,0 0,0 Z" />
-            </svg>
-            {/* Pause button - bottom left */}
+            {/* Play/Pause button - bottom right */}
             <button
               type="button"
               aria-label={paused ? "Play video" : "Pause video"}
               onClick={togglePlay}
-              className="absolute bottom-6 left-6 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white shadow-lg transition-transform hover:scale-110"
+              className="absolute bottom-6 right-12 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#004D00] text-white shadow-lg transition-transform hover:scale-110"
             >
               {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
             </button>
           </div>
 
-          {/* Scroll down arrow - right edge notch */}
-          <div className="absolute right-0 top-1/2 z-30 -translate-y-1/2 translate-x-1/2">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FBF6E5] shadow-lg">
+          {/* Scroll-down arrow - sits in the scallop notch */}
+          <div className="absolute right-0 top-[34%] z-30 translate-x-1/4">
+            <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-[#FBF6E5] shadow-lg">
               <button
                 type="button"
                 aria-label="Scroll down"
@@ -113,7 +108,7 @@ function HeroSection() {
             </div>
           </div>
 
-          {/* Event card - floating, overlaps bottom-left corner with inner radius */}
+          {/* Event card - floating at bottom-left */}
           <div className="absolute -bottom-8 left-4 z-30 w-[22rem] overflow-hidden rounded-[30px] bg-[#97C600] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#002B47]/60">Event</p>
             <h2 className="mt-3 font-display text-xl font-semibold leading-snug text-[#002B47]">
