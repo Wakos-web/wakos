@@ -82,7 +82,7 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
         </nav>
         <div className="border-t border-border px-5 py-4">
           <Link to="/admissions" className="mb-3 block w-full rounded-full bg-primary py-3 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Apply Now</Link>
-          <p className="text-center text-xs text-muted-foreground">{SCHOOL_NAME} &mdash; Est. 1965</p>
+          <p className="text-center text-xs text-muted-foreground">{SCHOOL_NAME} &mdash; Est. 1953</p>
         </div>
       </div>
     </div>

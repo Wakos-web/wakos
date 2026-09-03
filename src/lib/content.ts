@@ -13,7 +13,7 @@ export const SCHOOL_NAME = "M.M College Wairaka";
 export const SCHOOL_SHORT = "WACOS";
 export const SCHOOL_MOTTO = "We Do It Ourselves";
 export const SCHOOL_TAGLINE =
-  "Discipline, hard work and self-reliance since 1965";
+  "Discipline, hard work and self-reliance since 1953";
 export const LOGO_URL = "/wacos-logo.png";
 export const HERO_VIDEO = "/hero-video.mp4";
 export const HERO_POSTER = "/hero-poster.png";

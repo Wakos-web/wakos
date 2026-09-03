@@ -22,13 +22,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "M.M College Wairaka — Discipline, hard work and self-reliance since 1965.",
+          "M.M College Wairaka — Discipline, hard work and self-reliance since 1953.",
       },
       { property: "og:title", content: "M.M College Wairaka" },
       {
         property: "og:description",
         content:
-          "Discipline, hard work and self-reliance since 1965.",
+          "Discipline, hard work and self-reliance since 1953.",
       },
       { property: "og:url", content: "/" },
     ],
@@ -122,12 +122,12 @@ function HeroSection() {
       {/* Hero content - lower left */}
       <div className="hero-content relative z-10 flex h-full flex-col justify-end px-6 pb-24 sm:px-10 lg:px-16 xl:px-24">
         <div className="max-w-3xl">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/70" style={{ animationDelay: "0.2s" }}>Est. 1965</p>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/70" style={{ animationDelay: "0.2s" }}>Est. 1953</p>
           <h1 className="font-display text-5xl font-semibold leading-[0.95] tracking-tight text-white sm:text-6xl md:text-7xl lg:text-8xl">
             Discipline, hard work<br className="hidden sm:block" /> and self-reliance
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/80 sm:text-xl">
-            Shaping young people for greater things since 1965. A government-aided secondary school in Wairaka, Jinja, built on merit, service and self-reliance.
+            Shaping young people for greater things since 1953. A government-aided secondary school in Wairaka, Jinja, built on merit, service and self-reliance.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link to="/admissions" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90 hover:shadow-lg">
@@ -272,7 +272,7 @@ function MissionSection() {
             An education money cannot buy, earned by merit alone
           </h2>
           <p className="mt-6 leading-relaxed text-muted-foreground">
-            Founded in 1965 on a single conviction — that discipline, hard work,
+            Founded in 1953 on a single conviction — that discipline, hard work,
             and self-reliance are the foundations of greatness — M.M College Wairaka
             has grown to serve over 1,800 students from 58 districts across Uganda,
             with a reputation for academic excellence and practical skills development.
