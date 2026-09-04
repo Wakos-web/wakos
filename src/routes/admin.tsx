@@ -67,32 +67,148 @@ function OverviewTab({ stats }: { stats: Record<string, number> }) {
   );
 }
 
-function ClubsTab({ clubs, members }: { clubs: any[]; members: any[] }) {
+function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[]; onRefresh: () => void }) {
+  const [showAddClub, setShowAddClub] = useState(false);
+  const [editClub, setEditClub] = useState<any>(null);
+  const [showAddMember, setShowAddMember] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [tagline, setTagline] = useState("");
+  const [overview, setOverview] = useState("");
+  const [memberName, setMemberName] = useState("");
+  const [memberRole, setMemberRole] = useState("Member");
+  const [memberYear, setMemberYear] = useState("");
+  const [memberJoined, setMemberJoined] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const resetClub = () => { setName(""); setSlug(""); setTagline(""); setOverview(""); setEditClub(null); setShowAddClub(false); };
+  const resetMember = () => { setMemberName(""); setMemberRole("Member"); setMemberYear(""); setMemberJoined(""); setShowAddMember(null); };
+
+  const saveClub = async () => {
+    setSaving(true);
+    if (editClub) {
+      await supabase.from("clubs").update({ name, slug, tagline, overview }).eq("id", editClub.id);
+    } else {
+      await supabase.from("clubs").insert({ name, slug, tagline, overview, members_count: 0, events_count: 0, years_active: 0, alumni_count: 0 });
+    }
+    resetClub(); setSaving(false); onRefresh();
+  };
+
+  const deleteClub = async (id: string) => {
+    if (!confirm("Delete this club and all its members/posts?")) return;
+    await supabase.from("club_members").delete().eq("club_id", id);
+    await supabase.from("club_posts").delete().eq("club_id", id);
+    await supabase.from("clubs").delete().eq("id", id);
+    onRefresh();
+  };
+
+  const saveMember = async (clubId: string) => {
+    setSaving(true);
+    await supabase.from("club_members").insert({ club_id: clubId, name: memberName, role: memberRole, year: memberYear || null, joined: memberJoined || null, sort_order: memberRole === "Patron" ? 0 : memberRole === "Member" ? 2 : 1 });
+    resetMember(); setSaving(false); onRefresh();
+  };
+
+  const deleteMember = async (id: string) => {
+    await supabase.from("club_members").delete().eq("id", id);
+    onRefresh();
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-bold text-stone-900">Clubs ({clubs.length})</h3>
-        <Link to="/clubs" className="text-sm font-semibold text-green-800 hover:underline">Manage →</Link>
+        <button onClick={() => { resetClub(); setShowAddClub(true); }} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 transition-colors">+ Add Club</button>
       </div>
-      <div className="space-y-3">
+
+      {/* Add/Edit Club Form */}
+      {showAddClub && (
+        <div className="rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
+          <p className="text-sm font-semibold text-green-800 mb-4">{editClub ? "Edit Club" : "Add New Club"}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium text-stone-700 mb-1">Name</label><input value={name} onChange={e => setName(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. Wildlife Club" /></div>
+            <div><label className="block text-sm font-medium text-stone-700 mb-1">Slug</label><input value={slug} onChange={e => setSlug(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. wildlife" /></div>
+          </div>
+          <div className="mt-4"><label className="block text-sm font-medium text-stone-700 mb-1">Tagline</label><input value={tagline} onChange={e => setTagline(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. Protect. Observe. Conserve." /></div>
+          <div className="mt-4"><label className="block text-sm font-medium text-stone-700 mb-1">Overview</label><textarea value={overview} onChange={e => setOverview(e.target.value)} rows={3} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="What this club stands for..." /></div>
+          <div className="flex gap-3 mt-4">
+            <button onClick={saveClub} disabled={saving || !name || !slug} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
+            <button onClick={resetClub} className="px-4 py-2 rounded-xl bg-stone-100 text-stone-600 text-sm font-semibold hover:bg-stone-200">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Club List */}
+      <div className="space-y-4">
         {clubs.map((club) => {
           const clubM = members.filter((m: any) => m.club_id === club.id);
           const patron = clubM.find((m: any) => m.role === "Patron");
+          const executives = clubM.filter((m: any) => m.role !== "Patron" && m.role !== "Member");
+          const regularMembers = clubM.filter((m: any) => m.role === "Member");
           return (
-            <div key={club.id} className="rounded-xl bg-white border border-stone-200 p-5 flex items-center justify-between hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                  <span className="text-lg font-bold text-green-800">{club.name.charAt(0)}</span>
+            <div key={club.id} className="rounded-xl bg-white border border-stone-200 p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                    <span className="text-sm font-bold text-green-800">{club.name.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <p className="font-display text-lg font-bold text-stone-900">{club.name}</p>
+                    <p className="text-xs text-stone-500">{club.tagline || "No tagline"} · {clubM.length} members</p>
+                  </div>
                 </div>
-                <div>
-                  <Link to={`/clubs/$slug`} params={{ slug: club.slug }} className="font-display text-lg font-bold text-stone-900 hover:text-green-800 transition-colors">{club.name}</Link>
-                  <p className="text-sm text-stone-500">{clubM.length} members · {patron ? patron.name : "No patron"}</p>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => { setEditClub(club); setName(club.name); setSlug(club.slug); setTagline(club.tagline || ""); setOverview(club.overview || ""); setShowAddClub(true); }} className="p-2 rounded-lg hover:bg-stone-100" title="Edit"><Settings className="h-4 w-4 text-stone-400" /></button>
+                  <button onClick={() => deleteClub(club.id)} className="p-2 rounded-lg hover:bg-red-50" title="Delete"><Trash2 className="h-4 w-4 text-red-400" /></button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Link to={`/clubs/$slug`} params={{ slug: club.slug }} className="p-2 rounded-lg hover:bg-stone-100 transition-colors">
-                  <Eye className="h-4 w-4 text-stone-400" />
-                </Link>
+
+              {/* Members */}
+              <div className="ml-13">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-stone-500 uppercase">Members ({clubM.length})</p>
+                  <button onClick={() => setShowAddMember(showAddMember === club.id ? null : club.id)} className="text-xs font-semibold text-green-800 hover:underline">+ Add</button>
+                </div>
+
+                {/* Add Member Form */}
+                {showAddMember === club.id && (
+                  <div className="rounded-lg bg-stone-50 border border-stone-200 p-3 mb-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <input value={memberName} onChange={e => setMemberName(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs" placeholder="Name" />
+                      <select value={memberRole} onChange={e => setMemberRole(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs">
+                        <option>Patron</option><option>Chairperson</option><option>Vice Chair</option><option>Secretary</option><option>Treasurer</option><option>Member</option>
+                      </select>
+                      <input value={memberYear} onChange={e => setMemberYear(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs" placeholder="Year (e.g. S4)" />
+                      <input value={memberJoined} onChange={e => setMemberJoined(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs" placeholder="Joined (e.g. 2023)" />
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => saveMember(club.id)} disabled={saving || !memberName} className="px-3 py-1 rounded-lg bg-green-800 text-white text-xs font-semibold disabled:opacity-50">Save</button>
+                      <button onClick={resetMember} className="px-3 py-1 rounded-lg bg-stone-100 text-stone-600 text-xs">Cancel</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Patron */}
+                {patron && (
+                  <div className="flex items-center justify-between py-1.5 text-xs">
+                    <span><span className="font-semibold text-green-800">{patron.name}</span> <span className="text-stone-400">· {patron.role} · Since {patron.joined}</span></span>
+                    <button onClick={() => deleteMember(patron.id)} className="p-1 rounded hover:bg-red-50"><Trash2 className="h-3 w-3 text-red-400" /></button>
+                  </div>
+                )}
+                {/* Executives */}
+                {executives.map((ex) => (
+                  <div key={ex.id} className="flex items-center justify-between py-1.5 text-xs">
+                    <span><span className="font-semibold text-stone-700">{ex.name}</span> <span className="text-stone-400">· {ex.role} · {ex.year}</span></span>
+                    <button onClick={() => deleteMember(ex.id)} className="p-1 rounded hover:bg-red-50"><Trash2 className="h-3 w-3 text-red-400" /></button>
+                  </div>
+                ))}
+                {/* Members (show first 4) */}
+                {regularMembers.slice(0, 4).map((m) => (
+                  <div key={m.id} className="flex items-center justify-between py-1.5 text-xs">
+                    <span><span className="text-stone-600">{m.name}</span> <span className="text-stone-400">· {m.year}</span></span>
+                    <button onClick={() => deleteMember(m.id)} className="p-1 rounded hover:bg-red-50"><Trash2 className="h-3 w-3 text-red-400" /></button>
+                  </div>
+                ))}
+                {regularMembers.length > 4 && <p className="text-xs text-stone-400 py-1">...and {regularMembers.length - 4} more</p>}
               </div>
             </div>
           );
@@ -103,6 +219,14 @@ function ClubsTab({ clubs, members }: { clubs: any[]; members: any[] }) {
 }
 
 function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [location, setLocation] = useState("");
+  const [category, setCategory] = useState("reunion");
+  const [saving, setSaving] = useState(false);
+
   const approve = async (id: string) => {
     await supabase.from("events").update({ approved: true }).eq("id", id);
     onRefresh();
@@ -111,12 +235,41 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
     await supabase.from("events").delete().eq("id", id);
     onRefresh();
   };
+  const create = async () => {
+    setSaving(true);
+    await supabase.from("events").insert({ title, description: description || null, event_date: eventDate || null, location: location || null, category, approved: true });
+    setTitle(""); setDescription(""); setEventDate(""); setLocation(""); setShowAdd(false); setSaving(false); onRefresh();
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-bold text-stone-900">Events ({events.length})</h3>
-        <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowAdd(!showAdd)} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 transition-colors">+ Add Event</button>
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
       </div>
+
+      {/* Add Event Form */}
+      {showAdd && (
+        <div className="rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
+          <p className="text-sm font-semibold text-green-800 mb-4">New Event</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium text-stone-700 mb-1">Title</label><input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="Event title" /></div>
+            <div><label className="block text-sm font-medium text-stone-700 mb-1">Date</label><input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" /></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div><label className="block text-sm font-medium text-stone-700 mb-1">Location</label><input value={location} onChange={e => setLocation(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. School Hall" /></div>
+            <div><label className="block text-sm font-medium text-stone-700 mb-1">Category</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"><option value="reunion">Reunion</option><option value="achievement">Achievement</option><option value="update">Update</option><option value="memoriam">In Memoriam</option><option value="business">Business</option></select></div>
+          </div>
+          <div className="mt-4"><label className="block text-sm font-medium text-stone-700 mb-1">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="Event details..." /></div>
+          <div className="flex gap-3 mt-4">
+            <button onClick={create} disabled={saving || !title} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 disabled:opacity-50">{saving ? "Saving..." : "Create Event"}</button>
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-xl bg-stone-100 text-stone-600 text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
       {events.length === 0 ? (
         <div className="text-center py-12 text-stone-400">
           <Calendar className="h-10 w-10 mx-auto mb-3" />
@@ -534,7 +687,7 @@ function AdminPage() {
         ) : (
           <>
             {tab === "overview" && <OverviewTab stats={stats} />}
-            {tab === "clubs" && <ClubsTab clubs={clubs} members={members} />}
+            {tab === "clubs" && <ClubsTab clubs={clubs} members={members} onRefresh={fetchData} />}
             {tab === "alumni" && (
               <div>
                 <div className="flex items-center justify-between mb-6">
