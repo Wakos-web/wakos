@@ -5,11 +5,12 @@ import { ARTICLES } from "@/lib/content";
 
 export const Route = createFileRoute("/campus-news/$slug")({
   loader: async ({ params }) => {
-    // Try Supabase first
+    // Try Supabase first - only show published articles
     const { data } = await supabase
       .from("articles")
       .select("*")
       .eq("slug", params.slug)
+      .eq("published", true)
       .single();
     
     if (data) return { article: data };

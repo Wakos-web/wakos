@@ -876,6 +876,12 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
     onRefresh();
   };
 
+  const togglePublish = async (id: string, currentStatus: boolean) => {
+    await supabase.from("articles").update({ published: !currentStatus }).eq("id", id);
+    setToast({ message: currentStatus ? "Article unpublished" : "Article published", type: "success" });
+    onRefresh();
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -920,12 +926,18 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">{article.category}</span>
                       <span className="text-xs text-stone-400">{article.date}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${article.published ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-600"}`}>
+                        {article.published ? "Published" : "Draft"}
+                      </span>
                     </div>
                     <p className="font-display text-lg font-bold text-stone-900">{article.title}</p>
                     <p className="text-sm text-stone-600 line-clamp-2">{article.excerpt}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => togglePublish(article.id, article.published)} className={`p-2.5 rounded-lg border transition-colors ${article.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={article.published ? "Unpublish" : "Publish"}>
+                    {article.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
+                  </button>
                   <button onClick={() => { setEditItem(article); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
                     <Settings className="h-4 w-4 text-blue-600" />
                   </button>
