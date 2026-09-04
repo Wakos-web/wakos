@@ -344,18 +344,21 @@ function ClubDetailPage() {
 
   const localClub = CLUBS.find(c => c.slug === slug);
   const club = dbClub ? {
+    ...localClub,
     ...dbClub,
     img: localClub?.img || campusImg,
     stats: { members: dbClub.members_count || 0, events: dbClub.events_count || 0, years: dbClub.years_active || 0, alumni: dbClub.alumni_count || 0 },
     patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron || null,
     executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3),
     members: dbMembers.filter((m: any) => m.role === 'Member'),
+    activities: localClub?.activities || [],
   } : localClub;
   const posts = dbPosts.length > 0 ? dbPosts : (CLUB_POSTS[slug] || []);
 
   if (!club) return <div className='py-20 text-center text-stone-500'>Club not found.</div>;
 
-  const visibleMembers = showAllMembers ? club.members : club.members.slice(0, 8);
+  const clubMembers = club.members || [];
+  const visibleMembers = showAllMembers ? clubMembers : clubMembers.slice(0, 8);
 
   return (
     <div>
@@ -466,10 +469,10 @@ function ClubDetailPage() {
           {/* Members */}
           <div>
             <div className='flex items-center justify-between mb-4'>
-              <p className='text-xs font-semibold uppercase tracking-wider text-stone-500'>Members ({club.members.length})</p>
-              {club.members.length > 8 && (
+              <p className='text-xs font-semibold uppercase tracking-wider text-stone-500'>Members ({clubMembers.length})</p>
+              {clubMembers.length > 8 && (
                 <button onClick={() => setShowAllMembers(!showAllMembers)} className='text-sm font-semibold text-green-800 hover:underline'>
-                  {showAllMembers ? 'Show less' : `View all ${club.members.length}`}
+                  {showAllMembers ? 'Show less' : `View all ${clubMembers.length}`}
                 </button>
               )}
             </div>
