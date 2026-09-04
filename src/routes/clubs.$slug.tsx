@@ -322,35 +322,23 @@ function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: n
   const img = person.img || getAvatar(person.name);
   const color = PORTRAIT_COLORS[index % PORTRAIT_COLORS.length];
   const isLarge = size === 'lg';
-  const circleSize = isLarge ? 'w-44 h-44' : 'w-28 h-28';
-  const bgSize = isLarge ? 'w-48 h-48' : 'w-32 h-32';
-  const fontSize = isLarge ? 'text-xs' : 'text-[10px]';
-  const svgSize = isLarge ? 200 : 130;
-  const radius = isLarge ? 88 : 56;
-  const textId = 'name-' + person.name.replace(/\s+/g, '-').toLowerCase();
+  const circleSize = isLarge ? 'w-40 h-40' : 'w-28 h-28';
+  const bgSize = isLarge ? 'w-44 h-44' : 'w-32 h-32';
 
   return (
     <div className='flex flex-col items-center'>
-      <div className='relative' style={{ width: svgSize, height: svgSize }}>
+      <div className='relative'>
         {/* Colored circle behind */}
         <div className={`absolute top-1 left-1 ${bgSize} rounded-full`} style={{ backgroundColor: color, opacity: 0.85 }} />
         {/* Photo circle */}
-        <div className={`absolute inset-0 ${circleSize} m-auto rounded-full overflow-hidden shadow-lg ring-2 ring-white`}>          
+        <div className={`relative ${circleSize} rounded-full overflow-hidden shadow-lg ring-2 ring-white`}>          
           <img src={img} alt={person.name} className='w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500' loading='lazy' />
         </div>
-        {/* Curved name text */}
-        <svg className='absolute inset-0 w-full h-full' viewBox={'0 0 ' + svgSize + ' ' + svgSize}>
-          <defs>
-            <path id={textId} d={'M ' + (svgSize/2) + ',' + (svgSize/2) + ' m -' + radius + ',0 a ' + radius + ',' + radius + ' 0 1,1 ' + (radius*2) + ',0 a ' + radius + ',' + radius + ' 0 1,1 -' + (radius*2) + ',0'} fill='none' />
-          </defs>
-          <text className={fontSize + ' font-bold fill-stone-800 tracking-wide'} style={{ fontFamily: 'var(--font-display)' }}>
-            <textPath href={'#' + textId} startOffset='25%'>{person.name}</textPath>
-          </text>
-        </svg>
       </div>
-      {/* Role label below */}
-      <div className='text-center mt-2'>
-        <p className={'font-display font-bold text-stone-900 ' + (isLarge ? 'text-lg' : 'text-sm')}>{person.role}</p>
+      {/* Name + Role label below */}
+      <div className='text-center mt-3'>
+        <p className={'font-display font-bold text-stone-900 ' + (isLarge ? 'text-lg' : 'text-sm')}>{person.name}</p>
+        <p className={isLarge ? 'text-sm text-green-800 font-medium' : 'text-xs text-green-800 font-medium'}>{person.role}</p>
         {person.year && <p className='text-xs text-stone-500 mt-0.5'>{person.year}{person.joined ? ' · Since ' + person.joined : ''}</p>}
       </div>
     </div>
