@@ -366,6 +366,121 @@ function CTASection() {
   );
 }
 
+function RegistrationForm() {
+  const [name, setName] = useState("");
+  const [year, setYear] = useState("");
+  const [programme, setProgramme] = useState("O-Level");
+  const [profession, setProfession] = useState("");
+  const [company, setCompany] = useState("");
+  const [location, setLocation] = useState("");
+  const [bio, setBio] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1952 }, (_, i) => currentYear - i);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const { error: insertError } = await supabase.from("alumni_profiles").insert({
+        full_name: name,
+        graduation_year: parseInt(year),
+        programme,
+        profession: profession || null,
+        company: company || null,
+        current_location: location || null,
+        bio: bio || null,
+        is_public: true,
+        approved: false,
+      });
+      if (insertError) throw insertError;
+      setSuccess(true);
+      setName(""); setYear(""); setProfession(""); setCompany(""); setLocation(""); setBio("");
+    } catch (err: any) {
+      setError(err.message || "Registration failed");
+    }
+    setLoading(false);
+  };
+
+  if (success) {
+    return (
+      <div className="rounded-2xl bg-green-50 border border-green-200 p-8 text-center">
+        <Award className="h-10 w-10 text-green-800 mx-auto mb-3" />
+        <h3 className="font-display text-xl font-bold text-stone-900 mb-2">Registration submitted!</h3>
+        <p className="text-stone-600 font-body">Your profile is pending review by MMCWOSA. Once approved, you will appear in the alumni directory.</p>
+        <button onClick={() => setSuccess(false)} className="mt-4 text-green-800 font-semibold hover:underline">Register another alumnus</button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-stone-200 p-8 space-y-5">
+      {error && <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-2">Full Name *</label>
+          <input type="text" required value={name} onChange={e => setName(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Your full name" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-2">Graduation Year *</label>
+          <select required value={year} onChange={e => setYear(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
+            <option value="">Select year</option>
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-2">Programme *</label>
+          <select required value={programme} onChange={e => setProgramme(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
+            <option value="O-Level">O-Level</option>
+            <option value="A-Level">A-Level</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-2">Profession</label>
+          <input type="text" value={profession} onChange={e => setProfession(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. Engineer, Teacher, Doctor" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-2">Company / Organisation</label>
+          <input type="text" value={company} onChange={e => setCompany(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Where do you work?" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location</label>
+          <input type="text" value={location} onChange={e => setLocation(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. Kampala, Uganda" />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-stone-700 mb-2">Short Bio</label>
+        <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)}
+          className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+          placeholder="Tell fellow alumni what you've been up to since WACOS..." />
+      </div>
+
+      <button type="submit" disabled={loading}
+        className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+        {loading ? "Submitting..." : "Register for Directory"}
+      </button>
+    </form>
+  );
+}
+
 function AlumniPage() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isIndex = pathname === "/alumni";
@@ -414,6 +529,17 @@ function AlumniPulsePage() {
             <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Submit Your Class Note</h2>
           </div>
           <SubmitForm onSubmitted={fetchData} />
+        </div>
+      </section>
+
+      <section id="register" className="py-16 bg-stone-50 scroll-mt-16">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-center mb-8">
+            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Alumni Directory</p>
+            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Register as an Alumnus</h2>
+            <p className="mt-3 text-stone-600 font-body">Join the directory and reconnect with fellow WACOS graduates. Your profile will be reviewed before going live.</p>
+          </div>
+          <RegistrationForm />
         </div>
       </section>
 
