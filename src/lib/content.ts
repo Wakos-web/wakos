@@ -29,10 +29,41 @@ export const IMAGES = {
 
 export const NAV_ITEMS = [
   { label: "About", to: "/about" },
-  { label: "Academics", to: "/academics" },
-  { label: "Student Life", to: "/student-life" },
-  { label: "Athletics", to: "/athletics" },
-  { label: "Clubs", to: "/clubs" },
+  { label: "Academics", to: "/academics", children: [
+    { label: "Overview", to: "/academics" },
+    { label: "O-Level", to: "/academics#olevel" },
+    { label: "A-Level", to: "/academics#alevel" },
+    { label: "Departments", to: "/academics#departments" },
+    { label: "Resources", to: "/academics#resources" },
+  ] },
+  { label: "Student Life", to: "/student-life", children: [
+    { label: "Overview", to: "/student-life" },
+    { label: "Residential Life", to: "/student-life#residential" },
+    { label: "Clubs & Societies", to: "/student-life#clubs" },
+    { label: "Sports", to: "/student-life#sports" },
+    { label: "Community Service", to: "/student-life#service" },
+    { label: "Arts & Culture", to: "/student-life#arts" },
+    { label: "Wellness", to: "/student-life#wellness" },
+  ] },
+  { label: "Athletics", to: "/athletics", children: [
+    { label: "Overview", to: "/athletics" },
+    { label: "Sports", to: "/athletics#sports" },
+    { label: "Highlights", to: "/athletics#highlights" },
+    { label: "Notable Athletes", to: "/athletics#athletes" },
+  ] },
+  { label: "Clubs", to: "/clubs", children: [
+    { label: "All Clubs", to: "/clubs" },
+    { label: "Wildlife Club", to: "/clubs/wildlife" },
+    { label: "Arts & Culture", to: "/clubs/arts-culture" },
+    { label: "Scouts & Guides", to: "/clubs/scouts-guides" },
+    { label: "Agriculture", to: "/clubs/agriculture" },
+    { label: "Debate Club", to: "/clubs/debate" },
+    { label: "Writers Club", to: "/clubs/writers" },
+    { label: "Red Cross", to: "/clubs/red-cross" },
+    { label: "Entertainment", to: "/clubs/entertainment" },
+    { label: "Home Science", to: "/clubs/home-science" },
+    { label: "Current Affairs", to: "/clubs/current-affairs" },
+  ] },
   { label: "Alumni", to: "/alumni", children: [
     { label: "Pulse", to: "/alumni" },
     { label: "Alumni Directory", to: "/alumni/directory" },
@@ -40,7 +71,14 @@ export const NAV_ITEMS = [
     { label: "Upcoming Events", to: "/alumni#events" },
   ] },
   { label: "Giving", to: "/giving" },
-  { label: "Campus Stores", to: "/campus-stores" },
+  { label: "Campus Stores", to: "/campus-stores", children: [
+    { label: "All Stories", to: "/campus-stores" },
+    { label: "Latest News", to: "/campus-stores" },
+    { label: "STEM", to: "/campus-stores" },
+    { label: "Athletics", to: "/campus-stores" },
+    { label: "Outreach", to: "/campus-stores" },
+    { label: "Community", to: "/campus-stores" },
+  ] },
 ] as const;
 
 export const MORE_ITEMS = [

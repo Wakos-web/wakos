@@ -38,7 +38,27 @@ export function SiteHeader() {
           </Link>
           <nav className="flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
             {NAV_ITEMS.map((item) => (
-              <Link key={item.to} to={item.to} className={"text-sm font-medium tracking-wide transition-colors hover:underline hover:underline-offset-8 " + (isHome && !scrolled ? "text-white/80 hover:text-white" : "text-muted-foreground hover:text-foreground")}>{item.label}</Link>
+              item.children ? (
+                <div key={item.to} className="relative group"
+                  onMouseEnter={() => setOpenDropdown(item.label)}
+                  onMouseLeave={() => setOpenDropdown(null)}>
+                  <Link to={item.to} className={"flex items-center gap-1 text-sm font-medium tracking-wide transition-colors hover:underline hover:underline-offset-8 " + (isHome && !scrolled ? "text-white/80 hover:text-white" : "text-muted-foreground hover:text-foreground")}>
+                    {item.label}
+                    <svg className="h-3 w-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </Link>
+                  {openDropdown === item.label && (
+                    <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-xl border border-border bg-white/95 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150">
+                      {item.children.map((child) => (
+                        <Link key={child.to} to={child.to} className="block px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-primary/5 first:rounded-t-xl last:rounded-b-xl">
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link key={item.to} to={item.to} className={"text-sm font-medium tracking-wide transition-colors hover:underline hover:underline-offset-8 " + (isHome && !scrolled ? "text-white/80 hover:text-white" : "text-muted-foreground hover:text-foreground")}>{item.label}</Link>
+              )
             ))}
           </nav>
           <Link to="/admissions" className={"rounded-full px-5 py-2 text-sm font-semibold transition-all " + (isHome && !scrolled ? "border border-white/40 text-white hover:bg-white/10" : "bg-primary text-primary-foreground hover:bg-primary/90")}>Admissions</Link>
@@ -59,6 +79,7 @@ export function SiteHeader() {
 }
 function MobileMenu({ onClose }: { onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   useEffect(() => { closeRef.current?.focus(); }, []);
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Escape") onClose();
@@ -75,10 +96,28 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-5 pb-8 pt-4" aria-label="Mobile navigation">
           {NAV_ITEMS.map((item) => (
-            <Link key={item.to} to={item.to} className="flex items-center justify-between rounded-2xl px-5 py-4 font-display text-2xl font-medium text-foreground transition-colors hover:bg-secondary sm:text-3xl">
-              {item.label}
-              <span className="text-lg text-muted-foreground">&rarr;</span>
-            </Link>
+            item.children ? (
+              <div key={item.to}>
+                <button type="button" onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)} className="flex w-full items-center justify-between rounded-2xl px-5 py-4 font-display text-2xl font-medium text-foreground transition-colors hover:bg-secondary sm:text-3xl">
+                  {item.label}
+                  <svg className={"h-5 w-5 text-muted-foreground transition-transform duration-200 " + (openDropdown === item.label ? "rotate-180" : "")} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {openDropdown === item.label && (
+                  <div className="ml-4 flex flex-col gap-1 pb-2">
+                    {item.children.map((child) => (
+                      <Link key={child.to} to={child.to} className="rounded-xl px-5 py-3 text-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:text-xl">
+                        {child.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link key={item.to} to={item.to} className="flex items-center justify-between rounded-2xl px-5 py-4 font-display text-2xl font-medium text-foreground transition-colors hover:bg-secondary sm:text-3xl">
+                {item.label}
+                <span className="text-lg text-muted-foreground">&rarr;</span>
+              </Link>
+            )
           ))}
         </nav>
         <div className="border-t border-border px-5 py-4">
