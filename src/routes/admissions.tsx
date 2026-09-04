@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { IMAGES, SCHOOL_NAME } from "@/lib/content";
 
 export const Route = createFileRoute("/admissions")({
@@ -99,6 +101,54 @@ const FAQ = [
     </section>
   );
 }function InquiryForm() {
+  const [studentName, setStudentName] = useState("");
+  const [parentName, setParentName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [currentSchool, setCurrentSchool] = useState("");
+  const [level, setLevel] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const { error: insertError } = await supabase.from("inquiries").insert({
+        student_name: studentName,
+        parent_name: parentName,
+        phone,
+        email: email || null,
+        current_school: currentSchool || null,
+        level,
+        message: message || null,
+      });
+      if (insertError) throw insertError;
+      setSuccess(true);
+      setStudentName(""); setParentName(""); setPhone(""); setEmail(""); setCurrentSchool(""); setLevel(""); setMessage("");
+    } catch (err: any) {
+      setError(err.message || "Submission failed");
+    }
+    setLoading(false);
+  };
+
+  if (success) {
+    return (
+      <section id="inquire" className="py-20">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="rounded-2xl bg-green-50 border border-green-200 p-12 text-center">
+            <h3 className="font-display text-2xl font-bold text-stone-900 mb-3">Thank you!</h3>
+            <p className="text-stone-600 font-body mb-6">Your inquiry has been received. Our admissions team will contact you soon.</p>
+            <button onClick={() => setSuccess(false)} className="text-green-800 font-semibold hover:underline">Submit another inquiry</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="inquire" className="py-20">
       <div className="max-w-3xl mx-auto px-6">
@@ -107,46 +157,49 @@ const FAQ = [
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Admission inquiry</h2>
           <p className="mt-4 text-stone-600 text-lg font-body">Fill out the form below and our admissions team will contact you.</p>
         </div>
-        <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); alert("Thank you! Our admissions team will contact you soon."); }}>
+        {error && <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold text-stone-700 mb-2">Student Name *</label>
-              <input type="text" required className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Full name" />
+              <input type="text" required value={studentName} onChange={e => setStudentName(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Full name" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-stone-700 mb-2">Parent/Guardian Name *</label>
-              <input type="text" required className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Full name" />
+              <input type="text" required value={parentName} onChange={e => setParentName(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Full name" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold text-stone-700 mb-2">Phone Number *</label>
-              <input type="tel" required className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. 0700 123 456" />
+              <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. 0700 123 456" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-stone-700 mb-2">Email</label>
-              <input type="email" className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="email@example.com" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="email@example.com" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold text-stone-700 mb-2">Current School</label>
-              <input type="text" className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="School name" />
+              <input type="text" value={currentSchool} onChange={e => setCurrentSchool(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="School name" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-stone-700 mb-2">Level Applying For *</label>
-              <select required className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
+              <select required value={level} onChange={e => setLevel(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
                 <option value="">Select level</option>
-                <option value="o-level">O-Level (Senior 1)</option>
-                <option value="a-level">A-Level (Senior 5)</option>
+                <option value="O-Level">O-Level (Senior 1)</option>
+                <option value="A-Level">A-Level (Senior 5)</option>
               </select>
             </div>
           </div>
           <div>
             <label className="block text-sm font-semibold text-stone-700 mb-2">Message</label>
-            <textarea rows={4} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Any questions about admission, scholarships, or fees?" />
+            <textarea rows={4} value={message} onChange={e => setMessage(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Any questions about admission, scholarships, or fees?" />
           </div>
-          <button type="submit" className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors">Submit Inquiry</button>
+          <button type="submit" disabled={loading} className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50">
+            {loading ? "Submitting..." : "Submit Inquiry"}
+          </button>
         </form>
       </div>
     </section>
