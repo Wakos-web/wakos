@@ -363,6 +363,7 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
 
 function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -370,21 +371,48 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
   const [category, setCategory] = useState("reunion");
   const [saving, setSaving] = useState(false);
 
-  const approve = async (id: string) => {
-    await supabase.from("events").update({ approved: true }).eq("id", id);
+  const reset = () => { setTitle(""); setDescription(""); setEventDate(""); setLocation(""); setCategory("reunion"); setEditItem(null); setShowAdd(false); };
+
+  const startEdit = (evt: any) => {
+    setEditItem(evt);
+    setTitle(evt.title);
+    setDescription(evt.description || "");
+    setEventDate(evt.event_date || "");
+    setLocation(evt.location || "");
+    setCategory(evt.category || "reunion");
+    setShowAdd(false);
+  };
+
+  const togglePublish = async (id: string, current: boolean) => {
+    await supabase.from("events").update({ approved: !current }).eq("id", id);
+    setToast({ message: current ? "Event unpublished" : "Event published", type: "success" });
     onRefresh();
   };
-  const remove = async (id: string) => {
-    await supabase.from("events").delete().eq("id", id);
-    onRefresh();
-  };
-  const create = async () => {
+
+  const save = async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) { setToast({ message: "Event title is required", type: "error" }); return; }
     setSaving(true);
-    await supabase.from("events").insert({ title: trimmedTitle, description: description?.trim() || null, event_date: eventDate || null, location: location?.trim() || null, category, approved: true });
-    setToast({ message: "Event created", type: "success" });
-    setTitle(""); setDescription(""); setEventDate(""); setLocation(""); setShowAdd(false); setSaving(false); onRefresh();
+    if (editItem) {
+      const { error } = await supabase.from("events").update({ title: trimmedTitle, description: description?.trim() || null, event_date: eventDate || null, location: location?.trim() || null, category }).eq("id", editItem.id);
+      setSaving(false);
+      if (error) { setToast({ message: error.message, type: "error" }); return; }
+      setToast({ message: "Event updated", type: "success" });
+    } else {
+      const { error } = await supabase.from("events").insert({ title: trimmedTitle, description: description?.trim() || null, event_date: eventDate || null, location: location?.trim() || null, category, approved: true });
+      setSaving(false);
+      if (error) { setToast({ message: error.message, type: "error" }); return; }
+      setToast({ message: "Event created", type: "success" });
+    }
+    reset();
+    onRefresh();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this event?")) return;
+    await supabase.from("events").delete().eq("id", id);
+    setToast({ message: "Event deleted", type: "success" });
+    onRefresh();
   };
 
   return (
@@ -392,27 +420,30 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-bold text-stone-900">Events ({events.length})</h3>
         <div className="flex gap-2">
-          <button onClick={() => setShowAdd(!showAdd)} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 transition-colors">+ Add Event</button>
+          <button onClick={() => { reset(); setShowAdd(!showAdd); }} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 transition-colors">+ Add Event</button>
           <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
         </div>
       </div>
 
-      {/* Add Event Form */}
-      {showAdd && (
+      {/* Add/Edit Event Form */}
+      {(showAdd || editItem) && (
         <div className="rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
-          <p className="text-sm font-semibold text-green-800 mb-4">New Event</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-green-800">{editItem ? "Edit Event" : "New Event"}</p>
+            <button onClick={reset} className="text-stone-400 hover:text-stone-600"><X className="h-4 w-4" /></button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-stone-700 mb-1">Title</label><input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="Event title" /></div>
             <div><label className="block text-sm font-medium text-stone-700 mb-1">Date</label><input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" /></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div><label className="block text-sm font-medium text-stone-700 mb-1">Location</label><input value={location} onChange={e => setLocation(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. School Hall" /></div>
-            <div><label className="block text-sm font-medium text-stone-700 mb-1">Category</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"><option value="reunion">Reunion</option><option value="achievement">Achievement</option><option value="update">Update</option><option value="memoriam">In Memoriam</option><option value="business">Business</option></select></div>
+            <div><label className="block text-sm font-medium text-stone-700 mb-1">Category</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"><option value="reunion">Reunion</option><option value="achievement">Achievement</option><option value="update">Update</option><option value="memoriam">In Memoriam</option><option value="business">Business</option><option value="sports">Sports</option><option value="academic">Academic</option><option value="community">Community</option></select></div>
           </div>
-          <div className="mt-4"><label className="block text-sm font-medium text-stone-700 mb-1">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="Event details..." /></div>
+          <div className="mt-4"><label className="block text-sm font-medium text-stone-700 mb-1">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="Event details..." /></div>
           <div className="flex gap-3 mt-4">
-            <button onClick={create} disabled={saving || !title} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 disabled:opacity-50">{saving ? "Saving..." : "Create Event"}</button>
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-xl bg-stone-100 text-stone-600 text-sm">Cancel</button>
+            <button onClick={save} disabled={saving || !title} className="px-6 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 disabled:opacity-50 transition-colors">{saving ? "Saving..." : editItem ? "Update Event" : "Create Event"}</button>
+            <button onClick={reset} className="px-4 py-2 rounded-xl bg-stone-100 text-stone-600 text-sm hover:bg-stone-200 transition-colors">Cancel</button>
           </div>
         </div>
       )}
@@ -424,26 +455,29 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
       ) : (
         <div className="space-y-3">
           {events.map((evt) => (
-            <div key={evt.id} className="rounded-xl bg-white border border-stone-200 p-5 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${evt.approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
-                    {evt.approved ? "Approved" : "Pending"}
-                  </span>
-                  <span className="text-xs text-stone-400">{evt.category}</span>
+            <div key={evt.id} className="rounded-xl bg-white border border-stone-200 p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${evt.approved ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-600"}`}>{evt.approved ? "Published" : "Draft"}</span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">{evt.category}</span>
+                    <span className="text-xs text-stone-400">{evt.event_date ? new Date(evt.event_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "No date"}</span>
+                  </div>
+                  <p className="font-display text-lg font-bold text-stone-900">{evt.title}</p>
+                  {evt.location && <p className="text-sm text-stone-500">📍 {evt.location}</p>}
+                  {evt.description && <p className="text-sm text-stone-600 mt-1 line-clamp-2">{evt.description}</p>}
                 </div>
-                <p className="font-display text-lg font-bold text-stone-900">{evt.title}</p>
-                <p className="text-sm text-stone-500">{evt.event_date ? new Date(evt.event_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "No date"}{evt.location ? " · " + evt.location : ""}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                {!evt.approved && (
-                  <button onClick={() => approve(evt.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
-                    <Check className="h-4 w-4 text-green-600" />
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => togglePublish(evt.id, evt.approved)} className={`p-2.5 rounded-lg border transition-colors ${evt.approved ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={evt.approved ? "Unpublish" : "Publish"}>
+                    {evt.approved ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
                   </button>
-                )}
-                <button onClick={() => remove(evt.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                  <Trash2 className="h-4 w-4 text-red-400" />
-                </button>
+                  <button onClick={() => startEdit(evt)} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                    <Settings className="h-4 w-4 text-blue-600" />
+                  </button>
+                  <button onClick={() => remove(evt.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
