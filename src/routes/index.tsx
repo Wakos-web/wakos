@@ -50,7 +50,7 @@ function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
-  const [loaded, setLoaded] = useState(false);
+
   const sectionRef = useRef<HTMLElement>(null);
 
   const togglePlay = useCallback(() => {
@@ -98,20 +98,11 @@ function HeroSection() {
           muted
           loop
           playsInline
-          preload="metadata"
-          className={"absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%] transition-opacity duration-1000 " + (loaded ? "opacity-100" : "opacity-0")}
+          preload="auto"
+          fetchPriority="high"
+          className="absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%]"
         />
-        {/* Fallback poster if video has not loaded */}
-        {!loaded && (
-          <img
-            src={HERO_POSTER}
-            alt="M.M College Wairaka campus"
-            className="absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%]"
-            width={1920}
-            height={1080}
-            fetchPriority="high"
-          />
-        )}
+
       </div>
 
       {/* Layered overlays */}
