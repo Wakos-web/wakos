@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ARTICLES } from "@/lib/content";
-import { ArrowLeft, Calendar, Tag, Clock, Share2, Bookmark } from "lucide-react";
+import { ArrowLeft, Calendar, Tag, Clock, Share2, Bookmark, Eye, User } from "lucide-react";
 
 export const Route = createFileRoute("/campus-news/$slug")({
   head: ({ params }) => {
@@ -33,6 +33,11 @@ function ArticlePage() {
 
       if (data) {
         setArticle(data);
+        // Increment views
+        await supabase
+          .from("articles")
+          .update({ views: (data.views || 0) + 1 })
+          .eq("id", data.id);
         // Fetch related articles
         const { data: related } = await supabase
           .from("articles")
@@ -136,6 +141,10 @@ function ArticlePage() {
               <Clock className="h-4 w-4" />
               {readingTime} min read
             </span>
+            <span className="inline-flex items-center gap-1.5 text-white/70 text-sm">
+              <Eye className="h-4 w-4" />
+              {article.views || 0} views
+            </span>
           </div>
           <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-white font-bold leading-tight mb-4">
             {article.title}
@@ -145,15 +154,30 @@ function ArticlePage() {
           </p>
           
           {/* Share buttons */}
-          <div className="flex items-center gap-3 mt-6">
-            <button className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-white/30 transition-colors">
-              <Share2 className="h-4 w-4" />
-              Share
-            </button>
-            <button className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-white/30 transition-colors">
-              <Bookmark className="h-4 w-4" />
-              Save
-            </button>
+          <div className="flex items-center gap-4 mt-6">
+            <div className="flex items-center gap-3">
+              {article.author_avatar ? (
+                <img src={article.author_avatar} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-white/30" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-semibold text-white">{article.author_name || "M.M College Wairaka"}</p>
+                <p className="text-xs text-white/60">{article.author_role || "School Communications"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <button className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-white/30 transition-colors">
+                <Share2 className="h-4 w-4" />
+                Share
+              </button>
+              <button className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-white/30 transition-colors">
+                <Bookmark className="h-4 w-4" />
+                Save
+              </button>
+            </div>
           </div>
         </div>
       </section>

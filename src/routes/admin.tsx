@@ -878,9 +878,12 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
   const [excerpt, setExcerpt] = useState("");
   const [body, setBody] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [authorName, setAuthorName] = useState("");
+  const [authorRole, setAuthorRole] = useState("");
+  const [authorAvatar, setAuthorAvatar] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setTitle(""); setSlug(""); setCategory(""); setExcerpt(""); setBody(""); setImageUrl(""); setEditItem(null); setShowAdd(false); };
+  const reset = () => { setTitle(""); setSlug(""); setCategory(""); setExcerpt(""); setBody(""); setImageUrl(""); setAuthorName(""); setAuthorRole(""); setAuthorAvatar(""); setEditItem(null); setShowAdd(false); };
 
   const save = async () => {
     const trimmedTitle = title.trim();
@@ -888,12 +891,17 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
     if (!trimmedTitle || !trimmedSlug) { setToast({ message: "Title and slug are required", type: "error" }); return; }
     setSaving(true);
     const bodyArray = body.split("\n").filter((p: string) => p.trim());
-    if (editItem) {
-      const { error } = await supabase.from("articles").update({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || editItem.image }).eq("id", editItem.id);
+    const authorData = {
+        author_name: authorName.trim() || "M.M College Wairaka",
+        author_role: authorRole.trim() || "School Communications",
+        author_avatar: authorAvatar.trim() || null
+      };
+      if (editItem) {
+      const { error } = await supabase.from("articles").update({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || editItem.image, ...authorData }).eq("id", editItem.id);
       setSaving(false);
       if (error) { setToast({ message: error.message, type: "error" }); return; }
     } else {
-      const { error } = await supabase.from("articles").insert({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || "/assets/news-service.jpg", date: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) });
+      const { error } = await supabase.from("articles").insert({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || "/assets/news-service.jpg", date: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }), views: 0, ...authorData });
       setSaving(false);
       if (error) { setToast({ message: error.message, type: "error" }); return; }
     }
@@ -933,6 +941,11 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
             <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category (STEM, Athletics, etc.)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
           <ImageUpload value={imageUrl} onChange={setImageUrl} label="Article Image" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input value={authorName} onChange={(e) => setAuthorName(e.target.value)} placeholder="Author Name (default: M.M College Wairaka)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input value={authorRole} onChange={(e) => setAuthorRole(e.target.value)} placeholder="Author Role (default: School Communications)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+          <ImageUpload value={authorAvatar} onChange={setAuthorAvatar} label="Author Avatar (optional)" />
           <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Excerpt (short summary)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[60px]" />
           <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Body (one paragraph per line)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[150px]" />
           <div className="flex gap-3">
