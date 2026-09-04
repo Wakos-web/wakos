@@ -25,6 +25,134 @@ function Toast({ message, type, onClose }: { message: string; type: "success" | 
   );
 }
 
+type ReviewItem = {
+  id: string;
+  title?: string;
+  author?: string;
+  content?: string;
+  details?: Record<string, any>;
+  approved?: boolean;
+  rejected_notes?: string;
+  table: string;
+};
+
+function ReviewModal({ item, onClose, onRefresh, setToast }: {
+  item: ReviewItem | null;
+  onClose: () => void;
+  onRefresh: () => void;
+  setToast: (t: { message: string; type: "success" | "error" } | null) => void;
+}) {
+  const [rejectNotes, setRejectNotes] = useState("");
+  const [action, setAction] = useState<"approve" | "reject" | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  if (!item) return null;
+
+  const handleApprove = async () => {
+    setSaving(true);
+    const { error } = await supabase.from(item.table).update({ approved: true, rejected_notes: null }).eq("id", item.id);
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Submission approved", type: "success" });
+    onRefresh();
+    onClose();
+  };
+
+  const handleReject = async () => {
+    if (!rejectNotes.trim()) { setToast({ message: "Please add rejection notes", type: "error" }); return; }
+    setSaving(true);
+    const { error } = await supabase.from(item.table).update({ approved: false, rejected_notes: rejectNotes.trim() }).eq("id", item.id);
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Submission rejected", type: "success" });
+    onRefresh();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b border-stone-200 flex items-center justify-between">
+          <h3 className="font-display text-xl font-bold text-stone-900">Review Submission</h3>
+          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-lg transition-colors">
+            <X className="h-5 w-5 text-stone-400" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          {item.author && (
+            <div>
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">From</p>
+              <p className="font-display text-lg font-bold text-stone-900">{item.author}</p>
+            </div>
+          )}
+          {item.title && (
+            <div>
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Title</p>
+              <p className="text-stone-700">{item.title}</p>
+            </div>
+          )}
+          {item.content && (
+            <div>
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Content</p>
+              <p className="text-stone-700 whitespace-pre-wrap">{item.content}</p>
+            </div>
+          )}
+          {item.details && Object.entries(item.details).map(([key, val]) => (
+            <div key={key}>
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">{key.replace(/_/g, " ")}</p>
+              <p className="text-stone-700">{String(val)}</p>
+            </div>
+          ))}
+          {item.approved === false && item.rejected_notes && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1">Rejection Notes</p>
+              <p className="text-sm text-red-700">{item.rejected_notes}</p>
+            </div>
+          )}
+        </div>
+        <div className="p-6 border-t border-stone-200">
+          {action === null ? (
+            <div className="flex gap-3">
+              <button onClick={() => setAction("approve")} className="flex-1 py-3 px-4 bg-green-800 hover:bg-green-900 text-white rounded-xl font-semibold transition-colors">
+                Approve
+              </button>
+              <button onClick={() => setAction("reject")} className="flex-1 py-3 px-4 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-semibold transition-colors">
+                Reject
+              </button>
+            </div>
+          ) : action === "approve" ? (
+            <div className="flex gap-3">
+              <button onClick={handleApprove} disabled={saving} className="flex-1 py-3 px-4 bg-green-800 hover:bg-green-900 text-white rounded-xl font-semibold disabled:opacity-50 transition-colors">
+                {saving ? "Approving..." : "Confirm Approve"}
+              </button>
+              <button onClick={() => setAction(null)} className="py-3 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl font-semibold transition-colors">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <textarea
+                value={rejectNotes}
+                onChange={(e) => setRejectNotes(e.target.value)}
+                placeholder="Add rejection notes (required)..."
+                className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[80px]"
+              />
+              <div className="flex gap-3">
+                <button onClick={handleReject} disabled={saving} className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold disabled:opacity-50 transition-colors">
+                  {saving ? "Rejecting..." : "Confirm Reject"}
+                </button>
+                <button onClick={() => setAction(null)} className="py-3 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl font-semibold transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number | string; color: string }) {
   return (
     <div className="rounded-2xl bg-white border border-stone-200 p-6 hover:shadow-md transition-shadow">
@@ -325,13 +453,12 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
   );
 }
 
-function NotesTab({ notes, onRefresh }: { notes: any[]; onRefresh: () => void }) {
-  const approve = async (id: string) => {
-    await supabase.from("class_notes").update({ approved: true }).eq("id", id);
-    onRefresh();
-  };
+function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
   const remove = async (id: string) => {
+    if (!confirm("Delete this class note?")) return;
     await supabase.from("class_notes").delete().eq("id", id);
+    setToast({ message: "Class note deleted", type: "success" });
     onRefresh();
   };
   return (
@@ -348,36 +475,43 @@ function NotesTab({ notes, onRefresh }: { notes: any[]; onRefresh: () => void })
       ) : (
         <div className="space-y-3">
           {notes.map((note) => (
-            <div key={note.id} className="rounded-xl bg-white border border-stone-200 p-5 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                  <span className="text-sm font-bold text-green-800">{note.author_name?.charAt(0)}</span>
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${note.approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
-                      {note.approved ? "Approved" : "Pending"}
-                    </span>
-                    <span className="text-xs text-stone-400">Class of {note.graduation_year}</span>
+            <div key={note.id} className="rounded-xl bg-white border border-stone-200 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-green-800">{note.author_name?.charAt(0)}</span>
                   </div>
-                  <p className="font-display text-lg font-bold text-stone-900">{note.author_name}</p>
-                  <p className="text-sm text-stone-600 line-clamp-2">{note.content}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${note.approved ? "bg-green-100 text-green-800" : note.rejected_notes ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
+                        {note.approved ? "Approved" : note.rejected_notes ? "Rejected" : "Pending"}
+                      </span>
+                      <span className="text-xs text-stone-400">Class of {note.graduation_year}</span>
+                    </div>
+                    <p className="font-display text-lg font-bold text-stone-900">{note.author_name}</p>
+                    <p className="text-sm text-stone-600 line-clamp-2">{note.content}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => setReviewItem({ id: note.id, author: note.author_name, content: note.content, details: { graduation_year: note.graduation_year }, approved: note.approved, rejected_notes: note.rejected_notes, table: "class_notes" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
+                    <Eye className="h-4 w-4 text-blue-600" />
+                  </button>
+                  <button onClick={() => remove(note.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {!note.approved && (
-                  <button onClick={() => approve(note.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
-                    <Check className="h-4 w-4 text-green-600" />
-                  </button>
-                )}
-                <button onClick={() => remove(note.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                  <Trash2 className="h-4 w-4 text-red-400" />
-                </button>
-              </div>
+              {note.rejected_notes && !note.approved && (
+                <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-red-600 mb-1">Rejection Notes</p>
+                  <p className="text-sm text-red-700">{note.rejected_notes}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
     </div>
   );
 }
@@ -582,13 +716,12 @@ function SettingsTab() {
   );
 }
 
-function BusinessesTab({ businesses, onRefresh }: { businesses: any[]; onRefresh: () => void }) {
-  const approve = async (id: string) => {
-    await supabase.from("alumni_businesses").update({ approved: true }).eq("id", id);
-    onRefresh();
-  };
+function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
   const remove = async (id: string) => {
+    if (!confirm("Delete this business?")) return;
     await supabase.from("alumni_businesses").delete().eq("id", id);
+    setToast({ message: "Business deleted", type: "success" });
     onRefresh();
   };
   return (
@@ -605,40 +738,43 @@ function BusinessesTab({ businesses, onRefresh }: { businesses: any[]; onRefresh
       ) : (
         <div className="space-y-3">
           {businesses.map((biz) => (
-            <div key={biz.id} className="rounded-xl bg-white border border-stone-200 p-5 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${biz.approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
-                    {biz.approved ? "Approved" : "Pending"}
-                  </span>
+            <div key={biz.id} className="rounded-xl bg-white border border-stone-200 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${biz.approved ? "bg-green-100 text-green-800" : biz.rejected_notes ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
+                      {biz.approved ? "Approved" : biz.rejected_notes ? "Rejected" : "Pending"}
+                    </span>
+                  </div>
+                  <p className="font-display text-lg font-bold text-stone-900">{biz.business_name}</p>
+                  <p className="text-sm text-stone-500">{biz.owner_name} · {biz.category}</p>
                 </div>
-                <p className="font-display text-lg font-bold text-stone-900">{biz.business_name}</p>
-                <p className="text-sm text-stone-500">{biz.owner_name} · {biz.category}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                {!biz.approved && (
-                  <button onClick={() => approve(biz.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
-                    <Check className="h-4 w-4 text-green-600" />
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setReviewItem({ id: biz.id, title: biz.business_name, author: biz.owner_name, details: { category: biz.category, description: biz.description, website: biz.website, phone: biz.phone, email: biz.email }, approved: biz.approved, rejected_notes: biz.rejected_notes, table: "alumni_businesses" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
+                    <Eye className="h-4 w-4 text-blue-600" />
                   </button>
-                )}
-                <button onClick={() => remove(biz.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                  <Trash2 className="h-4 w-4 text-red-400" />
-                </button>
+                  <button onClick={() => remove(biz.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </button>
+                </div>
               </div>
+              {biz.rejected_notes && !biz.approved && (
+                <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-red-600 mb-1">Rejection Notes</p>
+                  <p className="text-sm text-red-700">{biz.rejected_notes}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
     </div>
   );
 }
 
 function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
-  const approve = async (id: string) => {
-    await supabase.from("alumni_profiles").update({ approved: true }).eq("id", id);
-    setToast({ message: "Alumni approved", type: "success" });
-    onRefresh();
-  };
+  const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
   const remove = async (id: string) => {
     if (!confirm("Delete this alumni profile?")) return;
     await supabase.from("alumni_profiles").delete().eq("id", id);
@@ -659,36 +795,43 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
       ) : (
         <div className="space-y-3">
           {alumni.map((a) => (
-            <div key={a.id} className="rounded-xl bg-white border border-stone-200 p-5 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                  <span className="text-lg font-bold text-purple-800">{a.full_name?.charAt(0) || "?"}</span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
-                      {a.approved ? "Approved" : "Pending"}
-                    </span>
-                    <span className="text-xs text-stone-400">Class of {a.graduation_year}</span>
+            <div key={a.id} className="rounded-xl bg-white border border-stone-200 p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                    <span className="text-lg font-bold text-purple-800">{a.full_name?.charAt(0) || "?"}</span>
                   </div>
-                  <p className="font-display text-lg font-bold text-stone-900">{a.full_name}</p>
-                  <p className="text-sm text-stone-500">{a.profession || "No profession"}{a.company ? " at " + a.company : ""}{a.current_location ? " · " + a.current_location : ""}</p>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.approved ? "bg-green-100 text-green-800" : a.rejected_notes ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
+                        {a.approved ? "Approved" : a.rejected_notes ? "Rejected" : "Pending"}
+                      </span>
+                      <span className="text-xs text-stone-400">Class of {a.graduation_year}</span>
+                    </div>
+                    <p className="font-display text-lg font-bold text-stone-900">{a.full_name}</p>
+                    <p className="text-sm text-stone-500">{a.profession || "No profession"}{a.company ? " at " + a.company : ""}{a.current_location ? " · " + a.current_location : ""}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setReviewItem({ id: a.id, title: a.profession || "Alumni Profile", author: a.full_name, content: a.bio || a.about_me, details: { graduation_year: a.graduation_year, company: a.company, location: a.current_location, email: a.email, phone: a.phone, linkedin: a.linkedin_url, website: a.website_url }, approved: a.approved, rejected_notes: a.rejected_notes, table: "alumni_profiles" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
+                    <Eye className="h-4 w-4 text-blue-600" />
+                  </button>
+                  <button onClick={() => remove(a.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                {!a.approved && (
-                  <button onClick={() => approve(a.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
-                    <Check className="h-4 w-4 text-green-600" />
-                  </button>
-                )}
-                <button onClick={() => remove(a.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                  <Trash2 className="h-4 w-4 text-red-400" />
-                </button>
-              </div>
+              {a.rejected_notes && !a.approved && (
+                <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-red-600 mb-1">Rejection Notes</p>
+                  <p className="text-sm text-red-700">{a.rejected_notes}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
     </div>
   );
 }
@@ -852,9 +995,9 @@ function AdminPage() {
               <AlumniTab alumni={alumni} onRefresh={fetchData} setToast={setToast} />
             )}
             {tab === "events" && <EventsTab events={events} onRefresh={fetchData} />}
-            {tab === "notes" && <NotesTab notes={notes} onRefresh={fetchData} />}
+            {tab === "notes" && <NotesTab notes={notes} onRefresh={fetchData} setToast={setToast} />}
             {tab === "inquiries" && <InquiriesTab inquiries={inquiries} onRefresh={fetchData} />}
-            {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} />}
+            {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} setToast={setToast} />}
             {tab === "settings" && <SettingsTab />}
           </>
         )}
