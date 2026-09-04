@@ -37,7 +37,11 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:url", content: "/" },
     ],
-    links: [{ rel: "canonical", href: "/" }],
+    links: [
+      { rel: "canonical", href: "/" },
+      { rel: "preload", as: "image", href: HERO_POSTER },
+      { rel: "preload", as: "video", href: HERO_VIDEO },
+    ],
   }),
   component: HomePage,
 });
@@ -81,9 +85,6 @@ function HeroSection() {
     const v = videoRef.current;
     if (!v) return;
     v.play().then(() => setPaused(false)).catch(() => setPaused(true));
-    const onCanPlay = () => setLoaded(true);
-    v.addEventListener("canplay", onCanPlay, { once: true });
-    return () => v.removeEventListener("canplay", onCanPlay);
   }, []);
 
   const scrollToContent = () => {
@@ -119,7 +120,7 @@ function HeroSection() {
       <div className="hero-content relative z-10 flex h-full flex-col justify-end px-6 pb-24 sm:px-10 lg:px-16 xl:px-24">
         <div className="max-w-3xl">
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/70" style={{ animationDelay: "0.2s" }}>Est. 1953</p>
-          <h1 className="font-display text-5xl font-semibold leading-[0.95] tracking-tight text-white sm:text-6xl md:text-7xl lg:text-8xl">
+          <h1 className="font-display text-4xl font-semibold leading-[0.95] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-8xl">
             Where your child<br className="hidden sm:block" /> becomes someone
           </h1>
           
@@ -134,12 +135,12 @@ function HeroSection() {
         </div>
 
         {/* Video controls */}
-        <div className="absolute bottom-8 right-8 flex items-center gap-3 lg:bottom-12 lg:right-12">
+        <div className="absolute bottom-20 right-6 flex items-center gap-2 sm:bottom-8 sm:right-8 sm:gap-3 lg:bottom-12 lg:right-12">
           <button
             type="button"
             aria-label={paused ? "Play video" : "Pause video"}
             onClick={togglePlay}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:h-11 sm:w-11"
           >
             {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
           </button>
@@ -147,7 +148,7 @@ function HeroSection() {
             type="button"
             aria-label={muted ? "Unmute video" : "Mute video"}
             onClick={toggleMute}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:h-11 sm:w-11"
           >
             {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
@@ -158,7 +159,7 @@ function HeroSection() {
           type="button"
           aria-label="Scroll to content"
           onClick={scrollToContent}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/60 transition-colors hover:text-white lg:bottom-12"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/60 transition-colors hover:text-white sm:bottom-8 lg:bottom-12"
         >
           <span className="text-xs font-medium uppercase tracking-[0.2em]">Scroll</span>
           <svg className="h-5 w-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
