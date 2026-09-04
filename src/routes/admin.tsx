@@ -409,6 +409,7 @@ function SettingsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.from("site_settings").select("key, value, category").order("category").then(({ data }) => {
@@ -435,7 +436,19 @@ function SettingsTab() {
     setTimeout(() => setSuccess(false), 2000);
   };
 
-  const categories: Record<string, { key: string; label: string }[]> = {
+  const uploadFile = async (key: string, file: File) => {
+    setUploading(key);
+    const ext = file.name.split(".").pop();
+    const path = key + "/" + Date.now() + "." + ext;
+    const { error } = await supabase.storage.from("hero-media").upload(path, file);
+    if (!error) {
+      const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
+      update(key, data.publicUrl);
+    }
+    setUploading(null);
+  };
+
+  const categories: Record<string, { key: string; label: string; type?: string }[]> = {
     school: [
       { key: "school_name", label: "School Name" },
       { key: "school_short", label: "Short Name" },
@@ -447,8 +460,8 @@ function SettingsTab() {
       { key: "school_email", label: "Email" },
     ],
     hero: [
-      { key: "hero_video", label: "Hero Video Path" },
-      { key: "hero_poster", label: "Hero Poster Path" },
+      { key: "hero_video", label: "Hero Video", type: "video" },
+      { key: "hero_poster", label: "Hero Poster Image", type: "image" },
       { key: "hero_title", label: "Hero Title" },
       { key: "hero_subtitle", label: "Hero Subtitle" },
     ],
@@ -502,9 +515,45 @@ function SettingsTab() {
               {fields.map(f => (
                 <div key={f.key}>
                   <label className="block text-sm font-medium text-stone-700 mb-1">{f.label}</label>
-                  <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
-                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                    placeholder={f.key} />
+                  {f.type === "video" ? (
+                    <div>
+                      {settings[f.key] && settings[f.key].startsWith("http") && (
+                        <video src={settings[f.key]} className="w-full max-h-48 rounded-xl mb-2 object-cover" controls />)
+                      }
+                      <div className="flex items-center gap-3">
+                        <label className="flex-1">
+                          <span className="block w-full rounded-xl border border-dashed border-stone-300 px-4 py-3 text-sm text-stone-500 text-center cursor-pointer hover:border-green-800 hover:text-green-800 transition-colors">
+                            {uploading === f.key ? "Uploading..." : "Click to upload video (MP4/WebM)"}
+                          </span>
+                          <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={e => e.target.files?.[0] && uploadFile(f.key, e.target.files[0])} />
+                        </label>
+                      </div>
+                      <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
+                        className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm text-stone-900 mt-2 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                        placeholder="Or paste a URL" />
+                    </div>
+                  ) : f.type === "image" ? (
+                    <div>
+                      {settings[f.key] && settings[f.key].startsWith("http") && (
+                        <img src={settings[f.key]} className="w-full max-h-48 rounded-xl mb-2 object-cover" alt={f.label} />)
+                      }
+                      <div className="flex items-center gap-3">
+                        <label className="flex-1">
+                          <span className="block w-full rounded-xl border border-dashed border-stone-300 px-4 py-3 text-sm text-stone-500 text-center cursor-pointer hover:border-green-800 hover:text-green-800 transition-colors">
+                            {uploading === f.key ? "Uploading..." : "Click to upload image (JPG/PNG/WebP)"}
+                          </span>
+                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => e.target.files?.[0] && uploadFile(f.key, e.target.files[0])} />
+                        </label>
+                      </div>
+                      <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
+                        className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm text-stone-900 mt-2 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                        placeholder="Or paste a URL" />
+                    </div>
+                  ) : (
+                    <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
+                      className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                      placeholder={f.key} />
+                  )}
                 </div>
               ))}
             </div>
