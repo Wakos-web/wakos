@@ -320,6 +320,7 @@ function ClubDetailPage() {
   const { slug } = Route.useParams();
   const [dbClub, setDbClub] = useState<any>(null);
   const [dbMembers, setDbMembers] = useState<any[]>([]);
+  const [dbPosts, setDbPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllMembers, setShowAllMembers] = useState(false);
 
@@ -327,8 +328,12 @@ function ClubDetailPage() {
     supabase.from('clubs').select('*').eq('slug', slug).single().then(({ data: clubData }) => {
       if (clubData) {
         setDbClub(clubData);
-        supabase.from('club_members').select('*').eq('club_id', clubData.id).order('sort_order').then(({ data: membersData }) => {
-          if (membersData) setDbMembers(membersData);
+        Promise.all([
+          supabase.from('club_members').select('*').eq('club_id', clubData.id).order('sort_order'),
+          supabase.from('club_posts').select('*').eq('club_id', clubData.id).eq('published', true).order('created_at', { ascending: false }),
+        ]).then(([membersRes, postsRes]) => {
+          if (membersRes.data) setDbMembers(membersRes.data);
+          if (postsRes.data) setDbPosts(postsRes.data);
           setLoading(false);
         });
       } else {
@@ -339,7 +344,7 @@ function ClubDetailPage() {
 
   const localClub = CLUBS.find(c => c.slug === slug);
   const club = dbClub ? { ...dbClub, img: localClub?.img || campusImg, patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron, executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3), members: dbMembers.filter((m: any) => m.role === 'Member') } : localClub;
-  const posts = CLUB_POSTS[slug] || [];
+  const posts = dbPosts.length > 0 ? dbPosts : (CLUB_POSTS[slug] || []);
 
   if (!club) return <div className='py-20 text-center text-stone-500'>Club not found.</div>;
 
@@ -478,26 +483,36 @@ function ClubDetailPage() {
             <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold'>What we have been up to</h2>
           </div>
           <div className='space-y-6'>
-            {posts.map((post) => (
-              <article key={post.id} className='group rounded-2xl bg-white border border-stone-200 overflow-hidden hover:shadow-md transition-shadow'>
-                <div className='md:flex'>
-                  <div className='md:w-1/3 relative overflow-hidden bg-gradient-to-br from-green-50 to-stone-100 flex flex-col items-center justify-center min-h-[12rem]'>
-                    <svg className='w-10 h-10 text-green-800/30 mb-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z' /><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M15 13a3 3 0 11-6 0 3 3 0 016 0z' /></svg>
-                    <span className='text-xs text-green-800/40 font-medium uppercase tracking-wider'>Photo coming soon</span>
-                  </div>
-                  <div className='md:w-2/3 p-6'>
-                    <div className='flex items-center gap-3 mb-3'>
-                      <span className='text-xs font-semibold text-green-800 uppercase tracking-wider'>{post.author}</span>
-                      <span className='text-xs text-stone-400'>|</span>
-                      <span className='text-xs text-stone-500'>{post.date}</span>
+            {posts.map((post) => {
+              const postDate = post.date || (post.created_at ? new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
+              const postImg = post.img || post.image_url;
+              return (
+                <Link key={post.id} to={`/clubs/${slug}/posts/${post.id}`} className='block group rounded-2xl bg-white border border-stone-200 overflow-hidden hover:shadow-md transition-shadow'>
+                  <div className='md:flex'>
+                    <div className='md:w-1/3 relative overflow-hidden bg-gradient-to-br from-green-50 to-stone-100 flex flex-col items-center justify-center min-h-[12rem]'>
+                      {postImg ? (
+                        <img src={postImg} alt={post.title} className='w-full h-full object-cover' loading='lazy' />
+                      ) : (
+                        <>
+                          <svg className='w-10 h-10 text-green-800/30 mb-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z' /><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M15 13a3 3 0 11-6 0 3 3 0 016 0z' /></svg>
+                          <span className='text-xs text-green-800/40 font-medium uppercase tracking-wider'>Photo coming soon</span>
+                        </>
+                      )}
                     </div>
-                    <h3 className='font-display text-xl font-bold text-stone-900 mb-2 group-hover:text-green-800 transition-colors'>{post.title}</h3>
-                    <p className='text-stone-600 font-body leading-relaxed'>{post.excerpt}</p>
-                    <span className='inline-flex items-center gap-1 mt-3 text-sm font-semibold text-green-800 group-hover:gap-2 transition-all'>Read more</span>
+                    <div className='md:w-2/3 p-6'>
+                      <div className='flex items-center gap-3 mb-3'>
+                        <span className='text-xs font-semibold text-green-800 uppercase tracking-wider'>{post.author}</span>
+                        <span className='text-xs text-stone-400'>|</span>
+                        <span className='text-xs text-stone-500'>{postDate}</span>
+                      </div>
+                      <h3 className='font-display text-xl font-bold text-stone-900 mb-2 group-hover:text-green-800 transition-colors'>{post.title}</h3>
+                      <p className='text-stone-600 font-body leading-relaxed'>{post.excerpt}</p>
+                      <span className='inline-flex items-center gap-1 mt-3 text-sm font-semibold text-green-800 group-hover:gap-2 transition-all'>Read more</span>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
