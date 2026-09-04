@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
-import { AlumniAuthGate } from "@/components/alumni-auth-gate";
+
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
 import { ArrowLeft, Plus, Trash2, Building2, CheckCircle, Clock } from "lucide-react";
 
@@ -381,8 +381,6 @@ function ClaimContent() {
 
 function ClaimPage() {
   return (
-    <AlumniAuthGate>
-      <ClaimContent />
-    </AlumniAuthGate>
+    <ClaimContent />
   );
 }

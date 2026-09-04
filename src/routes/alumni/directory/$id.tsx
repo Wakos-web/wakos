@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { AlumniAuthGate } from "@/components/alumni-auth-gate";
+
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
 import type { AlumniBusiness } from "./businesses";
 import { MapPin, Briefcase, GraduationCap, Building2, ArrowLeft } from "lucide-react";
@@ -176,8 +176,6 @@ function ProfileContent() {
 
 function ProfilePage() {
   return (
-    <AlumniAuthGate>
-      <ProfileContent />
-    </AlumniAuthGate>
+    <ProfileContent />
   );
 }

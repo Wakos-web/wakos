@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAlumniAuth } from "@/hooks/useAlumniAuth";
-import { AlumniAuthGate } from "@/components/alumni-auth-gate";
+
+
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
-import { Search, MapPin, Briefcase, GraduationCap, LogOut, User, Plus, Building2 } from "lucide-react";
+import { Search, MapPin, Briefcase, Plus, Building2 } from "lucide-react";
 
 export const Route = createFileRoute("/alumni/directory")({
   head: () => ({
@@ -22,7 +22,7 @@ const BUSINESS_CATEGORIES = [
 ];
 
 function DirectoryContent() {
-  const { profile, signOut } = useAlumniAuth();
+  
   const [alumni, setAlumni] = useState<AlumniProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -70,18 +70,7 @@ function DirectoryContent() {
             <span className="text-stone-300">/</span>
             <span className="text-sm font-semibold text-green-800">Directory</span>
           </div>
-          <div className="flex items-center gap-3">
-            {profile && (
-              <Link to="/alumni/directory/claim" className="text-sm text-stone-500 hover:text-green-800 flex items-center gap-1">
-                <User className="h-4 w-4" /> My Profile
-              </Link>
-            )}
-            <button onClick={signOut} className="text-sm text-stone-500 hover:text-red-600 flex items-center gap-1">
-              <LogOut className="h-4 w-4" /> Sign Out
-            </button>
-          </div>
-        </div>
-      </div>
+          </div></div>
 
       {/* Hero */}
       <section className="relative h-[40vh] min-h-[280px] flex items-end overflow-hidden">
@@ -228,8 +217,6 @@ function DirectoryContent() {
 
 function DirectoryPage() {
   return (
-    <AlumniAuthGate>
-      <DirectoryContent />
-    </AlumniAuthGate>
+    <DirectoryContent />
   );
 }

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
-import { AlumniAuthGate } from "@/components/alumni-auth-gate";
+
 import { ArrowLeft, CheckCircle, XCircle, Clock, Users, Building2 } from "lucide-react";
 
 export const Route = createFileRoute("/alumni/directory/admin")({
@@ -242,8 +242,6 @@ function AdminContent() {
 
 function AdminPage() {
   return (
-    <AlumniAuthGate>
-      <AdminContent />
-    </AlumniAuthGate>
+    <AdminContent />
   );
 }
