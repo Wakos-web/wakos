@@ -127,7 +127,7 @@ function HeroSection() {
             Where your child<br className="hidden sm:block" /> becomes someone
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/80 sm:text-xl">
-            Your child deserves more than a desk and a textbook. At WACOS, they earn their future — with discipline, hard work, and self-reliance. Government-aided boarding school in Jinja since 1953.
+            A government-aided boarding school in Wairaka, Jinja. Discipline, hard work and self-reliance since 1953.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link to="/admissions" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90 hover:shadow-lg">
