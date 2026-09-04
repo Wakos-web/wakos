@@ -147,34 +147,69 @@ function ClubsOverview() {
   );
 }
 
-function CardCarousel({ imgs, name }: { imgs: string[]; name: string }) {
+function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrent(c => (c + 1) % imgs.length);
-    }, 3000);
+    }, 3500);
     return () => clearInterval(timer);
   }, [imgs.length]);
 
   return (
-    <div className='absolute inset-0'>
-      {imgs.map((img, i) => (
-        <img
-          key={i}
-          src={img}
-          alt={name}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${i === current ? 'opacity-100' : 'opacity-0'}`}
-          loading='lazy'
-        />
-      ))}
-      {/* Dots */}
-      <div className='absolute bottom-16 left-0 right-0 flex justify-center gap-1.5 z-10'>
+    <div className='absolute inset-0 flex items-center justify-center overflow-hidden'>
+      {/* Background glow */}
+      <div className='absolute inset-0 bg-gradient-to-br from-green-900/80 via-green-800/90 to-stone-900/95' />
+
+      {/* Orbit ring (subtle) */}
+      <div className='absolute w-[70%] h-[70%] rounded-full border border-white/10' />
+
+      {/* Main orb (large, centered) */}
+      <div className='relative w-[55%] aspect-square rounded-full overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.15),0_0_80px_rgba(0,77,0,0.3)] transition-all duration-700'
+        style={{ transform: 'scale(1)' }}>
+        {imgs.map((img, i) => (
+          <img
+            key={i}
+            src={img}
+            alt={name}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${i === current ? 'opacity-100' : 'opacity-0'}`}
+            loading='lazy'
+          />
+        ))}
+        {/* Shine effect */}
+        <div className='absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none' />
+      </div>
+
+      {/* Satellite orbs (small, orbiting) */}
+      {imgs.map((img, i) => {
+        if (i === current) return null;
+        const angle = i * (360 / imgs.length) + (current * 120);
+        const rad = (angle * Math.PI) / 180;
+        const radius = 42;
+        const x = Math.cos(rad) * radius;
+        const y = Math.sin(rad) * radius;
+        return (
+          <div
+            key={i}
+            className='absolute w-[22%] aspect-square rounded-full overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-700'
+            style={{
+              transform: `translate(${x}%, ${y}%) scale(0.85)`,
+              opacity: 0.7,
+            }}>
+            <img src={img} alt={name} className='w-full h-full object-cover' loading='lazy' />
+            <div className='absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none' />
+          </div>
+        );
+      })}
+
+      {/* Dot indicators */}
+      <div className='absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10'>
         {imgs.map((_, i) => (
           <button
             key={i}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrent(i); }}
-            className={`w-1.5 h-1.5 rounded-full transition-all ${i === current ? 'bg-white w-4' : 'bg-white/50'}`}
+            className={`rounded-full transition-all duration-300 ${i === current ? 'bg-white w-5 h-2' : 'bg-white/40 w-2 h-2 hover:bg-white/60'}`}
             aria-label={`Image ${i + 1}`}
           />
         ))}
@@ -190,7 +225,7 @@ function ClubsGrid() {
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
           {CLUBS.map((club) => (
             <Link key={club.slug} to='/clubs/$slug' params={{ slug: club.slug }} className='group relative overflow-hidden rounded-2xl aspect-[4/5] cursor-pointer'>
-              <CardCarousel imgs={club.imgs} name={club.name} />
+              <OrbCarousel imgs={club.imgs} name={club.name} />
               <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10' />
               <div className='absolute bottom-0 left-0 right-0 p-6 z-10'>
                 <p className='text-xs font-semibold uppercase tracking-wider text-white/70 mb-1'>{club.tagline}</p>
