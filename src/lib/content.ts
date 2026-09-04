@@ -70,7 +70,12 @@ export const NAV_ITEMS = [
     { label: "Business Directory", to: "/alumni/directory/businesses" },
     { label: "Upcoming Events", to: "/alumni#events" },
   ] },
-  { label: "Giving", to: "/giving" },
+  { label: "Giving", to: "/giving", children: [
+    { label: "Overview", to: "/giving" },
+    { label: "Ways to Give", to: "/giving#ways" },
+    { label: "Our Impact", to: "/giving#impact" },
+    { label: "FAQ", to: "/giving#faq" },
+  ] },
   { label: "Campus Stores", to: "/campus-stores", children: [
     { label: "All Stories", to: "/campus-stores" },
     { label: "Latest News", to: "/campus-stores" },
