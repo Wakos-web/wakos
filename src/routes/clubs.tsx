@@ -67,13 +67,6 @@ const STUDENT_VOICES = [
     type: 'image' as const,
     img: newsServiceImg,
   },
-  {
-    name: 'David O., S6',
-    club: 'Entertainment Club',
-    quote: 'The talent show was the first time I performed on stage. Three hundred people watched. I was terrified. I loved every second.',
-    type: 'video' as const,
-    img: studentLifeImg,
-  },
 ];
 
 function ChatBubble({ voice, align }: { voice: typeof STUDENT_VOICES[0]; align: 'left' | 'right' }) {
