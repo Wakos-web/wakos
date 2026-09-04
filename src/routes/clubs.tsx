@@ -35,6 +35,33 @@ function HeroSection() {
     </section>
   );
 }
+function ClubsOverview() {
+  return (
+    <section className='py-20 bg-stone-50'>
+      <div className='max-w-4xl mx-auto px-6'>
+        <div className='text-center mb-12'>
+          <p className='text-sm font-semibold text-green-800 uppercase tracking-widest mb-3'>Why Clubs Matter</p>
+          <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold'>Where tomorrow's leaders are shaped today</h2>
+        </div>
+        <div className='prose prose-lg prose-stone max-w-none font-body text-stone-700 leading-relaxed space-y-6'>
+          <p>
+            At Wairaka, education does not end when the last bell rings. Our clubs are where students learn to lead, organise, and solve real problems. Every club is run by students, for students. They elect their own leaders, plan their own activities, manage their own budgets, and present their own results. That is not extracurricular. That is preparation for life.
+          </p>
+          <p>
+            Every club has a <strong>teacher patron</strong> who guides without controlling. The patron ensures continuity, connects the club to resources, and holds students accountable. But the direction belongs to the students. They own it. That ownership is what makes the difference.
+          </p>
+          <p>
+            What makes Wairaka clubs unique is the <strong>alumni network</strong> that surrounds them. Former members come back. They mentor new recruits. They share what they learned. They fund activities. They show students that the skills they are building today, right now, in these clubs, are the same skills that built careers, businesses, and communities after Wairaka. That is not motivation. That is proof.
+          </p>
+          <p>
+            A student who joins a club at Wairaka does not just join a group. They join a <strong>lineage</strong>. The Wildlife Club has produced conservationists. The Debate Club has produced lawyers and politicians. The Red Cross Club has produced healthcare workers. The Agriculture Club has produced agronomists and farm owners. The pattern is clear: <strong>what you do here shapes who you become</strong>.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ClubsGrid() {
   return (
     <section className='py-20'>
@@ -77,6 +104,7 @@ function ClubsPage() {
       {isRoot && (
         <>
           <HeroSection />
+          <ClubsOverview />
           <ClubsGrid />
           <CTASection />
         </>
