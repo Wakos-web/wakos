@@ -317,7 +317,7 @@ function GivingCta() {
           Every bursary changes a life. Every life changed starts with you.
         </h2>
         <p className="mx-auto mt-6 max-w-xl leading-relaxed text-primary-foreground/80">
-          M.M College Wairaka is sustained entirely by alumni and friends who believe the
+          M.M College Wairaka scholarship fund is sustained entirely by alumni and friends who believe the
           next generation deserves the same chance they were given.
         </p>
         <Link
