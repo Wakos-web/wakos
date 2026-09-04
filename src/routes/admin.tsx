@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
-  RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone
+  RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "settings";
+type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "settings";
 
 function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
@@ -954,6 +954,105 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
   );
 }
 
+function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [selectedPage, setSelectedPage] = useState<string>("");
+  const [editItem, setEditItem] = useState<any>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const pageNames: Record<string, string> = {
+    'about': 'About',
+    'student-life': 'Student Life',
+    'athletics': 'Athletics',
+    'giving': 'Giving',
+    'academics': 'Academics'
+  };
+
+  const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
+  const uniquePages = [...new Set(pages.map(p => p.page))];
+
+  const reset = () => { setTitle(""); setContent(""); setEditItem(null); };
+
+  const save = async () => {
+    if (!editItem) return;
+    setSaving(true);
+    let contentJson;
+    try { contentJson = JSON.parse(content); } catch { setToast({ message: "Invalid JSON content", type: "error" }); setSaving(false); return; }
+    const { error } = await supabase.from("page_content").update({ title: title.trim(), content: contentJson }).eq("id", editItem.id);
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Content updated", type: "success" });
+    reset();
+    onRefresh();
+  };
+
+  const togglePublish = async (id: string, currentStatus: boolean) => {
+    await supabase.from("page_content").update({ published: !currentStatus }).eq("id", id);
+    setToast({ message: currentStatus ? "Section hidden" : "Section published", type: "success" });
+    onRefresh();
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-display text-xl font-bold text-stone-900">Page Content ({pages.length} sections)</h3>
+        <div className="flex gap-2">
+          <select value={selectedPage} onChange={(e) => setSelectedPage(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="">All Pages</option>
+            {uniquePages.map(p => <option key={p} value={p}>{pageNames[p] || p}</option>)}
+          </select>
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
+      </div>
+      {editItem && (
+        <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+          <h4 className="font-display text-lg font-bold text-stone-900">Edit: {editItem.title}</h4>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Section Title" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Content (JSON)" className="w-full p-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[200px]" />
+          <div className="flex gap-3">
+            <button onClick={save} disabled={saving} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save"}</button>
+            <button onClick={reset} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
+      {filteredPages.length === 0 ? (
+        <div className="text-center py-12 text-stone-400">
+          <FileText className="h-10 w-10 mx-auto mb-3" />
+          <p>No page content found.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredPages.map((item) => (
+            <div key={item.id} className="rounded-xl bg-white border border-stone-200 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">{pageNames[item.page] || item.page}</span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">{item.section}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.published ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-600"}`}>
+                      {item.published ? "Published" : "Hidden"}
+                    </span>
+                  </div>
+                  <p className="font-display text-lg font-bold text-stone-900">{item.title}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => togglePublish(item.id, item.published)} className={`p-2.5 rounded-lg border transition-colors ${item.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={item.published ? "Hide" : "Publish"}>
+                    {item.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
+                  </button>
+                  <button onClick={() => { setEditItem(item); setTitle(item.title || ""); setContent(JSON.stringify(item.content, null, 2)); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                    <Settings className="h-4 w-4 text-blue-600" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
@@ -965,13 +1064,14 @@ function AdminPage() {
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [alumni, setAlumni] = useState<any[]>([]);
   const [articles, setArticles] = useState<any[]>([]);
+  const [pageContent, setPageContent] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
@@ -980,6 +1080,7 @@ function AdminPage() {
       supabase.from("alumni_businesses").select("*").order("created_at", { ascending: false }),
       supabase.from("alumni_profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("articles").select("*").order("created_at", { ascending: false }),
+      supabase.from("page_content").select("*").order("page", { ascending: true }),
     ]);
 
     const c = clubsRes.data || [];
@@ -990,6 +1091,7 @@ function AdminPage() {
     const b = bizRes.data || [];
     const a = alumniRes.data || [];
     const art = articlesRes.data || [];
+    const pc = pagesRes.data || [];
     setClubs(c);
     setMembers(m);
     setEvents(e);
@@ -998,6 +1100,7 @@ function AdminPage() {
     setBusinesses(b);
     setAlumni(a);
     setArticles(art);
+    setPageContent(pc);
     const { count: postCount } = await supabase.from("club_posts").select("*", { count: "exact", head: true });
     setStats({
       clubs: c.length,
@@ -1022,6 +1125,7 @@ function AdminPage() {
     { key: "events", label: "Events", icon: Calendar, count: stats.events },
     { key: "notes", label: "Class Notes", icon: BookOpen, count: stats.notes },
     { key: "articles", label: "Campus News", icon: Megaphone, count: stats.articles },
+    { key: "pages", label: "Page Content", icon: FileText, count: pageContent.length },
     { key: "inquiries", label: "Inquiries", icon: MessageSquare, count: stats.inquiries },
     { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses },
     { key: "settings", label: "Site Settings", icon: Settings },
@@ -1092,6 +1196,7 @@ function AdminPage() {
             {tab === "inquiries" && <InquiriesTab inquiries={inquiries} onRefresh={fetchData} />}
             {tab === "articles" && <ArticlesTab articles={articles} onRefresh={fetchData} setToast={setToast} />}
             {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} setToast={setToast} />}
+            {tab === "pages" && <PagesTab pages={pageContent} onRefresh={fetchData} setToast={setToast} />}
             {tab === "settings" && <SettingsTab />}
           </>
         )}
