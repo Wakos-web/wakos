@@ -33,7 +33,12 @@ export const NAV_ITEMS = [
   { label: "Student Life", to: "/student-life" },
   { label: "Athletics", to: "/athletics" },
   { label: "Clubs", to: "/clubs" },
-  { label: "Alumni", to: "/alumni" },
+  { label: "Alumni", to: "/alumni", children: [
+    { label: "Pulse", to: "/alumni" },
+    { label: "Alumni Directory", to: "/alumni/directory" },
+    { label: "Business Directory", to: "/alumni/directory/businesses" },
+    { label: "Upcoming Events", to: "/alumni#events" },
+  ] },
   { label: "Giving", to: "/giving" },
   { label: "Campus Stores", to: "/campus-stores" },
 ] as const;

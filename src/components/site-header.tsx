@@ -5,6 +5,7 @@ import { NAV_ITEMS, SCHOOL_NAME, LOGO_URL } from "@/lib/content";
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isHome = pathname === "/";
