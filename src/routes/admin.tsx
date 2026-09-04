@@ -943,8 +943,6 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
 }
 
 function AdminPage() {
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
   const [clubs, setClubs] = useState<any[]>([]);
@@ -956,12 +954,6 @@ function AdminPage() {
   const [alumni, setAlumni] = useState<any[]>([]);
   const [articles, setArticles] = useState<any[]>([]);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setIsAuthed(!!data.user);
-      setAuthLoading(false);
-    }).catch(() => setAuthLoading(false));
-  }, []);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -1022,28 +1014,6 @@ function AdminPage() {
     { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses },
     { key: "settings", label: "Site Settings", icon: Settings },
   ];
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (!isAuthed) {
-    return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="font-display text-3xl font-bold text-stone-900 mb-4">Admin Access Required</h1>
-          <p className="text-stone-500 mb-6">Please sign in to access the admin dashboard.</p>
-          <Link to="/alumni/directory/login" className="inline-flex items-center gap-2 bg-green-800 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-900 transition-colors">
-            Sign In
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-stone-50">
