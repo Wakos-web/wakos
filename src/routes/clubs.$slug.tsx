@@ -150,13 +150,32 @@ function ClubDetailPage() {
                   </ul>
                 </div>
 
-                <div className='rounded-2xl bg-green-900 p-6 text-center'>
-                  <p className='text-white font-display text-lg font-bold mb-2'>Want to join?</p>
-                  <p className='text-white/70 text-sm mb-4 font-body'>Apply to M.M College Wairaka and get involved from day one.</p>
-                  <a href='/admissions' className='inline-block bg-white text-green-900 px-6 py-2 rounded-full text-sm font-semibold hover:bg-stone-100 transition-colors'>Apply Now</a>
-                </div>
+
               </div>
             </aside>
+          </div>
+        </div>
+      </section>
+
+      {/* Compact 3-tier CTA */}
+      <section className='py-12 border-t border-stone-200'>
+        <div className='max-w-6xl mx-auto px-6'>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+            <a href='/admissions' className='group rounded-2xl bg-green-900 p-6 text-left hover:shadow-lg transition-shadow'>
+              <span className='text-xs font-semibold uppercase tracking-wider text-green-300'>For Students</span>
+              <p className='font-display text-lg font-bold text-white mt-2 group-hover:underline'>Want to lead? Apply Now</p>
+              <span className='inline-flex items-center gap-1 mt-3 text-sm text-white/70 group-hover:text-white transition-colors'>Apply <span>&rarr;</span></span>
+            </a>
+            <a href='/contact' className='group rounded-2xl bg-white border border-green-800 p-6 text-left hover:shadow-lg transition-shadow'>
+              <span className='text-xs font-semibold uppercase tracking-wider text-green-800'>For Alumni</span>
+              <p className='font-display text-lg font-bold text-stone-900 mt-2 group-hover:underline'>Come back as a mentor</p>
+              <span className='inline-flex items-center gap-1 mt-3 text-sm text-green-800/70 group-hover:text-green-800 transition-colors'>Get involved <span>&rarr;</span></span>
+            </a>
+            <a href='/giving' className='group rounded-2xl bg-amber-50 border border-amber-200 p-6 text-left hover:shadow-lg transition-shadow'>
+              <span className='text-xs font-semibold uppercase tracking-wider text-amber-700'>Sponsorship</span>
+              <p className='font-display text-lg font-bold text-stone-900 mt-2 group-hover:underline'>Fund this club</p>
+              <span className='inline-flex items-center gap-1 mt-3 text-sm text-amber-700/70 group-hover:text-amber-700 transition-colors'>Support <span>&rarr;</span></span>
+            </a>
           </div>
         </div>
       </section>
