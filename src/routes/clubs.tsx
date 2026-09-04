@@ -156,10 +156,10 @@ function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
       <div className='absolute inset-0 bg-gradient-to-br from-green-900/80 via-green-800/90 to-stone-900/95' />
 
       {/* Orbit ring (subtle) */}
-      <div className='absolute w-[70%] h-[70%] rounded-full border border-white/10' />
+      <div className='absolute w-[65%] h-[65%] rounded-full border border-white/10' />
 
       {/* Main orb (large, centered) */}
-      <div className='relative w-[55%] aspect-square rounded-full overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.15),0_0_80px_rgba(0,77,0,0.3)] transition-all duration-700'
+      <div className='relative w-[50%] aspect-square rounded-full overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.12),0_0_60px_rgba(0,77,0,0.25)] transition-all duration-700'
         style={{ transform: 'scale(1)' }}>
         {imgs.map((img, i) => (
           <img
@@ -185,7 +185,7 @@ function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
         return (
           <div
             key={i}
-            className='absolute w-[22%] aspect-square rounded-full overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-700'
+            className='absolute w-[18%] aspect-square rounded-full overflow-hidden shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-700'
             style={{
               transform: `translate(${x}%, ${y}%) scale(0.85)`,
               opacity: 0.7,
@@ -197,7 +197,7 @@ function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
       })}
 
       {/* Dot indicators */}
-      <div className='absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10'>
+      <div className='absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10'>
         {imgs.map((_, i) => (
           <button
             key={i}
@@ -213,17 +213,17 @@ function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
 
 function ClubsGrid() {
   return (
-    <section className='py-20'>
+    <section className='py-12'>
       <div className='max-w-6xl mx-auto px-6'>
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
+        <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
           {CLUBS.map((club) => (
-            <Link key={club.slug} to='/clubs/$slug' params={{ slug: club.slug }} className='group relative overflow-hidden rounded-2xl aspect-[4/5] cursor-pointer'>
+            <Link key={club.slug} to='/clubs/$slug' params={{ slug: club.slug }} className='group relative overflow-hidden rounded-xl aspect-[3/4] cursor-pointer'>
               <OrbCarousel imgs={club.imgs} name={club.name} />
               <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10' />
-              <div className='absolute bottom-0 left-0 right-0 p-6 z-10'>
-                <p className='text-xs font-semibold uppercase tracking-wider text-white/70 mb-1'>{club.tagline}</p>
-                <h2 className='font-display text-2xl text-white font-bold'>{club.name}</h2>
-                <span className='inline-flex items-center gap-1 mt-3 text-sm text-white/80 group-hover:text-white transition-colors'>Learn more</span>
+              <div className='absolute bottom-0 left-0 right-0 p-3 z-10'>
+                <p className='text-[10px] font-semibold uppercase tracking-wider text-white/70 mb-0.5'>{club.tagline}</p>
+                <h2 className='font-display text-sm text-white font-bold leading-tight'>{club.name}</h2>
+                <span className='inline-flex items-center gap-1 mt-2 text-xs text-white/80 group-hover:text-white transition-colors'>Learn more</span>
               </div>
             </Link>
           ))}
