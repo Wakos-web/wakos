@@ -346,7 +346,7 @@ function ClubDetailPage() {
   const club = dbClub ? {
     ...dbClub,
     img: localClub?.img || campusImg,
-    stats: { members: dbClub.members_count, events: dbClub.events_count, years: dbClub.years_active, alumni: dbClub.alumni_count },
+    stats: { members: dbClub.members_count || 0, events: dbClub.events_count || 0, years: dbClub.years_active || 0, alumni: dbClub.alumni_count || 0 },
     patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron || null,
     executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3),
     members: dbMembers.filter((m: any) => m.role === 'Member'),
