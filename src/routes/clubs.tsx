@@ -1,5 +1,11 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { IMAGES } from '@/lib/content';
+import campusImg from '@/assets/campus.jpg';
+import athleticsImg from '@/assets/athletics.jpg';
+import studentLifeImg from '@/assets/student-life.jpg';
+import academicsImg from '@/assets/academics.jpg';
+import newsServiceImg from '@/assets/news-service.jpg';
+import givingImg from '@/assets/giving.jpg';
 
 const CLUBS = [
   { slug: 'wildlife', name: 'Wildlife Club', tagline: 'Protect. Observe. Conserve.', img: IMAGES.campus },
@@ -41,24 +47,28 @@ const STUDENT_VOICES = [
     club: 'Wildlife Club',
     quote: 'I never thought I would enjoy camping until Wildlife Club took us to Murchison. Now I want to study conservation.',
     type: 'image' as const,
+    img: campusImg,
   },
   {
     name: 'Brian K., S5',
     club: 'Debate Club',
     quote: 'Debate taught me to think before I speak. My teachers say I am a different student now.',
     type: 'video' as const,
+    img: academicsImg,
   },
   {
     name: 'Sarah N., S3',
     club: 'Red Cross Club',
     quote: 'When we did the blood drive, I realised I could help save lives while still in school. That changed everything for me.',
     type: 'image' as const,
+    img: newsServiceImg,
   },
   {
     name: 'David O., S6',
     club: 'Entertainment Club',
     quote: 'The talent show was the first time I performed on stage. Three hundred people watched. I was terrified. I loved every second.',
     type: 'video' as const,
+    img: studentLifeImg,
   },
 ];
 
@@ -84,21 +94,14 @@ function ChatBubble({ voice, align }: { voice: typeof STUDENT_VOICES[0]; align: 
             <span className='text-xs text-stone-400'>\u00b7</span>
             <span className='text-xs text-stone-400'>{voice.club}</span>
           </div>
-          {/* Media placeholder icon */}
-          <div className='mt-3 rounded-xl bg-gradient-to-br from-green-50 via-stone-50 to-green-50 h-20 flex items-center justify-center border border-stone-100'>
-            {voice.type === 'video' ? (
-              <div className='flex items-center gap-2'>
-                <div className='w-8 h-8 rounded-full bg-green-800/80 flex items-center justify-center'>
-                  <svg className='w-3 h-3 text-white ml-0.5' fill='currentColor' viewBox='0 0 24 24'><path d='M8 5v14l11-7z'/></svg>
+          {/* Media */}
+          <div className='mt-3 rounded-xl overflow-hidden relative h-24 border border-stone-100'>
+            <img src={voice.img} alt={voice.club + ' activity'} className='w-full h-full object-cover' loading='lazy' />
+            {voice.type === 'video' && (
+              <div className='absolute inset-0 bg-black/30 flex items-center justify-center'>
+                <div className='w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg'>
+                  <svg className='w-4 h-4 text-green-900 ml-0.5' fill='currentColor' viewBox='0 0 24 24'><path d='M8 5v14l11-7z'/></svg>
                 </div>
-                <span className='text-xs text-green-800/60 font-medium'>Video</span>
-              </div>
-            ) : (
-              <div className='flex items-center gap-2'>
-                <svg className='w-5 h-5 text-green-800/30' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor'>
-                  <path strokeLinecap='round' strokeLinejoin='round' d='m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 0 0 2.25-2.25V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z' />
-                </svg>
-                <span className='text-xs text-green-800/60 font-medium'>Photo</span>
               </div>
             )}
           </div>
