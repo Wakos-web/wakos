@@ -30,7 +30,7 @@ export function SiteFooter() {
               <li><Link to="/admissions" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">Admissions</Link></li>
               <li><Link to="/contact" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">Contact</Link></li>
               <li><Link to="/calendar" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">Calendar</Link></li>
-              <li><Link to="/admin" className="text-xs text-[#FBF6E5]/50 hover:text-[#97C600] transition-colors">Sign In</Link></li>
+              <li><a href="/admin" className="text-xs text-[#FBF6E5]/50 hover:text-[#97C600] transition-colors">Sign In</a></li>
             </ul>
           </div>
           <div>
