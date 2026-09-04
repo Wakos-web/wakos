@@ -326,18 +326,18 @@ function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: n
     : { circle: 'w-20 h-20', bg: 'w-24 h-24', name: 'text-xs', role: 'text-[10px]', gap: 'mt-1.5' };
 
   return (
-    <div className='flex flex-col items-center'>
+    <div className='flex flex-col items-center cursor-pointer group hover:-translate-y-2 transition-all duration-300'>
       <div className='relative'>
         {/* Colored circle behind */}
-        <div className={`absolute top-1 left-1 ${dims.bg} rounded-full`} style={{ backgroundColor: color, opacity: 0.85 }} />
+        <div className={`absolute top-1 left-1 ${dims.bg} rounded-full transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl`} style={{ backgroundColor: color, opacity: 0.85 }} />
         {/* Photo circle */}
-        <div className={`relative ${dims.circle} rounded-full overflow-hidden shadow-lg ring-2 ring-white`}>          
-          <img src={img} alt={person.name} className='w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500' loading='lazy' />
+        <div className={`relative ${dims.circle} rounded-full overflow-hidden shadow-lg ring-2 ring-white transition-all duration-300 group-hover:shadow-2xl group-hover:ring-4`}>          
+          <img src={img} alt={person.name} className='w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500' loading='lazy' />
         </div>
       </div>
       {/* Name + Role label below */}
-      <div className={'text-center ' + dims.gap}>
-        <p className={'font-display font-bold text-stone-900 ' + dims.name}>{person.name}</p>
+      <div className={'text-center ' + dims.gap + ' transition-all duration-300'}>
+        <p className={'font-display font-bold text-stone-900 group-hover:text-green-800 transition-colors duration-300 ' + dims.name}>{person.name}</p>
         <p className={dims.role + ' text-green-800 font-medium'}>{person.role}</p>
         {person.year && <p className='text-xs text-stone-500 mt-0.5'>{person.year}{person.joined ? ' · Since ' + person.joined : ''}</p>}
       </div>
