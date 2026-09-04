@@ -323,6 +323,13 @@ function ClubDetailPage() {
   const [dbPosts, setDbPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllMembers, setShowAllMembers] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    var onScroll = function() { setShowBackToTop(window.scrollY > 600); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return function() { window.removeEventListener('scroll', onScroll); };
+  }, []);
 
   useEffect(() => {
     supabase.from('clubs').select('*').eq('slug', slug).single().then(({ data: clubData }) => {
@@ -572,6 +579,19 @@ function ClubDetailPage() {
           </div>
         </div>
       </section>
+
+      {/* Back to top button */}
+      {showBackToTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className='fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-green-900 text-white shadow-lg hover:bg-green-800 hover:shadow-xl transition-all flex items-center justify-center'
+          aria-label='Back to top'
+        >
+          <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' strokeWidth={2.5} stroke='currentColor'>
+            <path strokeLinecap='round' strokeLinejoin='round' d='M4.5 15.75l7.5-7.5 7.5 7.5' />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
