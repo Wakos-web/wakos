@@ -343,7 +343,14 @@ function ClubDetailPage() {
   }, [slug]);
 
   const localClub = CLUBS.find(c => c.slug === slug);
-  const club = dbClub ? { ...dbClub, img: localClub?.img || campusImg, patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron, executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3), members: dbMembers.filter((m: any) => m.role === 'Member') } : localClub;
+  const club = dbClub ? {
+    ...dbClub,
+    img: localClub?.img || campusImg,
+    stats: { members: dbClub.members_count, events: dbClub.events_count, years: dbClub.years_active, alumni: dbClub.alumni_count },
+    patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron || null,
+    executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3),
+    members: dbMembers.filter((m: any) => m.role === 'Member'),
+  } : localClub;
   const posts = dbPosts.length > 0 ? dbPosts : (CLUB_POSTS[slug] || []);
 
   if (!club) return <div className='py-20 text-center text-stone-500'>Club not found.</div>;
@@ -364,10 +371,10 @@ function ClubDetailPage() {
           <div className='flex flex-wrap gap-3'>
             <span className='inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-sm font-medium px-3 py-1.5 rounded-full'>
               <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' strokeWidth={2} stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' d='M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' /></svg>
-              {club.stats.members} members
+              {club.stats?.members || club.members_count || 0} members
             </span>
             <span className='inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-sm font-medium px-3 py-1.5 rounded-full'>
-              Est. {new Date().getFullYear() - club.stats.years}
+              Est. {new Date().getFullYear() - (club.stats?.years || club.years_active || 0)}
             </span>
           </div>
         </div>
@@ -391,26 +398,28 @@ function ClubDetailPage() {
       </section>
 
       {/* 3. Stats bar */}
+      {club.stats && (
       <section className='py-12 bg-green-900'>
         <div className='max-w-4xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-center'>
           <div>
-            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.members} /></p>
+            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.members || club.members_count || 0} /></p>
             <p className='text-sm text-white/60 mt-1 font-body'>Active Members</p>
           </div>
           <div>
-            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.events} /></p>
+            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.events || club.events_count || 0} /></p>
             <p className='text-sm text-white/60 mt-1 font-body'>Events This Year</p>
           </div>
           <div>
-            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.years} /></p>
+            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.years || club.years_active || 0} /></p>
             <p className='text-sm text-white/60 mt-1 font-body'>Years Active</p>
           </div>
           <div>
-            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.alumni} /></p>
+            <p className='font-display text-4xl md:text-5xl font-bold text-white'><AnimatedNumber target={club.stats.alumni || club.alumni_count || 0} /></p>
             <p className='text-sm text-white/60 mt-1 font-body'>Alumni Worldwide</p>
           </div>
         </div>
       </section>
+      )}
 
       {/* 4. Leadership */}
       <section className='py-16'>
@@ -421,6 +430,7 @@ function ClubDetailPage() {
           </div>
 
           {/* Patron */}
+          {club.patron && (
           <div className='mb-8'>
             <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4'>Patron</p>
             <div className='rounded-2xl bg-stone-50 border border-stone-200 p-6 flex items-center gap-5'>
@@ -432,8 +442,10 @@ function ClubDetailPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Executives */}
+          {club.executives && club.executives.length > 0 && (
           <div className='mb-8'>
             <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4'>Executives</p>
             <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
@@ -449,6 +461,7 @@ function ClubDetailPage() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Members */}
           <div>
