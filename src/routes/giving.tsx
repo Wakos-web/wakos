@@ -24,7 +24,7 @@ const FAQ = [
   { q: "Is my gift tax-deductible?", a: "Gifts to registered educational institutions in Uganda may qualify for tax benefits. Consult your tax adviser for specifics related to your jurisdiction." },
   { q: "How do I set up a scholarship?", a: "Contact the college administration to discuss scholarship criteria, naming, and funding levels. Scholarships can be need-based, sports-based, or academic." },
   { q: "Can I give in-kind instead of cash?", a: "Yes. The college accepts books, laboratory equipment, furniture, and other materials. Contact the college to discuss what is currently needed." },
-  { q: "How are bursaries awarded?", a: "Bursaries are competitive. At the end of each term, the college identifies top-performing students in financial need based on examination results. Alumni through the Trust Fund then finance their fees and boarding for the following term. Contact the college or MMCWOSA for details." },
+
 ];function HeroSection() {
   return (
     <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
