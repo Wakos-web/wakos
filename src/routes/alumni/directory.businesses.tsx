@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, MapPin, Globe, Phone, ArrowLeft } from "lucide-react";
+import { Search, MapPin, Globe, Phone, ArrowLeft, Mail, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/alumni/directory/businesses")({
   head: () => ({
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/alumni/directory/businesses")({
   component: BusinessesPage,
 });
 
-export type AlumniBusiness = {
+type BusinessWithOwner = {
   id: string;
   owner_id: string;
   name: string;
@@ -23,7 +23,14 @@ export type AlumniBusiness = {
   phone: string | null;
   location: string | null;
   logo_url: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  instagram_url: string | null;
+  email: string | null;
   approved: boolean;
+  owner_name?: string;
+  owner_avatar?: string;
+  owner_profession?: string;
 };
 
 const CATEGORIES = [
@@ -32,7 +39,7 @@ const CATEGORIES = [
 ];
 
 function BusinessesPage() {
-  const [businesses, setBusinesses] = useState<AlumniBusiness[]>([]);
+  const [businesses, setBusinesses] = useState<BusinessWithOwner[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
@@ -43,19 +50,43 @@ function BusinessesPage() {
 
   const fetchBusinesses = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data: bizData } = await supabase
       .from("alumni_businesses")
       .select("*")
       .eq("approved", true)
       .order("name");
-    setBusinesses(data || []);
+
+    if (!bizData || bizData.length === 0) {
+      setBusinesses([]);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch owner profiles
+    const ownerIds = [...new Set(bizData.map(b => b.owner_id).filter(Boolean))];
+    const { data: profiles } = ownerIds.length > 0
+      ? await supabase.from("alumni_profiles").select("id, full_name, avatar_url, profession").in("id", ownerIds)
+      : { data: null };
+
+    const profileMap: Record<string, any> = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+    const enriched = bizData.map(b => ({
+      ...b,
+      owner_name: profileMap[b.owner_id]?.full_name || null,
+      owner_avatar: profileMap[b.owner_id]?.avatar_url || null,
+      owner_profession: profileMap[b.owner_id]?.profession || null,
+    }));
+
+    setBusinesses(enriched);
     setLoading(false);
   };
 
   const filtered = businesses.filter(b => {
     const matchSearch = !search ||
       b.name.toLowerCase().includes(search.toLowerCase()) ||
-      (b.description && b.description.toLowerCase().includes(search.toLowerCase()));
+      (b.description && b.description.toLowerCase().includes(search.toLowerCase())) ||
+      (b.owner_name && b.owner_name.toLowerCase().includes(search.toLowerCase()));
     const matchCategory = category === "All" || b.category === category;
     return matchSearch && matchCategory;
   });
@@ -89,7 +120,7 @@ function BusinessesPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full rounded-xl border border-stone-300 pl-10 pr-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                placeholder="Search businesses..."
+                placeholder="Search businesses or owners..."
               />
             </div>
             <select
@@ -123,52 +154,100 @@ function BusinessesPage() {
           ) : (
             <>
               <p className="text-sm text-stone-500 mb-6">{filtered.length} businesses</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filtered.map(biz => (
-                  <div key={biz.id} className="rounded-2xl bg-white border border-stone-200 p-6 hover:border-green-800 hover:shadow-md transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                        {biz.logo_url ? (
-                          <img src={biz.logo_url} alt={biz.name} className="w-12 h-12 rounded-xl object-cover" />
-                        ) : (
-                          <span className="text-lg font-bold text-green-800">{biz.name.charAt(0)}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-display text-lg font-bold text-stone-900 truncate">{biz.name}</h3>
-                        <span className="inline-block text-xs font-semibold text-green-800 bg-green-100 px-2 py-0.5 rounded-full mt-1">
-                          {biz.category}
-                        </span>
-                      </div>
-                    </div>
-                    {biz.description && (
-                      <p className="text-sm text-stone-600 mt-4 line-clamp-3 font-body">{biz.description}</p>
-                    )}
-                    <div className="mt-4 space-y-2">
-                      {biz.location && (
-                        <p className="text-sm text-stone-500 flex items-center gap-2">
-                          <MapPin className="h-4 w-4 shrink-0" /> {biz.location}
-                        </p>
-                      )}
-                      {biz.phone && (
-                        <p className="text-sm text-stone-500 flex items-center gap-2">
-                          <Phone className="h-4 w-4 shrink-0" /> {biz.phone}
-                        </p>
-                      )}
-                      {biz.website && (
-                        <a href={biz.website} target="_blank" rel="noopener noreferrer"
-                          className="text-sm text-green-800 flex items-center gap-2 hover:underline">
-                          <Globe className="h-4 w-4 shrink-0" /> Website
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  <BusinessCard key={biz.id} biz={biz} />
                 ))}
               </div>
             </>
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function BusinessCard({ biz }: { biz: BusinessWithOwner }) {
+  return (
+    <div className="rounded-2xl bg-white border border-stone-200 p-6 hover:border-green-800 hover:shadow-md transition-all">
+      <div className="flex items-start gap-4">
+        {/* Headshot / Logo */}
+        <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
+          {biz.owner_avatar ? (
+            <img src={biz.owner_avatar} alt={biz.owner_name || biz.name} className="w-16 h-16 rounded-2xl object-cover" />
+          ) : biz.logo_url ? (
+            <img src={biz.logo_url} alt={biz.name} className="w-16 h-16 rounded-2xl object-cover" />
+          ) : (
+            <span className="text-2xl font-bold text-green-800">{biz.name.charAt(0)}</span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          {/* Owner name */}
+          {biz.owner_name && (
+            <p className="text-sm font-semibold text-stone-500">{biz.owner_name}</p>
+          )}
+          {/* Business name */}
+          <h3 className="font-display text-xl font-bold text-stone-900">{biz.name}</h3>
+          {/* Category */}
+          <span className="inline-block text-xs font-semibold text-green-800 bg-green-100 px-2 py-0.5 rounded-full mt-1">
+            {biz.category}
+          </span>
+        </div>
+      </div>
+
+      {/* Description */}
+      {biz.description && (
+        <p className="text-sm text-stone-600 mt-4 font-body leading-relaxed">{biz.description}</p>
+      )}
+
+      {/* Location and phone */}
+      <div className="mt-4 space-y-2">
+        {biz.location && (
+          <p className="text-sm text-stone-500 flex items-center gap-2">
+            <MapPin className="h-4 w-4 shrink-0" /> {biz.location}
+          </p>
+        )}
+        {biz.phone && (
+          <p className="text-sm text-stone-500 flex items-center gap-2">
+            <Phone className="h-4 w-4 shrink-0" /> {biz.phone}
+          </p>
+        )}
+      </div>
+
+      {/* Social links and actions */}
+      <div className="mt-4 pt-4 border-t border-stone-100 flex items-center gap-3 flex-wrap">
+        {biz.website && (
+          <a href={biz.website} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-800 bg-green-50 px-3 py-1.5 rounded-full hover:bg-green-100 transition-colors">
+            <Globe className="h-3.5 w-3.5" /> Website
+          </a>
+        )}
+        {biz.linkedin_url && (
+          <a href={biz.linkedin_url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors">
+            <ExternalLink className="h-3.5 w-3.5" /> LinkedIn
+          </a>
+        )}
+        {biz.twitter_url && (
+          <a href={biz.twitter_url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full hover:bg-sky-100 transition-colors">
+            <ExternalLink className="h-3.5 w-3.5" /> Twitter
+          </a>
+        )}
+        {biz.instagram_url && (
+          <a href={biz.instagram_url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 bg-pink-50 px-3 py-1.5 rounded-full hover:bg-pink-100 transition-colors">
+            <ExternalLink className="h-3.5 w-3.5" /> Instagram
+          </a>
+        )}
+        {biz.email && (
+          <a href={`mailto:${biz.email}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 bg-stone-100 px-3 py-1.5 rounded-full hover:bg-stone-200 transition-colors">
+            <Mail className="h-3.5 w-3.5" /> Send Email
+          </a>
+        )}
+      </div>
     </div>
   );
 }
