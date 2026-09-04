@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { useState, useEffect, useCallback } from 'react';
 import { IMAGES } from '@/lib/content';
+import { supabase } from '@/lib/supabase';
 import campusImg from '@/assets/campus.jpg';
 import athleticsImg from '@/assets/athletics.jpg';
 import studentLifeImg from '@/assets/student-life.jpg';
@@ -212,11 +213,25 @@ function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
 }
 
 function ClubsGrid() {
+  const [clubs, setClubs] = useState<typeof CLUBS>(CLUBS);
+
+  useEffect(() => {
+    supabase.from('clubs').select('*').order('name').then(({ data }) => {
+      if (data && data.length > 0) {
+        const merged = data.map((db: any) => {
+          const local = CLUBS.find(c => c.slug === db.slug);
+          return { slug: db.slug, name: db.name, tagline: db.tagline, imgs: local?.imgs || [campusImg, athleticsImg, givingImg] };
+        });
+        setClubs(merged);
+      }
+    });
+  }, []);
+
   return (
     <section className='py-12'>
       <div className='max-w-6xl mx-auto px-6'>
         <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
-          {CLUBS.map((club) => (
+          {clubs.map((club) => (
             <Link key={club.slug} to='/clubs/$slug' params={{ slug: club.slug }} className='group relative overflow-hidden rounded-xl aspect-[3/4] cursor-pointer'>
               <OrbCarousel imgs={club.imgs} name={club.name} />
               <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10' />

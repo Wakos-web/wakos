@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect, useRef } from 'react';
 import { IMAGES } from '@/lib/content';
+import { supabase } from '@/lib/supabase';
 import campusImg from '@/assets/campus.jpg';
 import athleticsImg from '@/assets/athletics.jpg';
 import studentLifeImg from '@/assets/student-life.jpg';
@@ -317,9 +318,28 @@ function MemberAvatar({ person, size = 'md' }: { person: Person; size?: 'sm' | '
 
 function ClubDetailPage() {
   const { slug } = Route.useParams();
-  const club = CLUBS.find(c => c.slug === slug);
-  const posts = CLUB_POSTS[slug] || [];
+  const [dbClub, setDbClub] = useState<any>(null);
+  const [dbMembers, setDbMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAllMembers, setShowAllMembers] = useState(false);
+
+  useEffect(() => {
+    supabase.from('clubs').select('*').eq('slug', slug).single().then(({ data: clubData }) => {
+      if (clubData) {
+        setDbClub(clubData);
+        supabase.from('club_members').select('*').eq('club_id', clubData.id).order('sort_order').then(({ data: membersData }) => {
+          if (membersData) setDbMembers(membersData);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
+    });
+  }, [slug]);
+
+  const localClub = CLUBS.find(c => c.slug === slug);
+  const club = dbClub ? { ...dbClub, img: localClub?.img || campusImg, patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron, executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3), members: dbMembers.filter((m: any) => m.role === 'Member') } : localClub;
+  const posts = CLUB_POSTS[slug] || [];
 
   if (!club) return <div className='py-20 text-center text-stone-500'>Club not found.</div>;
 
