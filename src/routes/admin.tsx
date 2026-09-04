@@ -14,7 +14,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "settings";
+type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "applications" | "mentorship" | "donations" | "scholarships" | "settings";
 
 function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
@@ -1156,6 +1156,71 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
   );
 }
 
+function SubmissionsList({ title, icon: Icon, data, columns, onRefresh, setToast }: { title: string; icon: any; data: any[]; columns: { key: string; label: string }[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [filter, setFilter] = useState("all");
+  const filtered = filter === "all" ? data : data.filter((d: any) => d.status === filter);
+
+  const updateStatus = async (id: string, status: string, table: string) => {
+    await supabase.from(table).update({ status }).eq("id", id);
+    setToast({ message: `Status updated to ${status}`, type: "success" });
+    onRefresh();
+  };
+
+  const remove = async (id: string, table: string) => {
+    if (!confirm("Delete this submission?")) return;
+    await supabase.from(table).delete().eq("id", id);
+    setToast({ message: "Deleted", type: "success" });
+    onRefresh();
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-display text-xl font-bold text-stone-900">{title} ({data.length})</h3>
+        <div className="flex gap-2">
+          <select value={filter} onChange={e => setFilter(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 text-stone-400">
+          <Icon className="h-10 w-10 mx-auto mb-3" />
+          <p>No submissions yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((item: any) => (
+            <div key={item.id} className="rounded-xl bg-white border border-stone-200 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.status === "approved" ? "bg-green-100 text-green-800" : item.status === "rejected" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>{item.status}</span>
+                    <span className="text-xs text-stone-400">{new Date(item.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {columns.map(col => (
+                    <p key={col.key} className="text-sm text-stone-600"><span className="font-medium text-stone-900">{col.label}:</span> {item[col.key] || "-"}</p>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {item.status === "pending" && (
+                    <button onClick={() => updateStatus(item.id, "approved", title.toLowerCase().replace(/ /g, "_"))} className="p-2 rounded-lg hover:bg-green-100 border border-green-200" title="Approve"><Check className="h-4 w-4 text-green-600" /></button>
+                  )}
+                  <button onClick={() => remove(item.id, title.toLowerCase().replace(/ /g, "_"))} className="p-2 rounded-lg hover:bg-red-100 border border-red-200" title="Delete"><Trash2 className="h-4 w-4 text-red-400" /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
@@ -1167,6 +1232,10 @@ function AdminPage() {
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [alumni, setAlumni] = useState<any[]>([]);
   const [articles, setArticles] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [mentorship, setMentorship] = useState<any[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
+  const [scholarships, setScholarships] = useState<any[]>([]);
   const [pageContent, setPageContent] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -1174,7 +1243,7 @@ function AdminPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
@@ -1184,6 +1253,10 @@ function AdminPage() {
       supabase.from("alumni_profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("articles").select("*").order("created_at", { ascending: false }),
       supabase.from("page_content").select("*").order("page", { ascending: true }),
+      supabase.from("club_applications").select("*").order("created_at", { ascending: false }),
+      supabase.from("mentorship_requests").select("*").order("created_at", { ascending: false }),
+      supabase.from("donations").select("*").order("created_at", { ascending: false }),
+      supabase.from("sports_scholarships").select("*").order("created_at", { ascending: false }),
     ]);
 
     const c = clubsRes.data || [];
@@ -1204,6 +1277,10 @@ function AdminPage() {
     setAlumni(a);
     setArticles(art);
     setPageContent(pc);
+    setApplications(appsRes.data || []);
+    setMentorship(mentRes.data || []);
+    setDonations(donRes.data || []);
+    setScholarships(schRes.data || []);
     const { count: postCount } = await supabase.from("club_posts").select("*", { count: "exact", head: true });
     setStats({
       clubs: c.length,
@@ -1231,6 +1308,10 @@ function AdminPage() {
     { key: "pages", label: "Page Content", icon: FileText, count: pageContent.length },
     { key: "inquiries", label: "Inquiries", icon: MessageSquare, count: stats.inquiries },
     { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses },
+    { key: "applications", label: "Club Apps", icon: Users, count: applications.length },
+    { key: "mentorship", label: "Mentorship", icon: Heart, count: mentorship.length },
+    { key: "donations", label: "Donations", icon: Heart, count: donations.length },
+    { key: "scholarships", label: "Scholarships", icon: GraduationCap, count: scholarships.length },
     { key: "settings", label: "Site Settings", icon: Settings },
   ];
 
@@ -1300,6 +1381,10 @@ function AdminPage() {
             {tab === "articles" && <ArticlesTab articles={articles} onRefresh={fetchData} setToast={setToast} />}
             {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} setToast={setToast} />}
             {tab === "pages" && <PagesTab pages={pageContent} onRefresh={fetchData} setToast={setToast} />}
+            {tab === "applications" && <SubmissionsList title="Club Applications" icon={Users} data={applications} columns={[{ key: "club_name", label: "Club" }, { key: "student_name", label: "Student" }, { key: "class_level", label: "Class" }, { key: "reason", label: "Reason" }]} onRefresh={fetchData} setToast={setToast} />}
+            {tab === "mentorship" && <SubmissionsList title="Mentorship Requests" icon={Heart} data={mentorship} columns={[{ key: "mentor_name", label: "Name" }, { key: "mentor_email", label: "Email" }, { key: "club_interest", label: "Club" }, { key: "graduation_year", label: "Class Of" }, { key: "expertise", label: "Expertise" }]} onRefresh={fetchData} setToast={setToast} />}
+            {tab === "donations" && <SubmissionsList title="Donations" icon={Heart} data={donations} columns={[{ key: "donor_name", label: "Donor" }, { key: "amount", label: "Amount" }, { key: "donation_type", label: "Type" }, { key: "purpose", label: "Purpose" }]} onRefresh={fetchData} setToast={setToast} />}
+            {tab === "scholarships" && <SubmissionsList title="Sports Scholarships" icon={GraduationCap} data={scholarships} columns={[{ key: "student_name", label: "Student" }, { key: "parent_name", label: "Parent" }, { key: "phone", label: "Phone" }, { key: "sport", label: "Sport" }, { key: "achievement", label: "Achievement" }]} onRefresh={fetchData} setToast={setToast} />}
             {tab === "settings" && <SettingsTab />}
           </>
         )}

@@ -13,6 +13,86 @@ import newsBasketballImg from '@/assets/news-basketball.jpg';
 import newsGraduationImg from '@/assets/news-graduation.jpg';
 import heroImg from '@/assets/hero.jpg';
 
+function ClubApplicationForm({ club, slug }: { club: any; slug: string }) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [className, setClassName] = useState('');
+  const [reason, setReason] = useState('');
+  const [experience, setExperience] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !className.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from('club_applications').insert({
+      club_id: slug,
+      club_name: club.name,
+      student_name: name.trim(),
+      class_level: className.trim(),
+      reason: reason.trim(),
+      experience: experience.trim(),
+      status: 'pending'
+    });
+    setSaving(false);
+    if (!error) {
+      setSubmitted(true);
+      setName(''); setClassName(''); setReason(''); setExperience('');
+    }
+  };
+
+  return (
+    <section className='py-12 bg-white'>
+      <div className='max-w-2xl mx-auto px-6'>
+        {!showForm && !submitted && (
+          <button onClick={() => setShowForm(true)} className='w-full rounded-2xl bg-green-50 border-2 border-dashed border-green-300 p-8 text-center hover:border-green-500 hover:bg-green-100 transition-all'>
+            <p className='font-display text-xl font-bold text-green-900'>Want to join {club.name}?</p>
+            <p className='text-sm text-green-700 mt-2'>Apply now and become part of our team</p>
+          </button>
+        )}
+        {submitted && (
+          <div className='rounded-2xl bg-green-50 border border-green-200 p-8 text-center'>
+            <p className='font-display text-xl font-bold text-green-900'>Application Submitted!</p>
+            <p className='text-sm text-green-700 mt-2'>Thank you for your interest. The club patron will review your application.</p>
+            <button onClick={() => { setSubmitted(false); setShowForm(false); }} className='mt-4 text-sm font-semibold text-green-800 hover:underline'>Submit another</button>
+          </div>
+        )}
+        {showForm && !submitted && (
+          <form onSubmit={handleSubmit} className='rounded-2xl bg-white border border-stone-200 p-8 space-y-5'>
+            <h3 className='font-display text-xl font-bold text-stone-900'>Apply to {club.name}</h3>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+              <div>
+                <label className='block text-sm font-medium text-stone-700 mb-1'>Your Name *</label>
+                <input value={name} onChange={e => setName(e.target.value)} required className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='e.g. John Mukasa' />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-stone-700 mb-1'>Class Level *</label>
+                <select value={className} onChange={e => setClassName(e.target.value)} required className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500'>
+                  <option value=''>Select class</option>
+                  <option>S1</option><option>S2</option><option>S3</option><option>S4</option><option>S5</option><option>S6</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-stone-700 mb-1'>Why do you want to join?</label>
+              <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='Tell us why you are interested...' />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-stone-700 mb-1'>Previous experience (optional)</label>
+              <textarea value={experience} onChange={e => setExperience(e.target.value)} rows={2} className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='Any relevant skills or experience...' />
+            </div>
+            <div className='flex gap-3'>
+              <button type='submit' disabled={saving} className='px-6 py-3 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors'>{saving ? 'Submitting...' : 'Submit Application'}</button>
+              <button type='button' onClick={() => setShowForm(false)} className='px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors'>Cancel</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
 const AVATARS = [campusImg, athleticsImg, studentLifeImg, academicsImg, newsServiceImg, givingImg, newsRoboticsImg, newsBasketballImg, newsGraduationImg, heroImg];
 
 type Person = { name: string; role: string; year?: string; joined?: string; img?: string };
@@ -570,7 +650,10 @@ function ClubDetailPage() {
         </div>
       </section>
 
-      {/* 7. Compact 3-tier CTA */}
+      {/* 7. Apply to Club */}
+      <ClubApplicationForm club={club} slug={slug} />
+
+      {/* 8. Compact 3-tier CTA */}
       <section className='py-12 border-t border-stone-200'>
         <div className='max-w-6xl mx-auto px-6'>
           <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>

@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { IMAGES, SCHOOL_NAME } from "@/lib/content";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/giving")({
   head: () => ({
@@ -116,16 +118,105 @@ const FAQ = [
   );
 }
 
-function CTASection() {
+function DonationForm() {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
+  const [type, setType] = useState("trust_fund");
+  const [purpose, setPurpose] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("donations").insert({
+      donor_name: anonymous ? "Anonymous" : name.trim(),
+      donor_email: email.trim() || null,
+      donor_phone: phone.trim() || null,
+      amount: amount ? parseFloat(amount) : null,
+      donation_type: type,
+      purpose: purpose.trim() || null,
+      anonymous,
+      status: "received"
+    });
+    setSaving(false);
+    if (!error) {
+      setSubmitted(true);
+    }
+  };
+
   return (
     <section className="bg-green-900 py-20">
-      <div className="max-w-4xl mx-auto px-6 text-center">
-        <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Make a gift</h2>
-        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Every contribution goes directly to students and infrastructure. To arrange a gift or pledge, contact the college or MMCWOSA. Your gift today builds the school your grandchildren will attend.</p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <a href="/contact" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">Contact the College</a>
-          <a href="/alumni#trust" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Trust Fund</a>
-        </div>
+      <div className="max-w-4xl mx-auto px-6">
+        {!showForm && !submitted && (
+          <div className="text-center">
+            <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Make a gift</h2>
+            <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Every contribution goes directly to students and infrastructure. Your gift today builds the school your grandchildren will attend.</p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">Donate Now</button>
+              <a href="/contact" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Contact the College</a>
+            </div>
+          </div>
+        )}
+        {submitted && (
+          <div className="text-center">
+            <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Thank you!</h2>
+            <p className="text-white/70 text-lg mb-8">Your pledge has been recorded. The Trust Fund Coordinator will contact you with payment details.</p>
+            <button onClick={() => { setSubmitted(false); setShowForm(false); }} className="text-sm font-semibold text-white/80 hover:text-white">Submit another pledge</button>
+          </div>
+        )}
+        {showForm && !submitted && (
+          <form onSubmit={handleSubmit} className="max-w-xl mx-auto bg-white rounded-2xl p-8 space-y-5">
+            <h3 className="font-display text-xl font-bold text-stone-900">Make a Pledge</h3>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Your Name *</label>
+              <input value={name} onChange={e => setName(e.target.value)} required className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="e.g. John Mukasa" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Email (optional)</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="john@example.com" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Phone (optional)</label>
+                <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="+256 700 000000" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Amount (UGX, optional)</label>
+                <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="e.g. 50000" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Donation Type *</label>
+                <select value={type} onChange={e => setType(e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                  <option value="trust_fund">Trust Fund Monthly</option>
+                  <option value="bursary">Bursary Support</option>
+                  <option value="project">Specific Project</option>
+                  <option value="scholarship">Scholarship</option>
+                  <option value="in_kind">In-Kind Gift</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Purpose (optional)</label>
+              <input value={purpose} onChange={e => setPurpose(e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="e.g. Laboratory renovation" />
+            </div>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)} className="rounded border-stone-300 text-green-800 focus:ring-green-500" />
+              <span className="text-sm text-stone-600">Make my donation anonymous</span>
+            </label>
+            <div className="flex gap-3">
+              <button type="submit" disabled={saving} className="px-6 py-3 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Submitting..." : "Submit Pledge"}</button>
+              <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+            </div>
+          </form>
+        )}
       </div>
     </section>
   );
@@ -138,7 +229,7 @@ function GivingPage() {
       <WaysOfGiving />
       <ImpactSection />
       <FAQSection />
-      <CTASection />
+      <DonationForm />
     </div>
   );
 }
