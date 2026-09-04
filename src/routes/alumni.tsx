@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { IMAGES, SCHOOL_NAME } from '@/lib/content';
 
 export const Route = createFileRoute('/alumni')({
@@ -177,8 +177,8 @@ function FeaturedAlumni() {
         <div className="rounded-2xl bg-stone-50 border border-stone-200 p-12">
           <p className="text-stone-600 font-body mb-6">Find fellow alumni, update your profile, and connect with the WACOS community.</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <a href="/alumni/directory" className="inline-flex items-center gap-2 bg-green-900 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-800 transition-colors">Enter Directory</a>
-            <a href="/alumni/directory/businesses" className="inline-flex items-center gap-2 border border-green-900 text-green-900 px-6 py-3 rounded-full font-semibold hover:bg-green-50 transition-colors">Business Directory</a>
+            <Link to="/alumni/directory" className="inline-flex items-center gap-2 bg-green-900 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-800 transition-colors">Enter Directory</Link>
+            <Link to="/alumni/directory/businesses" className="inline-flex items-center gap-2 border border-green-900 text-green-900 px-6 py-3 rounded-full font-semibold hover:bg-green-50 transition-colors">Business Directory</Link>
           </div>
         </div>
       </div>
