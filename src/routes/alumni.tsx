@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { IMAGES } from "@/lib/content";
@@ -367,6 +367,15 @@ function CTASection() {
 }
 
 function AlumniPage() {
+  return (
+    <>
+      <AlumniPulsePage />
+      <Outlet />
+    </>
+  );
+}
+
+function AlumniPulsePage() {
   const [notes, setNotes] = useState<ClassNote[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
