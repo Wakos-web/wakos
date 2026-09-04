@@ -318,27 +318,27 @@ function MemberAvatar({ person, size = 'md' }: { person: Person; size?: 'sm' | '
 
 const PORTRAIT_COLORS = ['#FACC15', '#2563EB', '#EC4899', '#EF4444', '#F97316', '#10B981', '#8B5CF6', '#06B6D4', '#F43F5E', '#14B8A6'];
 
-function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: number; size?: 'lg' | 'md' }) {
+function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: number; size?: 'lg' | 'md' | 'sm' }) {
   const img = person.img || getAvatar(person.name);
   const color = PORTRAIT_COLORS[index % PORTRAIT_COLORS.length];
-  const isLarge = size === 'lg';
-  const circleSize = isLarge ? 'w-40 h-40' : 'w-28 h-28';
-  const bgSize = isLarge ? 'w-44 h-44' : 'w-32 h-32';
+  const dims = size === 'lg' ? { circle: 'w-40 h-40', bg: 'w-44 h-44', name: 'text-lg', role: 'text-sm', gap: 'mt-3' }
+    : size === 'md' ? { circle: 'w-28 h-28', bg: 'w-32 h-32', name: 'text-sm', role: 'text-xs', gap: 'mt-2' }
+    : { circle: 'w-20 h-20', bg: 'w-24 h-24', name: 'text-xs', role: 'text-[10px]', gap: 'mt-1.5' };
 
   return (
     <div className='flex flex-col items-center'>
       <div className='relative'>
         {/* Colored circle behind */}
-        <div className={`absolute top-1 left-1 ${bgSize} rounded-full`} style={{ backgroundColor: color, opacity: 0.85 }} />
+        <div className={`absolute top-1 left-1 ${dims.bg} rounded-full`} style={{ backgroundColor: color, opacity: 0.85 }} />
         {/* Photo circle */}
-        <div className={`relative ${circleSize} rounded-full overflow-hidden shadow-lg ring-2 ring-white`}>          
+        <div className={`relative ${dims.circle} rounded-full overflow-hidden shadow-lg ring-2 ring-white`}>          
           <img src={img} alt={person.name} className='w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500' loading='lazy' />
         </div>
       </div>
       {/* Name + Role label below */}
-      <div className='text-center mt-3'>
-        <p className={'font-display font-bold text-stone-900 ' + (isLarge ? 'text-lg' : 'text-sm')}>{person.name}</p>
-        <p className={isLarge ? 'text-sm text-green-800 font-medium' : 'text-xs text-green-800 font-medium'}>{person.role}</p>
+      <div className={'text-center ' + dims.gap}>
+        <p className={'font-display font-bold text-stone-900 ' + dims.name}>{person.name}</p>
+        <p className={dims.role + ' text-green-800 font-medium'}>{person.role}</p>
         {person.year && <p className='text-xs text-stone-500 mt-0.5'>{person.year}{person.joined ? ' · Since ' + person.joined : ''}</p>}
       </div>
     </div>
@@ -492,23 +492,17 @@ function ClubDetailPage() {
 
           {/* Members */}
           <div>
-            <div className='flex items-center justify-between mb-4'>
+            <div className='text-center mb-6'>
               <p className='text-xs font-semibold uppercase tracking-wider text-stone-500'>Members ({clubMembers.length})</p>
               {clubMembers.length > 8 && (
-                <button onClick={() => setShowAllMembers(!showAllMembers)} className='text-sm font-semibold text-green-800 hover:underline'>
+                <button onClick={() => setShowAllMembers(!showAllMembers)} className='text-sm font-semibold text-green-800 hover:underline mt-1'>
                   {showAllMembers ? 'Show less' : `View all ${clubMembers.length}`}
                 </button>
               )}
             </div>
-            <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-              {visibleMembers.map((m) => (
-                <div key={m.name} className='rounded-xl bg-white border border-stone-200 p-4 flex items-center gap-3'>
-                  <MemberAvatar person={m} size='sm' />
-                  <div className='min-w-0'>
-                    <p className='text-sm font-bold text-stone-900 truncate'>{m.name}</p>
-                    <p className='text-xs text-stone-400'>{m.year} · Since {m.joined}</p>
-                  </div>
-                </div>
+            <div className='flex flex-wrap justify-center gap-6 md:gap-8'>
+              {visibleMembers.map((m, i) => (
+                <PortraitCard key={m.name} person={m} index={i + 4} size='sm' />
               ))}
             </div>
           </div>
