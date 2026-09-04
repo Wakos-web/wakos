@@ -220,6 +220,8 @@ function SubmitForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [year, setYear] = useState("");
   const [category, setCategory] = useState("update");
   const [content, setContent] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -227,21 +229,41 @@ function SubmitForm({ onSubmitted }: { onSubmitted: () => void }) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 1952 }, (_, i) => currentYear - i);
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photo) return null;
+    const ext = photo.name.split(".").pop();
+    const path = "notes/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
+    const { error } = await supabase.storage.from("class-notes-photos").upload(path, photo);
+    if (error) throw error;
+    const { data } = supabase.storage.from("class-notes-photos").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+      const photoUrl = await uploadPhoto();
       const { error: insertError } = await supabase.from("class_notes").insert({
         author_name: name,
         graduation_year: parseInt(year),
         category,
         content,
+        photo_url: photoUrl,
         approved: false,
       });
       if (insertError) throw insertError;
       setSuccess(true);
-      setName(""); setYear(""); setContent(""); setCategory("update");
+      setName(""); setYear(""); setContent(""); setCategory("update"); setPhoto(null); setPhotoPreview(null);
       onSubmitted();
     } catch (err: any) {
       setError(err.message || "Submission failed");
