@@ -13,11 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AcademicsRouteImport } from './routes/academics'
 import { Route as AdmissionsRouteImport } from './routes/admissions'
+import { Route as AlumniRouteImport } from './routes/alumni'
 import { Route as AthleticsRouteImport } from './routes/athletics'
+import { Route as ClubsRouteImport } from './routes/clubs'
 import { Route as GivingRouteImport } from './routes/giving'
 import { Route as StudentLifeRouteImport } from './routes/student-life'
-import { Route as NewsIndexRouteImport } from './routes/news.index'
-import { Route as NewsSlugRouteImport } from './routes/news.$slug'
+import { Route as CampusStoresIndexRouteImport } from './routes/campus-stores.index'
+import { Route as CampusStoresSlugRouteImport } from './routes/campus-stores.$slug'
+import { Route as ClubsSlugRouteImport } from './routes/clubs.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,9 +42,19 @@ const AdmissionsRoute = AdmissionsRouteImport.update({
   path: '/admissions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AlumniRoute = AlumniRouteImport.update({
+  id: '/alumni',
+  path: '/alumni',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AthleticsRoute = AthleticsRouteImport.update({
   id: '/athletics',
   path: '/athletics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsRoute = ClubsRouteImport.update({
+  id: '/clubs',
+  path: '/clubs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GivingRoute = GivingRouteImport.update({
@@ -54,15 +67,20 @@ const StudentLifeRoute = StudentLifeRouteImport.update({
   path: '/student-life',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NewsIndexRoute = NewsIndexRouteImport.update({
-  id: '/news/',
-  path: '/news/',
+const CampusStoresIndexRoute = CampusStoresIndexRouteImport.update({
+  id: '/campus-stores/',
+  path: '/campus-stores/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NewsSlugRoute = NewsSlugRouteImport.update({
-  id: '/news/$slug',
-  path: '/news/$slug',
+const CampusStoresSlugRoute = CampusStoresSlugRouteImport.update({
+  id: '/campus-stores/$slug',
+  path: '/campus-stores/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsSlugRoute = ClubsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ClubsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -70,22 +88,28 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
+  '/alumni': typeof AlumniRoute
   '/athletics': typeof AthleticsRoute
+  '/clubs': typeof ClubsRouteWithChildren
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
-  '/news/$slug': typeof NewsSlugRoute
-  '/news/': typeof NewsIndexRoute
+  '/campus-stores/$slug': typeof CampusStoresSlugRoute
+  '/clubs/$slug': typeof ClubsSlugRoute
+  '/campus-stores/': typeof CampusStoresIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
+  '/alumni': typeof AlumniRoute
   '/athletics': typeof AthleticsRoute
+  '/clubs': typeof ClubsRouteWithChildren
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
-  '/news/$slug': typeof NewsSlugRoute
-  '/news': typeof NewsIndexRoute
+  '/campus-stores/$slug': typeof CampusStoresSlugRoute
+  '/clubs/$slug': typeof ClubsSlugRoute
+  '/campus-stores': typeof CampusStoresIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -93,11 +117,14 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
+  '/alumni': typeof AlumniRoute
   '/athletics': typeof AthleticsRoute
+  '/clubs': typeof ClubsRouteWithChildren
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
-  '/news/$slug': typeof NewsSlugRoute
-  '/news/': typeof NewsIndexRoute
+  '/campus-stores/$slug': typeof CampusStoresSlugRoute
+  '/clubs/$slug': typeof ClubsSlugRoute
+  '/campus-stores/': typeof CampusStoresIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -106,33 +133,42 @@ export interface FileRouteTypes {
     | '/about'
     | '/academics'
     | '/admissions'
+    | '/alumni'
     | '/athletics'
+    | '/clubs'
     | '/giving'
     | '/student-life'
-    | '/news/$slug'
-    | '/news/'
+    | '/campus-stores/$slug'
+    | '/clubs/$slug'
+    | '/campus-stores/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/academics'
     | '/admissions'
+    | '/alumni'
     | '/athletics'
+    | '/clubs'
     | '/giving'
     | '/student-life'
-    | '/news/$slug'
-    | '/news'
+    | '/campus-stores/$slug'
+    | '/clubs/$slug'
+    | '/campus-stores'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/academics'
     | '/admissions'
+    | '/alumni'
     | '/athletics'
+    | '/clubs'
     | '/giving'
     | '/student-life'
-    | '/news/$slug'
-    | '/news/'
+    | '/campus-stores/$slug'
+    | '/clubs/$slug'
+    | '/campus-stores/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -140,11 +176,13 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AcademicsRoute: typeof AcademicsRoute
   AdmissionsRoute: typeof AdmissionsRoute
+  AlumniRoute: typeof AlumniRoute
   AthleticsRoute: typeof AthleticsRoute
+  ClubsRoute: typeof ClubsRouteWithChildren
   GivingRoute: typeof GivingRoute
   StudentLifeRoute: typeof StudentLifeRoute
-  NewsSlugRoute: typeof NewsSlugRoute
-  NewsIndexRoute: typeof NewsIndexRoute
+  CampusStoresSlugRoute: typeof CampusStoresSlugRoute
+  CampusStoresIndexRoute: typeof CampusStoresIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -177,11 +215,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdmissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/alumni': {
+      id: '/alumni'
+      path: '/alumni'
+      fullPath: '/alumni'
+      preLoaderRoute: typeof AlumniRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/athletics': {
       id: '/athletics'
       path: '/athletics'
       fullPath: '/athletics'
       preLoaderRoute: typeof AthleticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubs': {
+      id: '/clubs'
+      path: '/clubs'
+      fullPath: '/clubs'
+      preLoaderRoute: typeof ClubsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/giving': {
@@ -198,33 +250,52 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentLifeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/news/': {
-      id: '/news/'
-      path: '/news'
-      fullPath: '/news/'
-      preLoaderRoute: typeof NewsIndexRouteImport
+    '/campus-stores/': {
+      id: '/campus-stores/'
+      path: '/campus-stores'
+      fullPath: '/campus-stores/'
+      preLoaderRoute: typeof CampusStoresIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/news/$slug': {
-      id: '/news/$slug'
-      path: '/news/$slug'
-      fullPath: '/news/$slug'
-      preLoaderRoute: typeof NewsSlugRouteImport
+    '/campus-stores/$slug': {
+      id: '/campus-stores/$slug'
+      path: '/campus-stores/$slug'
+      fullPath: '/campus-stores/$slug'
+      preLoaderRoute: typeof CampusStoresSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/clubs/$slug': {
+      id: '/clubs/$slug'
+      path: '/$slug'
+      fullPath: '/clubs/$slug'
+      preLoaderRoute: typeof ClubsSlugRouteImport
+      parentRoute: typeof ClubsRoute
     }
   }
 }
+
+interface ClubsRouteChildren {
+  ClubsSlugRoute: typeof ClubsSlugRoute
+}
+
+const ClubsRouteChildren: ClubsRouteChildren = {
+  ClubsSlugRoute: ClubsSlugRoute,
+}
+
+const ClubsRouteWithChildren = ClubsRoute._addFileChildren(ClubsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AcademicsRoute: AcademicsRoute,
   AdmissionsRoute: AdmissionsRoute,
+  AlumniRoute: AlumniRoute,
   AthleticsRoute: AthleticsRoute,
+  ClubsRoute: ClubsRouteWithChildren,
   GivingRoute: GivingRoute,
   StudentLifeRoute: StudentLifeRoute,
-  NewsSlugRoute: NewsSlugRoute,
-  NewsIndexRoute: NewsIndexRoute,
+  CampusStoresSlugRoute: CampusStoresSlugRoute,
+  CampusStoresIndexRoute: CampusStoresIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

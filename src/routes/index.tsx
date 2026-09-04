@@ -18,17 +18,17 @@ import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS } from "@/lib/content"
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "M.M College Wairaka — Discipline, Hard Work and Self-Reliance" },
+      { title: "M.M College Wairaka — Where Your Child Becomes Someone" },
       {
         name: "description",
         content:
-          "M.M College Wairaka — Discipline, hard work and self-reliance since 1953.",
+          "Government-aided boarding school in Jinja. 73 years. Olympic champion alumni. Bursaries for bright students. Your child earns their future here.",
       },
       { property: "og:title", content: "M.M College Wairaka" },
       {
         property: "og:description",
         content:
-          "Discipline, hard work and self-reliance since 1953.",
+          "Government-aided boarding school in Jinja. 73 years. Olympic champion alumni. Bursaries for bright students.",
       },
       { property: "og:url", content: "/" },
     ],
@@ -124,10 +124,10 @@ function HeroSection() {
         <div className="max-w-3xl">
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/70" style={{ animationDelay: "0.2s" }}>Est. 1953</p>
           <h1 className="font-display text-5xl font-semibold leading-[0.95] tracking-tight text-white sm:text-6xl md:text-7xl lg:text-8xl">
-            Discipline, hard work<br className="hidden sm:block" /> and self-reliance
+            Where your child<br className="hidden sm:block" /> becomes someone
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/80 sm:text-xl">
-            Shaping young people for greater things since 1953. A government-aided secondary school in Wairaka, Jinja, built on merit, service and self-reliance.
+            Your child deserves more than a desk and a textbook. At WACOS, they earn their future — with discipline, hard work, and self-reliance. Government-aided boarding school in Jinja since 1953.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link to="/admissions" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white/90 hover:shadow-lg">
@@ -269,7 +269,7 @@ function MissionSection() {
             Our Mission
           </p>
           <h2 className="mt-4 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-            An education money cannot buy, earned by merit alone
+            An education earned, not purchased
           </h2>
           <p className="mt-6 leading-relaxed text-muted-foreground">
             Founded in 1953 on a single conviction — that discipline, hard work,
@@ -303,7 +303,7 @@ function GivingCta() {
       <div className="absolute inset-0 bg-primary/85" />
       <div className="relative mx-auto max-w-3xl px-6 py-24 text-center">
         <h2 className="font-display text-4xl font-semibold leading-tight text-primary-foreground md:text-5xl">
-          Every seat is a scholarship. Every scholarship is a gift.
+          Every bursary changes a life. Every life changed starts with you.
         </h2>
         <p className="mx-auto mt-6 max-w-xl leading-relaxed text-primary-foreground/80">
           M.M College Wairaka is sustained entirely by alumni and friends who believe the

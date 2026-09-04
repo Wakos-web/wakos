@@ -3,17 +3,17 @@ import { IMAGES, SCHOOL_NAME } from "@/lib/content";
 
 export const Route = createFileRoute("/admissions")({
   head: () => ({
-    meta: [{ title: "Admissions — M.M College Wairaka" },{ name: "description", content: "How to apply to M.M College Wairaka. Admission every term. Scholarships for bright students." }],
+    meta: [{ title: "Admissions — M.M College Wairaka" },{ name: "description", content: "Admission opens every term at M.M College Wairaka. Bursaries for bright students. No entrance exams. Government-aided boarding school in Jinja." }],
     links: [{ rel: "canonical", href: "/admissions" }],
   }),
   component: AdmissionsPage,
 });
 
 const STEPS = [
-  { num: "01", title: "Inquire", desc: "Fill out the inquiry form below or visit the college. Our admissions team will guide you through the process and answer your questions." },
+  { num: "01", title: "Inquire", desc: "Fill out the inquiry form below or visit the college. Our admissions team will guide you through every step. No entrance exams — just a conversation about your child future." },
   { num: "02", title: "Apply", desc: "Submit your application with a recommendation or pass slip from your previous school, two plastic folders, and the admission letter from the college." },
-  { num: "03", title: "Review", desc: "The college reviews your application and school report. Admission is based on merit and available places. Contact the college to check your status." },
-  { num: "04", title: "Enrol", desc: "Successful applicants receive their admission letter and join the college. Bring your uniform: black trousers and white shirt for boys, caribbean black skirt and white shirt for girls." },
+  { num: "03", title: "Review", desc: "The college reviews your application and school report. Admission is based on merit and available places. We look at character, not just marks." },
+  { num: "04", title: "Enrol", desc: "Welcome to WACOS. Your child receives their admission letter and joins a community of 1,840 students who chose to earn their future. Bring your uniform: black trousers and white shirt for boys, caribbean black skirt and white shirt for girls." },
 ];
 
 const SCHOLARSHIPS = [
@@ -38,7 +38,7 @@ const FAQ = [
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Admissions</h1>
-        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Admission every term. Scholarships for bright students. Discipline, hard work, and self-reliance.</p>
+        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Admission opens every term. Bursaries for bright students. Your child deserves a school that builds character, not just grades.</p>
         <div className="mt-6 flex flex-wrap gap-4">
           <a href="/WACOS-Prospectus.pdf" download className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/30 text-white px-6 py-3 rounded-full font-semibold hover:bg-white/20 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -55,7 +55,7 @@ const FAQ = [
         <div className="text-center mb-12">
           <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">How to Apply</p>
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Four steps to enrolment</h2>
-          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Admission opens every term. Contact the college early to secure your place.</p>
+          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Places fill quickly each term. Contact the college early to secure your child place. The process is simple — four steps to a transformed future.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {STEPS.map((step) => (
@@ -76,7 +76,7 @@ const FAQ = [
         <div className="text-center mb-12">
           <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Scholarships</p>
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Opportunities for bright students</h2>
-          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Every term, we identify and support students with exceptional potential. Talent and determination should never be limited by finances.</p>
+          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Every term, we identify the brightest students and fund their education through alumni-backed bursaries. Last year, 211 students received support. Your child could be next.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {SCHOLARSHIPS.map((s) => (
@@ -184,7 +184,7 @@ function CTASection() {
     <section className="bg-green-900 py-16">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Ready to begin?</h2>
-        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Contact the college or fill out the inquiry form above. Our admissions team is ready to guide you.</p>
+        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Every term, more families choose WACOS. Places are limited. Contact the college or fill out the inquiry form above — your child future starts here.</p>
         <div className="flex flex-wrap justify-center gap-4">
           <a href="#inquire" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">Inquire Now</a>
           <a href="/contact" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Contact Us</a>

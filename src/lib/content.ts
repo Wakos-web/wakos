@@ -13,7 +13,7 @@ export const SCHOOL_NAME = "M.M College Wairaka";
 export const SCHOOL_SHORT = "WACOS";
 export const SCHOOL_MOTTO = "We Do It Ourselves";
 export const SCHOOL_TAGLINE =
-  "Discipline, hard work and self-reliance since 1953";
+  "Where your child becomes someone — since 1953";
 export const LOGO_URL = "/wacos-logo.png";
 export const HERO_VIDEO = "/hero-video.mp4";
 export const HERO_POSTER = "/hero-poster.png";
@@ -47,32 +47,32 @@ export const STATS = [
   {
     icon: "map-pin",
     value: "58",
-    label: "districts across Uganda from which our students come",
+    label: "families travel from across Uganda to bring their children here",
   },
   {
     icon: "globe",
     value: "1,840",
-    label: "students enrolled across O-Level and A-Level",
+    label: "students choosing discipline, hard work and self-reliance",
   },
   {
     icon: "award",
     value: "94%",
-    label: "of A-Level candidates earned university entry last year",
+    label: "of A-Level students went on to university last year",
   },
   {
     icon: "heart-handshake",
     value: "26,000",
-    label: "hours of community service worked by students last year",
+    label: "hours of community service your child will contribute before graduating",
   },
   {
     icon: "graduation-cap",
     value: "73",
-    label: "years of continuous service to the Busoga region",
+    label: "years of proven results — your child is next",
   },
   {
     icon: "badge-check",
     value: "100%",
-    label: "of students take part in a practical skills programme",
+    label: "of students graduate with practical skills, not just a certificate",
   },
 ];
 

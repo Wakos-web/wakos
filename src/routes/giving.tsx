@@ -3,18 +3,18 @@ import { IMAGES, SCHOOL_NAME } from "@/lib/content";
 
 export const Route = createFileRoute("/giving")({
   head: () => ({
-    meta: [{ title: "Giving — M.M College Wairaka" },{ name: "description", content: "Support M.M College Wairaka. Gifts fund bursaries, laboratories, and the practical skills workshops." }],
+    meta: [{ title: "Giving — M.M College Wairaka" },{ name: "description", content: "Support M.M College Wairaka. From UGX 10,000/month. Fund bursaries, laboratories, and student futures." }],
     links: [{ rel: "canonical", href: "/giving" }],
   }),
   component: GivingPage,
 });
 
 const WAYS = [
-  { title: "Trust Fund Contribution", desc: "Join the Wairaka Trust Fund with a minimum monthly contribution of UGX 10,000. Every shilling goes directly to college rehabilitation and infrastructure projects.", tag: "Monthly" },
+  { title: "Trust Fund Contribution", desc: "UGX 10,000 per month — less than a mobile phone bill — funds laboratory renovation, dormitory repair, and student bursaries. Join the Trust Fund and see exactly where your money goes.", tag: "Monthly" },
   { title: "Bursary Support", desc: "Fund a bright student future. Bursaries are awarded competitively at the end of each term based on exam results. Last year, alumni-funded bursaries supported 211 students through fees and boarding.", tag: "Per Student" },
   { title: "Laboratory Renovation", desc: "Help equip and maintain the Physics, Chemistry, and Biology laboratories. The alumni have already renovated two labs through the Trust Fund.", tag: "Project" },
-  { title: "Infrastructure Projects", desc: "Contribute to dormitory rehabilitation, classroom renovation, and the ongoing asbestos removal programme. Every project is identified by the college administration.", tag: "Capital" },
-  { title: "Scholarships", desc: "Establish a scholarship in your name or class year. Scholarships attract talented students through sports, academic, and need-based awards.", tag: "Named" },
+  { title: "Infrastructure Projects", desc: "Contribute to dormitory rehabilitation, classroom renovation, and the ongoing asbestos removal programme. Your name can be on a laboratory, a classroom, a future.", tag: "Capital" },
+  { title: "Scholarships", desc: "Establish a scholarship in your name or class year. Fund a bright student education. Last year, 211 students received alumni-funded bursaries. Your scholarship could be the reason the next generation succeeds.", tag: "Named" },
   { title: "In-Kind Gifts", desc: "Donate books, equipment, furniture, or materials directly to the college. The Resource Centre and laboratories always need updated materials.", tag: "Goods" },
 ];
 
@@ -34,7 +34,7 @@ const FAQ = [
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Giving</h1>
-        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">The college was built by people who did it themselves. Your gift keeps the motto honest.</p>
+        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Last year, alumni funded bursaries for 211 students. This year, more are waiting. Your gift changes a life.</p>
       </div>
     </section>
   );
@@ -45,7 +45,7 @@ const FAQ = [
         <div className="text-center mb-12">
           <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Ways of Giving</p>
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">How you can help</h2>
-          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Every contribution goes directly to students and infrastructure. Choose the way that works for you.</p>
+          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Every shilling goes directly to students and infrastructure. No middlemen. No overhead. Choose the way that works for you.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {WAYS.map((way) => (
@@ -121,7 +121,7 @@ function CTASection() {
     <section className="bg-green-900 py-20">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Make a gift</h2>
-        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Every contribution goes directly to students and infrastructure. To arrange a gift or pledge, contact the college.</p>
+        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Every contribution goes directly to students and infrastructure. To arrange a gift or pledge, contact the college or MMCWOSA. Your gift today builds the school your grandchildren will attend.</p>
         <div className="flex flex-wrap justify-center gap-4">
           <a href="/contact" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">Contact the College</a>
           <a href="/alumni#trust" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Trust Fund</a>
