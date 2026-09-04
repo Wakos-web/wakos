@@ -321,9 +321,9 @@ const PORTRAIT_COLORS = ['#FACC15', '#2563EB', '#EC4899', '#EF4444', '#F97316', 
 function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: number; size?: 'lg' | 'md' | 'sm' }) {
   const img = person.img || getAvatar(person.name);
   const color = PORTRAIT_COLORS[index % PORTRAIT_COLORS.length];
-  const dims = size === 'lg' ? { circle: 'w-40 h-40', bg: 'w-44 h-44', name: 'text-lg', role: 'text-sm', gap: 'mt-3' }
-    : size === 'md' ? { circle: 'w-28 h-28', bg: 'w-32 h-32', name: 'text-sm', role: 'text-xs', gap: 'mt-2' }
-    : { circle: 'w-20 h-20', bg: 'w-24 h-24', name: 'text-xs', role: 'text-[10px]', gap: 'mt-1.5' };
+  const dims = size === 'lg' ? { circle: 'w-28 h-28 sm:w-40 sm:h-40', bg: 'w-32 h-32 sm:w-44 sm:h-44', name: 'text-base sm:text-lg', role: 'text-xs sm:text-sm', gap: 'mt-2 sm:mt-3' }
+    : size === 'md' ? { circle: 'w-24 h-24 sm:w-28 sm:h-28', bg: 'w-28 h-28 sm:w-32 sm:h-32', name: 'text-sm', role: 'text-xs', gap: 'mt-2' }
+    : { circle: 'w-16 h-16 sm:w-20 sm:h-20', bg: 'w-20 h-20 sm:w-24 sm:h-24', name: 'text-[11px] sm:text-xs', role: 'text-[9px] sm:text-[10px]', gap: 'mt-1 sm:mt-1.5' };
 
   return (
     <div className='flex flex-col items-center cursor-pointer group hover:-translate-y-2 transition-all duration-300'>
@@ -482,7 +482,7 @@ function ClubDetailPage() {
           {club.executives && club.executives.length > 0 && (
           <div className='mb-8'>
             <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-6 text-center'>Executives</p>
-            <div className='flex flex-wrap justify-center gap-8 md:gap-12'>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 justify-items-center'>
               {club.executives.map((ex, i) => (
                 <PortraitCard key={ex.name} person={ex} index={i + 1} size='md' />
               ))}
@@ -500,7 +500,7 @@ function ClubDetailPage() {
                 </button>
               )}
             </div>
-            <div className='flex flex-wrap justify-center gap-6 md:gap-8'>
+            <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6 justify-items-center'>
               {visibleMembers.map((m, i) => (
                 <PortraitCard key={m.name} person={m} index={i + 4} size='sm' />
               ))}
