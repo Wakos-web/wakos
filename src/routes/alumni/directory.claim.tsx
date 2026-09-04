@@ -41,6 +41,8 @@ function ClaimContent() {
   const [profession, setProfession] = useState(profile?.profession || "");
   const [company, setCompany] = useState(profile?.company || "");
   const [bio, setBio] = useState(profile?.bio || "");
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   // Business fields
   const [bizName, setBizName] = useState("");
@@ -49,6 +51,8 @@ function ClaimContent() {
   const [bizWebsite, setBizWebsite] = useState("");
   const [bizPhone, setBizPhone] = useState("");
   const [bizLocation, setBizLocation] = useState("");
+  const [bizLogo, setBizLogo] = useState<File | null>(null);
+  const [bizLogoPreview, setBizLogoPreview] = useState<string | null>(null);
 
   const CATEGORIES = [
     "Education", "Technology", "Agriculture", "Health", "Finance",
@@ -69,11 +73,23 @@ function ClaimContent() {
     setBusinesses(data || []);
   };
 
+  const uploadFile = async (file: File, bucket: string, folder: string): Promise<string | null> => {
+    const ext = file.name.split(".").pop();
+    const path = folder + "/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
+    const { error } = await supabase.storage.from(bucket).upload(path, file);
+    if (error) throw error;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+  };
+
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+      let avatarUrl = profile?.avatar_url || null;
+      if (avatar) avatarUrl = await uploadFile(avatar, "class-notes-photos", "avatars");
+
       if (profile) {
         const { error: updateError } = await supabase
           .from("alumni_profiles")
@@ -85,6 +101,7 @@ function ClaimContent() {
             profession: profession || null,
             company: company || null,
             bio: bio || null,
+            avatar_url: avatarUrl,
           })
           .eq("id", profile.id);
         if (updateError) throw updateError;
@@ -100,6 +117,7 @@ function ClaimContent() {
           bio: bio || null,
           is_public: true,
           approved: false,
+          avatar_url: avatarUrl,
         });
         if (insertError) throw insertError;
       }
@@ -118,6 +136,8 @@ function ClaimContent() {
     setError("");
     setLoading(true);
     try {
+      let logoUrl: string | null = null;
+      if (bizLogo) logoUrl = await uploadFile(bizLogo, "class-notes-photos", "logos");
       const { error: insertError } = await supabase.from("alumni_businesses").insert({
         owner_id: profile.id,
         name: bizName,
@@ -126,6 +146,7 @@ function ClaimContent() {
         website: bizWebsite || null,
         phone: bizPhone || null,
         location: bizLocation || null,
+        logo_url: logoUrl,
         approved: false,
       });
       if (insertError) throw insertError;
@@ -258,6 +279,17 @@ function ClaimContent() {
                   className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                   placeholder="Tell fellow alumni about yourself" />
               </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-stone-700 mb-2">Profile Photo</label>
+                <div className="flex items-center gap-4">
+                  <label className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-4 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                    {avatar ? avatar.name : "Choose a photo"}
+                    <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatar(f); setAvatarPreview(URL.createObjectURL(f)); } }} className="hidden" />
+                  </label>
+                  {avatarPreview && <img src={avatarPreview} alt="" className="h-16 w-16 rounded-full object-cover" />}
+                </div>
+              </div>
             </div>
             <div className="flex gap-3">
               <button type="submit" disabled={loading}
@@ -326,6 +358,17 @@ function ClaimContent() {
                     <input type="url" value={bizWebsite} onChange={e => setBizWebsite(e.target.value)}
                       className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                       placeholder="https://..." />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-stone-700 mb-2">Business Logo</label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-3 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                      {bizLogo ? bizLogo.name : "Logo (optional)"}
+                      <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setBizLogo(f); setBizLogoPreview(URL.createObjectURL(f)); } }} className="hidden" />
+                    </label>
+                    {bizLogoPreview && <img src={bizLogoPreview} alt="" className="h-12 w-12 rounded-xl object-cover" />}
                   </div>
                 </div>
                 <div className="flex gap-3">
