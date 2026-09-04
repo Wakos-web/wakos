@@ -198,7 +198,7 @@ function BusinessCard({ biz }: { biz: BusinessWithOwner }) {
 
       {/* Description */}
       {biz.description && (
-        <p className="text-sm text-stone-600 mt-4 font-body leading-relaxed">{biz.description}</p>
+        <p className="text-sm text-stone-600 mt-4 font-body leading-relaxed line-clamp-3">{biz.description}</p>
       )}
 
       {/* Location and phone */}
