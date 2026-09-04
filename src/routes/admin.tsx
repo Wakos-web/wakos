@@ -746,6 +746,18 @@ function SettingsTab() {
 
 function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const filtered = businesses.filter(b => {
+    if (filter === "pending" && (b.approved || b.rejected_notes)) return false;
+    if (filter === "approved" && !b.approved) return false;
+    if (filter === "rejected" && !b.rejected_notes) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (b.business_name?.toLowerCase().includes(q) || b.owner_name?.toLowerCase().includes(q) || b.category?.toLowerCase().includes(q));
+    }
+    return true;
+  });
   const remove = async (id: string) => {
     if (!confirm("Delete this business?")) return;
     await supabase.from("alumni_businesses").delete().eq("id", id);
@@ -756,16 +768,25 @@ function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[];
     <div>
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-bold text-stone-900">Business Directory ({businesses.length})</h3>
-        <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        <div className="flex gap-2">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search business, owner..." className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-48" />
+          <select value={filter} onChange={e => setFilter(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
       </div>
-      {businesses.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-12 text-stone-400">
           <Building2 className="h-10 w-10 mx-auto mb-3" />
-          <p>No businesses listed yet.</p>
+          <p>No businesses found.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {businesses.map((biz) => (
+          {filtered.map((biz) => (
             <div key={biz.id} className="rounded-xl bg-white border border-stone-200 p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -803,6 +824,18 @@ function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[];
 
 function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const filtered = alumni.filter(a => {
+    if (filter === "pending" && (a.approved || a.rejected_notes)) return false;
+    if (filter === "approved" && !a.approved) return false;
+    if (filter === "rejected" && !a.rejected_notes) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (a.full_name?.toLowerCase().includes(q) || a.profession?.toLowerCase().includes(q) || a.company?.toLowerCase().includes(q) || String(a.graduation_year).includes(q));
+    }
+    return true;
+  });
   const remove = async (id: string) => {
     if (!confirm("Delete this alumni profile?")) return;
     await supabase.from("alumni_profiles").delete().eq("id", id);
@@ -813,16 +846,25 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
     <div>
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-bold text-stone-900">Alumni Profiles ({alumni.length})</h3>
-        <Link to="/alumni/directory/admin" className="text-sm font-semibold text-green-800 hover:underline">Full Admin →</Link>
+        <div className="flex gap-2">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, profession..." className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-48" />
+          <select value={filter} onChange={e => setFilter(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
       </div>
-      {alumni.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-12 text-stone-400">
           <GraduationCap className="h-10 w-10 mx-auto mb-3" />
-          <p>No alumni profiles yet.</p>
+          <p>No alumni profiles found.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {alumni.map((a) => (
+          {filtered.map((a) => (
             <div key={a.id} className="rounded-xl bg-white border border-stone-200 p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">

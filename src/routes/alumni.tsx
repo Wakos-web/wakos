@@ -532,6 +532,8 @@ function AlumniPulsePage() {
   const [notes, setNotes] = useState<ClassNote[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSubmit, setShowSubmit] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   const fetchData = async () => {
     const [notesRes, eventsRes] = await Promise.all([
@@ -563,29 +565,64 @@ function AlumniPulsePage() {
         </>
       )}
 
-      <section id="submit" className="py-16 scroll-mt-16">
-        <div className="max-w-3xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Class Notes</p>
-            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Submit Your Class Note</h2>
-          </div>
-          <SubmitForm onSubmitted={fetchData} />
-        </div>
-      </section>
-
-      <section id="register" className="py-16 bg-stone-50 scroll-mt-16">
-        <div className="max-w-3xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Alumni Directory</p>
-            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Register as an Alumnus</h2>
-            <p className="mt-3 text-stone-600 font-body">Join the directory and reconnect with fellow WACOS graduates. Your profile will be reviewed before going live.</p>
-          </div>
-          <RegistrationForm />
-        </div>
-      </section>
-
       <AlumniLinks />
       <CTASection />
+
+      {/* Floating Submit CTA */}
+      <div className="fixed right-6 top-1/4 z-40 flex flex-col gap-3">
+        <button onClick={() => { setShowSubmit(!showSubmit); setShowRegister(false); }}
+          className="group flex items-center gap-2 bg-green-800 text-white pl-4 pr-5 py-3 rounded-full shadow-lg hover:bg-green-900 hover:shadow-xl transition-all">
+          <Send className="h-5 w-5" />
+          <span className="text-sm font-semibold">Submit</span>
+        </button>
+        <button onClick={() => { setShowRegister(!showRegister); setShowSubmit(false); }}
+          className="group flex items-center gap-2 bg-white text-green-800 border border-green-200 pl-4 pr-5 py-3 rounded-full shadow-lg hover:bg-green-50 hover:shadow-xl transition-all">
+          <Users className="h-5 w-5" />
+          <span className="text-sm font-semibold">Register</span>
+        </button>
+      </div>
+
+      {/* Submit Form Slide Panel */}
+      {showSubmit && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowSubmit(false)} />
+          <div className="relative w-full max-w-lg bg-white h-full overflow-y-auto shadow-2xl animate-slide-in-right">
+            <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-lg font-bold text-stone-900">Submit Class Note</h3>
+                <p className="text-xs text-stone-500">Share your update with fellow alumni</p>
+              </div>
+              <button onClick={() => setShowSubmit(false)} className="p-2 hover:bg-stone-100 rounded-lg">
+                <span className="text-stone-400 text-xl">&times;</span>
+              </button>
+            </div>
+            <div className="p-6">
+              <SubmitForm onSubmitted={() => { fetchData(); setShowSubmit(false); }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Register Form Slide Panel */}
+      {showRegister && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowRegister(false)} />
+          <div className="relative w-full max-w-lg bg-white h-full overflow-y-auto shadow-2xl animate-slide-in-right">
+            <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-lg font-bold text-stone-900">Register as Alumnus</h3>
+                <p className="text-xs text-stone-500">Join the alumni directory</p>
+              </div>
+              <button onClick={() => setShowRegister(false)} className="p-2 hover:bg-stone-100 rounded-lg">
+                <span className="text-stone-400 text-xl">&times;</span>
+              </button>
+            </div>
+            <div className="p-6">
+              <RegistrationForm />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

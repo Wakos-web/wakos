@@ -150,6 +150,15 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
 .hero-content > * {
   opacity: 0;
   animation: fadeInUp 0.8s ease-out forwards;
