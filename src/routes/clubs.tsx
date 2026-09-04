@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
+import { useState, useEffect, useCallback } from 'react';
 import { IMAGES } from '@/lib/content';
 import campusImg from '@/assets/campus.jpg';
 import athleticsImg from '@/assets/athletics.jpg';
@@ -6,18 +7,21 @@ import studentLifeImg from '@/assets/student-life.jpg';
 import academicsImg from '@/assets/academics.jpg';
 import newsServiceImg from '@/assets/news-service.jpg';
 import givingImg from '@/assets/giving.jpg';
+import newsRoboticsImg from '@/assets/news-robotics.jpg';
+import newsBasketballImg from '@/assets/news-basketball.jpg';
+import newsGraduationImg from '@/assets/news-graduation.jpg';
 
 const CLUBS = [
-  { slug: 'wildlife', name: 'Wildlife Club', tagline: 'Protect. Observe. Conserve.', img: IMAGES.campus },
-  { slug: 'arts-culture', name: 'Arts & Culture', tagline: 'Express. Create. Celebrate.', img: IMAGES.studentLife },
-  { slug: 'scouts-guides', name: 'Scouts & Girl Guides', tagline: 'Prepared. Responsible. Service.', img: IMAGES.giving },
-  { slug: 'agriculture', name: 'Agriculture Club', tagline: 'Grow. Learn. Sustain.', img: IMAGES.campus },
-  { slug: 'debate', name: 'Debate Club', tagline: 'Think. Argue. Persuade.', img: IMAGES.academics },
-  { slug: 'writers', name: 'Writers Club', tagline: 'Write. Read. Share.', img: IMAGES.studentLife },
-  { slug: 'red-cross', name: 'Red Cross Club', tagline: 'Care. Respond. Serve.', img: IMAGES.giving },
-  { slug: "entertainment", name: "Entertainment Club", tagline: "Perform. Inspire. Entertain.", img: IMAGES.studentLife },
-  { slug: "home-science", name: "Home Science Club", tagline: "Cook. Create. Care.", img: IMAGES.campus },
-  { slug: "current-affairs", name: "Current Affairs Club", tagline: "Read. Discuss. Understand.", img: IMAGES.academics }
+  { slug: 'wildlife', name: 'Wildlife Club', tagline: 'Protect. Observe. Conserve.', imgs: [campusImg, athleticsImg, newsServiceImg] },
+  { slug: 'arts-culture', name: 'Arts & Culture', tagline: 'Express. Create. Celebrate.', imgs: [studentLifeImg, campusImg, givingImg] },
+  { slug: 'scouts-guides', name: 'Scouts & Girl Guides', tagline: 'Prepared. Responsible. Service.', imgs: [givingImg, athleticsImg, newsServiceImg] },
+  { slug: 'agriculture', name: 'Agriculture Club', tagline: 'Grow. Learn. Sustain.', imgs: [campusImg, studentLifeImg, newsServiceImg] },
+  { slug: 'debate', name: 'Debate Club', tagline: 'Think. Argue. Persuade.', imgs: [academicsImg, campusImg, studentLifeImg] },
+  { slug: 'writers', name: 'Writers Club', tagline: 'Write. Read. Share.', imgs: [studentLifeImg, academicsImg, campusImg] },
+  { slug: 'red-cross', name: 'Red Cross Club', tagline: 'Care. Respond. Serve.', imgs: [givingImg, newsServiceImg, athleticsImg] },
+  { slug: 'entertainment', name: 'Entertainment Club', tagline: 'Perform. Inspire. Entertain.', imgs: [studentLifeImg, newsBasketballImg, campusImg] },
+  { slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.', imgs: [campusImg, givingImg, academicsImg] },
+  { slug: 'current-affairs', name: 'Current Affairs Club', tagline: 'Read. Discuss. Understand.', imgs: [academicsImg, newsGraduationImg, studentLifeImg] },
 ];
 export const Route = createFileRoute('/clubs')({
   head: () => ({
@@ -143,6 +147,42 @@ function ClubsOverview() {
   );
 }
 
+function CardCarousel({ imgs, name }: { imgs: string[]; name: string }) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent(c => (c + 1) % imgs.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [imgs.length]);
+
+  return (
+    <div className='absolute inset-0'>
+      {imgs.map((img, i) => (
+        <img
+          key={i}
+          src={img}
+          alt={name}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${i === current ? 'opacity-100' : 'opacity-0'}`}
+          loading='lazy'
+        />
+      ))}
+      {/* Dots */}
+      <div className='absolute bottom-16 left-0 right-0 flex justify-center gap-1.5 z-10'>
+        {imgs.map((_, i) => (
+          <button
+            key={i}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrent(i); }}
+            className={`w-1.5 h-1.5 rounded-full transition-all ${i === current ? 'bg-white w-4' : 'bg-white/50'}`}
+            aria-label={`Image ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ClubsGrid() {
   return (
     <section className='py-20'>
@@ -150,9 +190,9 @@ function ClubsGrid() {
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
           {CLUBS.map((club) => (
             <Link key={club.slug} to='/clubs/$slug' params={{ slug: club.slug }} className='group relative overflow-hidden rounded-2xl aspect-[4/5] cursor-pointer'>
-              <img src={club.img} alt={club.name} className='absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105' loading='lazy' />
-              <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
-              <div className='absolute bottom-0 left-0 right-0 p-6'>
+              <CardCarousel imgs={club.imgs} name={club.name} />
+              <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10' />
+              <div className='absolute bottom-0 left-0 right-0 p-6 z-10'>
                 <p className='text-xs font-semibold uppercase tracking-wider text-white/70 mb-1'>{club.tagline}</p>
                 <h2 className='font-display text-2xl text-white font-bold'>{club.name}</h2>
                 <span className='inline-flex items-center gap-1 mt-3 text-sm text-white/80 group-hover:text-white transition-colors'>Learn more</span>
