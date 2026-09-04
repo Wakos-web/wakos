@@ -13,7 +13,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS } from "@/lib/content";
+import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS, DEFAULT_STATS, getSettings } from "@/lib/content";
 import newsRobotics from "@/assets/news-robotics.jpg";
 import newsBasketball from "@/assets/news-basketball.jpg";
 import newsService from "@/assets/news-service.jpg";
@@ -59,6 +59,19 @@ function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [heroTitle, setHeroTitle] = useState('Where your child becomes someone');
+  const [heroSubtitle, setHeroSubtitle] = useState('Est. 1953');
+  const [heroVideo, setHeroVideo] = useState(HERO_VIDEO);
+  const [heroPoster, setHeroPoster] = useState(HERO_POSTER);
+
+  useEffect(() => {
+    getSettings().then(s => {
+      if (s.hero_title) setHeroTitle(s.hero_title);
+      if (s.hero_subtitle) setHeroSubtitle(s.hero_subtitle);
+      if (s.hero_video) setHeroVideo(s.hero_video);
+      if (s.hero_poster) setHeroPoster(s.hero_poster);
+    });
+  }, []);
 
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -98,8 +111,8 @@ function HeroSection() {
       <div className="absolute inset-0">
         <video
           ref={videoRef}
-          src={HERO_VIDEO}
-          poster={HERO_POSTER}
+          src={heroVideo}
+          poster={heroPoster}
           autoPlay
           muted
           loop
@@ -119,9 +132,9 @@ function HeroSection() {
       {/* Hero content - lower left */}
       <div className="hero-content relative z-10 flex h-full flex-col justify-end px-6 pb-24 sm:px-10 lg:px-16 xl:px-24">
         <div className="max-w-3xl">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/70" style={{ animationDelay: "0.2s" }}>Est. 1953</p>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-white/70" style={{ animationDelay: "0.2s" }}>{heroSubtitle}</p>
           <h1 className="font-display text-4xl font-semibold leading-[0.95] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-8xl">
-            Where your child<br className="hidden sm:block" /> becomes someone
+            {heroTitle}
           </h1>
           
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -185,10 +198,27 @@ function CampusCarousel() {
 }
 
 function StatsSection() {
+  const [stats, setStats] = useState(STATS);
+
+  useEffect(() => {
+    getSettings().then(s => {
+      if (s.stat_1_value) {
+        setStats([
+          { icon: 'map-pin', value: s.stat_1_value, label: s.stat_1_label || STATS[0].label },
+          { icon: 'globe', value: s.stat_2_value, label: s.stat_2_label || STATS[1].label },
+          { icon: 'award', value: s.stat_3_value, label: s.stat_3_label || STATS[2].label },
+          { icon: 'heart-handshake', value: s.stat_4_value, label: s.stat_4_label || STATS[3].label },
+          { icon: 'graduation-cap', value: s.stat_5_value, label: s.stat_5_label || STATS[4].label },
+          { icon: 'badge-check', value: s.stat_6_value, label: s.stat_6_label || STATS[5].label },
+        ]);
+      }
+    });
+  }, []);
+
   return (
     <section className="border-y border-border bg-cream">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 px-6 py-14 md:grid-cols-3 lg:grid-cols-6">
-        {STATS.map((stat) => {
+        {stats.map((stat) => {
           const Icon = STAT_ICONS[stat.icon] ?? Award;
           return (
             <div key={stat.label} className="text-center">
@@ -262,6 +292,16 @@ function NewsSection() {
 }
 
 function MissionSection() {
+  const [missionTitle, setMissionTitle] = useState('An education earned, not purchased');
+  const [missionText, setMissionText] = useState('Founded in 1953 on a single conviction — that discipline, hard work, and self-reliance are the foundations of greatness — M.M College Wairaka has grown to serve over 1,800 students from 58 districts across Uganda, with a reputation for academic excellence and practical skills development.');
+
+  useEffect(() => {
+    getSettings().then(s => {
+      if (s.home_mission_title) setMissionTitle(s.home_mission_title);
+      if (s.home_mission_text) setMissionText(s.home_mission_text);
+    });
+  }, []);
+
   return (
     <section className="bg-secondary">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
@@ -280,13 +320,10 @@ function MissionSection() {
             Our Mission
           </p>
           <h2 className="mt-4 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-            An education earned, not purchased
+            {missionTitle}
           </h2>
           <p className="mt-6 leading-relaxed text-muted-foreground">
-            Founded in 1953 on a single conviction ,  that discipline, hard work,
-            and self-reliance are the foundations of greatness ,  M.M College Wairaka
-            has grown to serve over 1,800 students from 58 districts across Uganda,
-            with a reputation for academic excellence and practical skills development.
+            {missionText}
           </p>
           <Link
             to="/about"
@@ -301,6 +338,16 @@ function MissionSection() {
 }
 
 function GivingCta() {
+  const [schTitle, setSchTitle] = useState('The Scholarship Fund');
+  const [schText, setSchText] = useState('M.M College Wairaka scholarship fund is sustained entirely by alumni and friends who believe the next generation deserves the same chance they were given.');
+
+  useEffect(() => {
+    getSettings().then(s => {
+      if (s.home_scholarship_title) setSchTitle(s.home_scholarship_title);
+      if (s.home_scholarship_text) setSchText(s.home_scholarship_text);
+    });
+  }, []);
+
   return (
     <section className="relative overflow-hidden">
       <img
@@ -314,11 +361,10 @@ function GivingCta() {
       <div className="absolute inset-0 bg-primary/85" />
       <div className="relative mx-auto max-w-3xl px-6 py-24 text-center">
         <h2 className="font-display text-4xl font-semibold leading-tight text-primary-foreground md:text-5xl">
-          Every bursary changes a life. Every life changed starts with you.
+          {schTitle}
         </h2>
         <p className="mx-auto mt-6 max-w-xl leading-relaxed text-primary-foreground/80">
-          M.M College Wairaka scholarship fund is sustained entirely by alumni and friends who believe the
-          next generation deserves the same chance they were given.
+          {schText}
         </p>
         <Link
           to="/giving"

@@ -14,7 +14,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses";
+type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "settings";
 
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number | string; color: string }) {
   return (
@@ -251,6 +251,117 @@ function InquiriesTab({ inquiries, onRefresh }: { inquiries: any[]; onRefresh: (
   );
 }
 
+function SettingsTab() {
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    supabase.from("site_settings").select("key, value, category").order("category").then(({ data }) => {
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach((r: any) => { map[r.key] = r.value; });
+        setSettings(map);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const update = (key: string, value: string) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const saveAll = async () => {
+    setSaving(true);
+    for (const [key, value] of Object.entries(settings)) {
+      await supabase.from("site_settings").upsert({ key, value }, { onConflict: "key" });
+    }
+    setSaving(false);
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 2000);
+  };
+
+  const categories: Record<string, { key: string; label: string }[]> = {
+    school: [
+      { key: "school_name", label: "School Name" },
+      { key: "school_short", label: "Short Name" },
+      { key: "school_motto", label: "Motto" },
+      { key: "school_tagline", label: "Tagline" },
+      { key: "school_established", label: "Established Year" },
+      { key: "school_location", label: "Location" },
+      { key: "school_phone", label: "Phone" },
+      { key: "school_email", label: "Email" },
+    ],
+    hero: [
+      { key: "hero_video", label: "Hero Video Path" },
+      { key: "hero_poster", label: "Hero Poster Path" },
+      { key: "hero_title", label: "Hero Title" },
+      { key: "hero_subtitle", label: "Hero Subtitle" },
+    ],
+    stats: [
+      { key: "stat_1_value", label: "Stat 1 Value" },
+      { key: "stat_1_label", label: "Stat 1 Label" },
+      { key: "stat_2_value", label: "Stat 2 Value" },
+      { key: "stat_2_label", label: "Stat 2 Label" },
+      { key: "stat_3_value", label: "Stat 3 Value" },
+      { key: "stat_3_label", label: "Stat 3 Label" },
+      { key: "stat_4_value", label: "Stat 4 Value" },
+      { key: "stat_4_label", label: "Stat 4 Label" },
+      { key: "stat_5_value", label: "Stat 5 Value" },
+      { key: "stat_5_label", label: "Stat 5 Label" },
+      { key: "stat_6_value", label: "Stat 6 Value" },
+      { key: "stat_6_label", label: "Stat 6 Label" },
+    ],
+    home: [
+      { key: "home_why_title", label: "Why WACOS Title" },
+      { key: "home_why_text", label: "Why WACOS Text" },
+      { key: "home_news_title", label: "News Section Title" },
+      { key: "home_mission_title", label: "Mission Title" },
+      { key: "home_mission_text", label: "Mission Text" },
+      { key: "home_scholarship_title", label: "Scholarship Title" },
+      { key: "home_scholarship_text", label: "Scholarship Text" },
+    ],
+    contact: [
+      { key: "contact_address", label: "Address" },
+      { key: "contact_phone", label: "Phone" },
+      { key: "contact_email", label: "Email" },
+      { key: "contact_map_lat", label: "Map Latitude" },
+      { key: "contact_map_lng", label: "Map Longitude" },
+    ],
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" /></div>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-display text-xl font-bold text-stone-900">Site Settings</h3>
+        <button onClick={saveAll} disabled={saving} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 transition-colors disabled:opacity-50">
+          {saving ? "Saving..." : success ? "Saved!" : "Save All"}
+        </button>
+      </div>
+      <div className="space-y-8">
+        {Object.entries(categories).map(([cat, fields]) => (
+          <div key={cat} className="rounded-2xl bg-white border border-stone-200 p-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-green-800 mb-4">{cat}</p>
+            <div className="space-y-4">
+              {fields.map(f => (
+                <div key={f.key}>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">{f.label}</label>
+                  <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
+                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                    placeholder={f.key} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BusinessesTab({ businesses, onRefresh }: { businesses: any[]; onRefresh: () => void }) {
   const approve = async (id: string) => {
     await supabase.from("alumni_businesses").update({ approved: true }).eq("id", id);
@@ -365,6 +476,7 @@ function AdminPage() {
     { key: "notes", label: "Class Notes", icon: BookOpen, count: stats.notes },
     { key: "inquiries", label: "Inquiries", icon: MessageSquare, count: stats.inquiries },
     { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses },
+    { key: "settings", label: "Site Settings", icon: Settings },
   ];
 
   return (
@@ -442,6 +554,7 @@ function AdminPage() {
             {tab === "notes" && <NotesTab notes={notes} onRefresh={fetchData} />}
             {tab === "inquiries" && <InquiriesTab inquiries={inquiries} onRefresh={fetchData} />}
             {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} />}
+            {tab === "settings" && <SettingsTab />}
           </>
         )}
       </div>

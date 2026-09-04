@@ -382,3 +382,41 @@ export const TEAMS = [
   { sport: "Swimming", season: "Term 1", level: "Open" },
   { sport: "Rugby", season: "Term 2", level: "Senior" },
 ];
+
+// Site settings from Supabase (with static defaults)
+import { supabase } from "@/lib/supabase";
+
+let _settingsCache: Record<string, string> | null = null;
+let _settingsPromise: Promise<Record<string, string>> | null = null;
+
+export async function getSettings(): Promise<Record<string, string>> {
+  if (_settingsCache) return _settingsCache;
+  if (_settingsPromise) return _settingsPromise;
+
+  _settingsPromise = supabase
+    .from("site_settings")
+    .select("key, value")
+    .then(({ data }) => {
+      const map: Record<string, string> = {};
+      if (data) data.forEach((row: any) => { map[row.key] = row.value; });
+      _settingsCache = map;
+      return map;
+    })
+    .catch(() => ({}));
+
+  return _settingsPromise;
+}
+
+export function getCachedSettings(): Record<string, string> {
+  return _settingsCache || {};
+}
+
+// Default stats (used as fallback before Supabase loads)
+export const DEFAULT_STATS = [
+  { icon: "map-pin", value: "58", label: "families travel from across Uganda to bring their children here" },
+  { icon: "globe", value: "1,840", label: "students are part of the WACOS community right now" },
+  { icon: "award", value: "94%", label: "of students pass their UNEB examinations first time" },
+  { icon: "heart-handshake", value: "26,000", label: "hours of practical skills training every year" },
+  { icon: "graduation-cap", value: "61", label: "years of building leaders who do it themselves" },
+  { icon: "badge-check", value: "100%", label: "practical skills — every student learns by doing" },
+];
