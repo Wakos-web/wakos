@@ -175,7 +175,11 @@ function FeaturedAlumni() {
         <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-6">Find Fellow Old Students</h2>
         <p className="text-stone-600 text-lg font-body max-w-2xl mx-auto mb-8">The Wairaka Business Directory connects alumni with each other and with the wider public. Find a former classmate. Promote your business. Stay connected to the community that shaped you.</p>
         <div className="rounded-2xl bg-stone-50 border border-stone-200 p-12">
-          <p className="text-stone-400 font-body">The alumni directory is coming soon. Stay connected through MMCWOSA for updates.</p>
+          <p className="text-stone-600 font-body mb-6">Find fellow alumni, update your profile, and connect with the WACOS community.</p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <a href="/alumni/directory" className="inline-flex items-center gap-2 bg-green-900 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-800 transition-colors">Enter Directory</a>
+            <a href="/alumni/directory/businesses" className="inline-flex items-center gap-2 border border-green-900 text-green-900 px-6 py-3 rounded-full font-semibold hover:bg-green-50 transition-colors">Business Directory</a>
+          </div>
         </div>
       </div>
     </section>
