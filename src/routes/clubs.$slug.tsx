@@ -316,6 +316,47 @@ function MemberAvatar({ person, size = 'md' }: { person: Person; size?: 'sm' | '
   );
 }
 
+const PORTRAIT_COLORS = ['#FACC15', '#2563EB', '#EC4899', '#EF4444', '#F97316', '#10B981', '#8B5CF6', '#06B6D4', '#F43F5E', '#14B8A6'];
+
+function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: number; size?: 'lg' | 'md' }) {
+  const img = person.img || getAvatar(person.name);
+  const color = PORTRAIT_COLORS[index % PORTRAIT_COLORS.length];
+  const isLarge = size === 'lg';
+  const circleSize = isLarge ? 'w-44 h-44' : 'w-28 h-28';
+  const bgSize = isLarge ? 'w-48 h-48' : 'w-32 h-32';
+  const fontSize = isLarge ? 'text-xs' : 'text-[10px]';
+  const svgSize = isLarge ? 200 : 130;
+  const radius = isLarge ? 88 : 56;
+  const textId = 'name-' + person.name.replace(/\s+/g, '-').toLowerCase();
+
+  return (
+    <div className='flex flex-col items-center'>
+      <div className='relative' style={{ width: svgSize, height: svgSize }}>
+        {/* Colored circle behind */}
+        <div className={`absolute top-1 left-1 ${bgSize} rounded-full`} style={{ backgroundColor: color, opacity: 0.85 }} />
+        {/* Photo circle */}
+        <div className={`absolute inset-0 ${circleSize} m-auto rounded-full overflow-hidden shadow-lg ring-2 ring-white`}>          
+          <img src={img} alt={person.name} className='w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500' loading='lazy' />
+        </div>
+        {/* Curved name text */}
+        <svg className='absolute inset-0 w-full h-full' viewBox={'0 0 ' + svgSize + ' ' + svgSize}>
+          <defs>
+            <path id={textId} d={'M ' + (svgSize/2) + ',' + (svgSize/2) + ' m -' + radius + ',0 a ' + radius + ',' + radius + ' 0 1,1 ' + (radius*2) + ',0 a ' + radius + ',' + radius + ' 0 1,1 -' + (radius*2) + ',0'} fill='none' />
+          </defs>
+          <text className={fontSize + ' font-bold fill-stone-800 tracking-wide'} style={{ fontFamily: 'var(--font-display)' }}>
+            <textPath href={'#' + textId} startOffset='25%'>{person.name}</textPath>
+          </text>
+        </svg>
+      </div>
+      {/* Role label below */}
+      <div className='text-center mt-2'>
+        <p className={'font-display font-bold text-stone-900 ' + (isLarge ? 'text-lg' : 'text-sm')}>{person.role}</p>
+        {person.year && <p className='text-xs text-stone-500 mt-0.5'>{person.year}{person.joined ? ' · Since ' + person.joined : ''}</p>}
+      </div>
+    </div>
+  );
+}
+
 function ClubDetailPage() {
   const { slug } = Route.useParams();
   const [dbClub, setDbClub] = useState<any>(null);
@@ -441,15 +482,10 @@ function ClubDetailPage() {
 
           {/* Patron */}
           {club.patron && (
-          <div className='mb-8'>
-            <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4'>Patron</p>
-            <div className='rounded-2xl bg-stone-50 border border-stone-200 p-6 flex items-center gap-5'>
-              <MemberAvatar person={club.patron} size='md' />
-              <div>
-                <p className='font-display text-xl font-bold text-stone-900'>{club.patron.name}</p>
-                <p className='text-sm text-stone-500'>{club.patron.role}</p>
-                <p className='text-xs text-green-800 font-medium mt-1'>Patron since {club.patron.joined}</p>
-              </div>
+          <div className='mb-10'>
+            <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-6 text-center'>Patron</p>
+            <div className='flex justify-center'>
+              <PortraitCard person={club.patron} index={0} size='lg' />
             </div>
           </div>
           )}
@@ -457,17 +493,10 @@ function ClubDetailPage() {
           {/* Executives */}
           {club.executives && club.executives.length > 0 && (
           <div className='mb-8'>
-            <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4'>Executives</p>
-            <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-              {club.executives.map((ex) => (
-                <div key={ex.name} className='rounded-2xl bg-white border border-stone-200 p-5 flex items-center gap-4'>
-                  <MemberAvatar person={ex} size='md' />
-                  <div>
-                    <p className='font-display text-lg font-bold text-stone-900'>{ex.name}</p>
-                    <p className='text-sm text-green-800 font-medium'>{ex.role}</p>
-                    <p className='text-xs text-stone-400'>{ex.year} · Since {ex.joined}</p>
-                  </div>
-                </div>
+            <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-6 text-center'>Executives</p>
+            <div className='flex flex-wrap justify-center gap-8 md:gap-12'>
+              {club.executives.map((ex, i) => (
+                <PortraitCard key={ex.name} person={ex} index={i + 1} size='md' />
               ))}
             </div>
           </div>
