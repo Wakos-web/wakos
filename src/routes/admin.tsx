@@ -125,8 +125,7 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h3 className="font-display text-xl font-bold text-stone-900">Clubs ({clubs.length})</h3>
-        <button onClick={() => { resetClub(); setShowAddClub(true); }} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 transition-colors">+ Add Club</button>
+        <h3 className="font-display text-xl font-bold text-stone-900">Clubs ({clubs.length})</h3>         <button onClick={() => { resetClub(); setShowAddClub(true); }} className="px-5 py-2.5 rounded-xl bg-green-800 text-white font-semibold hover:bg-green-900 transition-colors shadow-md">+ Add Club</button>
       </div>
 
       {/* Add/Edit Club Form */}
@@ -166,8 +165,8 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => { setEditClub(club); setName(club.name); setSlug(club.slug); setTagline(club.tagline || ""); setOverview(club.overview || ""); setShowAddClub(true); }} className="p-2 rounded-lg hover:bg-stone-100" title="Edit"><Settings className="h-4 w-4 text-stone-400" /></button>
-                  <button onClick={() => deleteClub(club.id)} className="p-2 rounded-lg hover:bg-red-50" title="Delete"><Trash2 className="h-4 w-4 text-red-400" /></button>
+                  <button onClick={() => { setEditClub(club); setName(club.name); setSlug(club.slug); setTagline(club.tagline || ""); setOverview(club.overview || ""); setShowAddClub(true); }} className="p-2.5 rounded-lg hover:bg-stone-100 border border-stone-200" title="Edit"><Settings className="h-4 w-4 text-stone-400" /></button>
+                  <button onClick={() => deleteClub(club.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200" title="Delete"><Trash2 className="h-4 w-4 text-red-400" /></button>
                 </div>
               </div>
 
@@ -175,7 +174,7 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
               <div className="ml-13">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-stone-500 uppercase">Members ({clubM.length})</p>
-                  <button onClick={() => setShowAddMember(showAddMember === club.id ? null : club.id)} className="text-xs font-semibold text-green-800 hover:underline">+ Add</button>
+                  <button onClick={() => setShowAddMember(showAddMember === club.id ? null : club.id)} className="text-xs font-semibold text-green-800 hover:underline px-2 py-1 rounded-lg bg-green-50 border border-green-200">+ Add</button>
                 </div>
 
                 {/* Add Member Form */}
@@ -300,11 +299,11 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
               </div>
               <div className="flex items-center gap-1">
                 {!evt.approved && (
-                  <button onClick={() => approve(evt.id)} className="p-2 rounded-lg hover:bg-green-50 transition-colors" title="Approve">
+                  <button onClick={() => approve(evt.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
                     <Check className="h-4 w-4 text-green-600" />
                   </button>
                 )}
-                <button onClick={() => remove(evt.id)} className="p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                <button onClick={() => remove(evt.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
                   <Trash2 className="h-4 w-4 text-red-400" />
                 </button>
               </div>
@@ -357,11 +356,11 @@ function NotesTab({ notes, onRefresh }: { notes: any[]; onRefresh: () => void })
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {!note.approved && (
-                  <button onClick={() => approve(note.id)} className="p-2 rounded-lg hover:bg-green-50 transition-colors" title="Approve">
+                  <button onClick={() => approve(note.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
                     <Check className="h-4 w-4 text-green-600" />
                   </button>
                 )}
-                <button onClick={() => remove(note.id)} className="p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                <button onClick={() => remove(note.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
                   <Trash2 className="h-4 w-4 text-red-400" />
                 </button>
               </div>
@@ -402,7 +401,7 @@ function InquiriesTab({ inquiries, onRefresh }: { inquiries: any[]; onRefresh: (
                 <p className="text-sm text-stone-500">Parent: {inq.parent_name} · {inq.phone}</p>
                 {inq.message && <p className="text-sm text-stone-600 mt-1 line-clamp-2">{inq.message}</p>}
               </div>
-              <button onClick={() => remove(inq.id)} className="p-2 rounded-lg hover:bg-red-50 transition-colors shrink-0" title="Delete">
+              <button onClick={() => remove(inq.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors shrink-0" title="Delete">
                 <Trash2 className="h-4 w-4 text-red-400" />
               </button>
             </div>
@@ -608,11 +607,11 @@ function BusinessesTab({ businesses, onRefresh }: { businesses: any[]; onRefresh
               </div>
               <div className="flex items-center gap-1">
                 {!biz.approved && (
-                  <button onClick={() => approve(biz.id)} className="p-2 rounded-lg hover:bg-green-50 transition-colors" title="Approve">
+                  <button onClick={() => approve(biz.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
                     <Check className="h-4 w-4 text-green-600" />
                   </button>
                 )}
-                <button onClick={() => remove(biz.id)} className="p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                <button onClick={() => remove(biz.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
                   <Trash2 className="h-4 w-4 text-red-400" />
                 </button>
               </div>
@@ -668,11 +667,11 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
               </div>
               <div className="flex items-center gap-1">
                 {!a.approved && (
-                  <button onClick={() => approve(a.id)} className="p-2 rounded-lg hover:bg-green-50 transition-colors" title="Approve">
+                  <button onClick={() => approve(a.id)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Approve">
                     <Check className="h-4 w-4 text-green-600" />
                   </button>
                 )}
-                <button onClick={() => remove(a.id)} className="p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                <button onClick={() => remove(a.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
                   <Trash2 className="h-4 w-4 text-red-400" />
                 </button>
               </div>

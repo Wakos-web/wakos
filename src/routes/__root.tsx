@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -110,15 +111,27 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function AdminCheck({ children }: { children: React.ReactNode }) {
+  const location = useRouterState({ select: (s) => s.location });
+  const isAdmin = location.pathname.startsWith("/admin");
+  if (isAdmin) return <>{children}</>;
+  return (
+    <>
+      <SiteHeader />
+      {children}
+      <SiteFooter />
+    </>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const isAdmin = typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
 
   return (
     <QueryClientProvider client={queryClient}>
-      {!isAdmin && <SiteHeader />}
-      <Outlet />
-      {!isAdmin && <SiteFooter />}
+      <AdminCheck>
+        <Outlet />
+      </AdminCheck>
     </QueryClientProvider>
   );
 }
