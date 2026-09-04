@@ -592,9 +592,9 @@ function SettingsTab() {
     setUploading(key);
     const ext = file.name.split(".").pop();
     const path = key + "/" + Date.now() + "." + ext;
-    const { error } = await supabase.storage.from("hero-media").upload(path, file);
+    const { error } = await supabase.storage.from("uploads").upload(path, file, { contentType: file.type });
     if (!error) {
-      const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
+      const { data } = supabase.storage.from("uploads").getPublicUrl(path);
       update(key, data.publicUrl);
     }
     setUploading(null);
@@ -680,9 +680,6 @@ function SettingsTab() {
                           <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={e => e.target.files?.[0] && uploadFile(f.key, e.target.files[0])} />
                         </label>
                       </div>
-                      <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
-                        className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm text-stone-900 mt-2 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                        placeholder="Or paste a URL" />
                     </div>
                   ) : f.type === "image" ? (
                     <div>
@@ -697,9 +694,6 @@ function SettingsTab() {
                           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => e.target.files?.[0] && uploadFile(f.key, e.target.files[0])} />
                         </label>
                       </div>
-                      <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
-                        className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm text-stone-900 mt-2 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                        placeholder="Or paste a URL" />
                     </div>
                   ) : (
                     <input type="text" value={settings[f.key] || ""} onChange={e => update(f.key, e.target.value)}
@@ -836,6 +830,45 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
   );
 }
 
+function ImageUpload({ value, onChange, label }: { value: string; onChange: (url: string) => void; label?: string }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fileName = `uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
+    const { error } = await supabase.storage.from("uploads").upload(fileName, file, { contentType: file.type });
+    if (error) { console.error(error); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(fileName);
+    onChange(urlData.publicUrl);
+    setUploading(false);
+  };
+
+  return (
+    <div>
+      {label && <p className="text-sm font-medium text-stone-600 mb-2">{label}</p>}
+      <div className="flex items-center gap-3">
+        <label className="flex-1 cursor-pointer">
+          <div className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-stone-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-colors">
+            <Megaphone className="h-5 w-5 text-stone-400" />
+            <span className="text-sm text-stone-600">{uploading ? "Uploading..." : "Click to upload image"}</span>
+          </div>
+          <input type="file" accept="image/*" onChange={handleUpload} className="hidden" disabled={uploading} />
+        </label>
+        {value && (
+          <div className="relative w-20 h-16 rounded-lg overflow-hidden border border-stone-200">
+            <img src={value} alt="" className="w-full h-full object-cover" />
+            <button onClick={() => onChange("")} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -898,8 +931,8 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="Slug (auto-generated)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category (STEM, Athletics, etc.)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL (optional)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
+          <ImageUpload value={imageUrl} onChange={setImageUrl} label="Article Image" />
           <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Excerpt (short summary)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[60px]" />
           <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Body (one paragraph per line)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[150px]" />
           <div className="flex gap-3">
