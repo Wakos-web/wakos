@@ -34,6 +34,7 @@ export const NAV_ITEMS = [
     { label: "Mission", to: "/about#mission" },
     { label: "History", to: "/about#history" },
     { label: "Core Values", to: "/about#values" },
+    { label: "Leadership", to: "/about#leadership" },
     { label: "Facilities", to: "/about#facilities" },
   ] },
   { label: "Academics", to: "/academics", children: [
