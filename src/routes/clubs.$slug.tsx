@@ -351,7 +351,7 @@ function ClubDetailPage() {
     patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron || null,
     executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3),
     members: dbMembers.filter((m: any) => m.role === 'Member'),
-    activities: localClub?.activities || [],
+    activities: dbClub.activities && dbClub.activities.length > 0 ? dbClub.activities : (localClub?.activities || []),
   } : localClub;
   const posts = dbPosts.length > 0 ? dbPosts : (CLUB_POSTS[slug] || []);
 
