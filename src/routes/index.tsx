@@ -14,6 +14,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS } from "@/lib/content";
+import newsRobotics from "@/assets/news-robotics.jpg";
+import newsBasketball from "@/assets/news-basketball.jpg";
+import newsService from "@/assets/news-service.jpg";
+import newsGraduation from "@/assets/news-graduation.jpg";
+import { ImageCarousel } from "@/components/image-carousel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -162,6 +167,22 @@ function HeroSection() {
     </section>
   );
 }
+
+const CAMPUS_IMAGES = [
+  { src: IMAGES.campus, alt: "M.M College Wairaka campus", caption: "The campus in Wairaka, Jinja" },
+  { src: IMAGES.academics, alt: "Students in class", caption: "Learning in action" },
+  { src: IMAGES.athletics, alt: "WACOS athletes", caption: "Busoga Champions in football" },
+  { src: IMAGES.studentLife, alt: "Student life at WACOS", caption: "Boarding life, second family" },
+  { src: IMAGES.giving, alt: "Alumni gathering", caption: "Old students return every October" },
+  { src: newsRobotics, alt: "Science Club at national fair", caption: "2nd at National Science Fair" },
+  { src: newsBasketball, alt: "Football championship", caption: "Busoga Schools Champions" },
+  { src: newsService, alt: "Community outreach", caption: "4,000 seedlings in one Saturday" },
+  { src: newsGraduation, alt: "Class of 2026", caption: "312 candidates sent off" },
+];
+function CampusCarousel() {
+  return <ImageCarousel images={CAMPUS_IMAGES} title="Life at WACOS" />;
+}
+
 function StatsSection() {
   return (
     <section className="border-y border-border bg-cream">
