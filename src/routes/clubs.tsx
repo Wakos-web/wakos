@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useMatch } from '@tanstack/react-router';
+import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { IMAGES } from '@/lib/content';
 
 const CLUBS = [
@@ -70,8 +70,8 @@ function CTASection() {
 }
 
 function ClubsPage() {
-  const match = useMatch({ strict: false });
-  const isRoot = match.pathname === '/clubs';
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isRoot = pathname === '/clubs';
   return (
     <div>
       {isRoot && (
