@@ -39,12 +39,12 @@ export function SiteHeader() {
           <nav className="flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
             {NAV_ITEMS.map((item) => (
               item.children ? (
-                <div key={item.to} className="relative group"
+                <div key={item.to} className="relative"
                   onMouseEnter={() => setOpenDropdown(item.label)}
                   onMouseLeave={() => setOpenDropdown(null)}>
                   <Link to={item.to} className={"flex items-center gap-1 text-sm font-medium tracking-wide transition-colors hover:underline hover:underline-offset-8 " + (isHome && !scrolled ? "text-white/80 hover:text-white" : "text-muted-foreground hover:text-foreground")}>
                     {item.label}
-                    <svg className="h-3 w-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    <svg className={"h-3 w-3 transition-transform duration-200 " + (openDropdown === item.label ? "rotate-180" : "")} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </Link>
                   {openDropdown === item.label && (
                     <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-xl border border-border bg-white/95 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150">
@@ -98,7 +98,7 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
           {NAV_ITEMS.map((item) => (
             item.children ? (
               <div key={item.to}>
-                <button type="button" onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)} className="flex w-full items-center justify-between rounded-2xl px-5 py-4 font-display text-2xl font-medium text-foreground transition-colors hover:bg-secondary sm:text-3xl">
+                <button type="button" aria-expanded={openDropdown === item.label} onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)} className="flex w-full items-center justify-between rounded-2xl px-5 py-4 font-display text-2xl font-medium text-foreground transition-colors hover:bg-secondary sm:text-3xl">
                   {item.label}
                   <svg className={"h-5 w-5 text-muted-foreground transition-transform duration-200 " + (openDropdown === item.label ? "rotate-180" : "")} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </button>
