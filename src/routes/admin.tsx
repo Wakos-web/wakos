@@ -14,7 +14,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "applications" | "mentorship" | "donations" | "scholarships" | "settings";
+type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "applications" | "mentorship" | "donations" | "scholarships" | "comments" | "settings";
 
 function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
@@ -1310,6 +1310,55 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
   );
 }
 
+function CommentsTab({ comments, onRefresh, setToast }: { comments: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [filter, setFilter] = useState("");
+
+  const filtered = comments.filter(c => {
+    if (filter && !c.author_name.toLowerCase().includes(filter.toLowerCase()) && !c.content.toLowerCase().includes(filter.toLowerCase())) return false;
+    return true;
+  });
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this comment?")) return;
+    await supabase.from("note_comments").delete().eq("id", id);
+    setToast({ message: "Comment deleted", type: "success" });
+    onRefresh();
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="font-display text-2xl font-bold text-stone-900">Comments ({comments.length})</h2>
+        <input type="text" placeholder="Search comments..." value={filter} onChange={e => setFilter(e.target.value)}
+          className="px-4 py-2 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-green-800 focus:border-transparent outline-none w-64" />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 text-stone-400">No comments found.</div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(c => (
+            <div key={c.id} className="rounded-xl bg-white border border-stone-200 p-4 hover:shadow-sm transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-stone-900 text-sm">{c.author_name}</span>
+                    {c.graduation_year && <span className="text-xs text-stone-400">Class of {c.graduation_year}</span>}
+                    <span className="text-xs text-stone-400">on note</span>
+                  </div>
+                  <p className="text-stone-600 text-sm mt-1">{c.content}</p>
+                  <p className="text-xs text-stone-400 mt-2">{new Date(c.created_at).toLocaleString()}</p>
+                </div>
+                <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700 text-sm ml-4">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
@@ -1326,13 +1375,14 @@ function AdminPage() {
   const [donations, setDonations] = useState<any[]>([]);
   const [scholarships, setScholarships] = useState<any[]>([]);
   const [pageContent, setPageContent] = useState<any[]>([]);
+  const [noteComments, setNoteComments] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes, commentsRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
@@ -1346,6 +1396,7 @@ function AdminPage() {
       supabase.from("mentorship_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("donations").select("*").order("created_at", { ascending: false }),
       supabase.from("sports_scholarships").select("*").order("created_at", { ascending: false }),
+      supabase.from("note_comments").select("*").order("created_at", { ascending: false }),
     ]);
 
     const c = clubsRes.data || [];
@@ -1370,6 +1421,7 @@ function AdminPage() {
     setMentorship(mentRes.data || []);
     setDonations(donRes.data || []);
     setScholarships(schRes.data || []);
+    setNoteComments(commentsRes.data || []);
     const { count: postCount } = await supabase.from("club_posts").select("*", { count: "exact", head: true });
     setStats({
       clubs: c.length,
@@ -1401,6 +1453,7 @@ function AdminPage() {
     { key: "mentorship", label: "Mentorship", icon: Heart, count: mentorship.length },
     { key: "donations", label: "Donations", icon: Heart, count: donations.length },
     { key: "scholarships", label: "Scholarships", icon: GraduationCap, count: scholarships.length },
+    { key: "comments", label: "Comments", icon: MessageSquare, count: noteComments.length },
     { key: "settings", label: "Site Settings", icon: Settings },
   ];
 
@@ -1474,6 +1527,7 @@ function AdminPage() {
             {tab === "mentorship" && <SubmissionsList title="Mentorship Requests" icon={Heart} data={mentorship} columns={[{ key: "mentor_name", label: "Name" }, { key: "mentor_email", label: "Email" }, { key: "club_interest", label: "Club" }, { key: "graduation_year", label: "Class Of" }, { key: "expertise", label: "Expertise" }]} table="mentorship_requests" onRefresh={fetchData} setToast={setToast} />}
             {tab === "donations" && <SubmissionsList title="Donations" icon={Heart} data={donations} columns={[{ key: "donor_name", label: "Donor" }, { key: "amount", label: "Amount" }, { key: "donation_type", label: "Type" }, { key: "purpose", label: "Purpose" }]} table="donations" onRefresh={fetchData} setToast={setToast} />}
             {tab === "scholarships" && <SubmissionsList title="Sports Scholarships" icon={GraduationCap} data={scholarships} columns={[{ key: "student_name", label: "Student" }, { key: "parent_name", label: "Parent" }, { key: "phone", label: "Phone" }, { key: "sport", label: "Sport" }, { key: "achievement", label: "Achievement" }]} table="sports_scholarships" onRefresh={fetchData} setToast={setToast} />}
+            {tab === "comments" && <CommentsTab comments={noteComments} onRefresh={fetchData} setToast={setToast} />}
             {tab === "settings" && <SettingsTab />}
           </>
         )}

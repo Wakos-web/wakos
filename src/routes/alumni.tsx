@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { IMAGES } from "@/lib/content";
-import { Send, Calendar, BookOpen, Users, Heart, Award, Building2, Clock } from "lucide-react";
+import { Send, Calendar, BookOpen, Users, Heart, Award, Building2, Clock, ThumbsUp, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 export const Route = createFileRoute("/alumni")({
   head: () => ({
@@ -16,6 +16,8 @@ export const Route = createFileRoute("/alumni")({
 
 type ClassNote = { id: string; author_name: string; graduation_year: number; content: string; photo_url: string | null; category: string; created_at: string; };
 type Event = { id: string; title: string; description: string | null; event_date: string | null; location: string | null; photo_url: string | null; category: string; created_at: string; };
+type NoteLike = { id: string; note_id: string; user_name: string; created_at: string; };
+type NoteComment = { id: string; note_id: string; author_name: string; graduation_year: number; content: string; created_at: string; };
 
 const CATS = [
   { key: "all", label: "All", icon: Users },
@@ -62,9 +64,107 @@ function StatsBar({ notes, events, photos }: { notes: number; events: number; ph
   );
 }
 
+function NoteCard({ note, likes, comments, onLike, onComment }: { note: ClassNote; likes: NoteLike[]; comments: NoteComment[]; onLike: (noteId: string) => void; onComment: (noteId: string, text: string, name: string, year: number) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [commenterName, setCommenterName] = useState("");
+  const [commenterYear, setCommenterYear] = useState(2020);
+  const [submitting, setSubmitting] = useState(false);
+  const CatIcon = CAT_ICONS[note.category] || BookOpen;
+  const catColor = CAT_COLORS[note.category] || "bg-stone-100 text-stone-600";
+
+  const handleComment = async () => {
+    if (!commentText.trim() || !commenterName.trim()) return;
+    setSubmitting(true);
+    await onComment(note.id, commentText.trim(), commenterName.trim(), commenterYear);
+    setCommentText("");
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="rounded-2xl bg-white border border-stone-200 p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+          <span className="text-lg font-bold text-green-800">{note.author_name.charAt(0)}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="font-display text-lg font-bold text-stone-900">{note.author_name}</h3>
+            <span className="text-sm text-stone-400">Class of {note.graduation_year}</span>
+            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${catColor}`}>
+              <CatIcon className="h-3 w-3" /> {note.category}
+            </span>
+          </div>
+          <p className="text-stone-600 font-body leading-relaxed mt-2">{note.content}</p>
+          {note.photo_url && (
+            <img src={note.photo_url} alt="" className="mt-4 rounded-xl max-h-64 object-cover" loading="lazy" />
+          )}
+          <p className="text-xs text-stone-400 mt-3 flex items-center gap-1">
+            <Clock className="h-3 w-3" /> {new Date(note.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          </p>
+
+          {/* Like + Comment bar */}
+          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-stone-100">
+            <button onClick={() => onLike(note.id)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-green-800 transition-colors">
+              <ThumbsUp className="h-4 w-4" /> {likes.length > 0 ? likes.length : ""} Like{likes.length !== 1 ? "s" : ""}
+            </button>
+            <button onClick={() => setExpanded(!expanded)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-green-800 transition-colors">
+              <MessageCircle className="h-4 w-4" /> {comments.length > 0 ? comments.length : ""} Comment{comments.length !== 1 ? "s" : ""}
+              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+          </div>
+
+          {/* Comments section */}
+          {expanded && (
+            <div className="mt-4 space-y-3">
+              {comments.length > 0 ? (
+                comments.map(c => (
+                  <div key={c.id} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-green-800">{c.author_name.charAt(0)}</span>
+                    </div>
+                    <div className="flex-1 bg-stone-50 rounded-xl px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-stone-900">{c.author_name}</span>
+                        {c.graduation_year && <span className="text-xs text-stone-400">Class of {c.graduation_year}</span>}
+                      </div>
+                      <p className="text-sm text-stone-600 mt-0.5">{c.content}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-stone-400 pl-11">No comments yet. Be the first to comment!</p>
+              )}
+
+              {/* Add comment form */}
+              <div className="flex gap-3 pl-11">
+                <input type="text" placeholder="Your name" value={commenterName} onChange={e => setCommenterName(e.target.value)}
+                  className="w-32 text-sm px-3 py-2 rounded-full border border-stone-200 focus:ring-2 focus:ring-green-800 focus:border-transparent outline-none" />
+                <input type="number" placeholder="Year" value={commenterYear} onChange={e => setCommenterYear(Number(e.target.value))}
+                  className="w-20 text-sm px-3 py-2 rounded-full border border-stone-200 focus:ring-2 focus:ring-green-800 focus:border-transparent outline-none" />
+                <input type="text" placeholder="Write a comment..." value={commentText} onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleComment()}
+                  className="flex-1 text-sm px-4 py-2 rounded-full border border-stone-200 focus:ring-2 focus:ring-green-800 focus:border-transparent outline-none" />
+                <button onClick={handleComment} disabled={submitting || !commentText.trim() || !commenterName.trim()}
+                  className="px-4 py-2 rounded-full bg-green-800 text-white text-sm font-medium hover:bg-green-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  {submitting ? "..." : "Post"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PulseFeed({ notes }: { notes: ClassNote[] }) {
   const [cat, setCat] = useState("all");
   const [decade, setDecade] = useState("");
+  const [likesMap, setLikesMap] = useState<Record<string, NoteLike[]>>({});
+  const [commentsMap, setCommentsMap] = useState<Record<string, NoteComment[]>>({});
 
   const filtered = notes.filter(n => {
     if (cat !== "all" && n.category !== cat) return false;
@@ -74,6 +174,34 @@ function PulseFeed({ notes }: { notes: ClassNote[] }) {
     }
     return true;
   });
+
+  // Fetch likes & comments for all visible notes
+  useEffect(() => {
+    if (notes.length === 0) return;
+    const ids = notes.map(n => n.id);
+    supabase.from("note_likes").select("*").in("note_id", ids).then(({ data }) => {
+      const map: Record<string, NoteLike[]> = {};
+      (data || []).forEach(l => { (map[l.note_id] = map[l.note_id] || []).push(l); });
+      setLikesMap(map);
+    });
+    supabase.from("note_comments").select("*").in("note_id", ids).order("created_at", { ascending: true }).then(({ data }) => {
+      const map: Record<string, NoteComment[]> = {};
+      (data || []).forEach(c => { (map[c.note_id] = map[c.note_id] || []).push(c); });
+      setCommentsMap(map);
+    });
+  }, [notes]);
+
+  const handleLike = async (noteId: string) => {
+    await supabase.from("note_likes").insert({ note_id: noteId, user_name: "Anonymous Alumnus" });
+    const { data } = await supabase.from("note_likes").select("*").eq("note_id", noteId);
+    setLikesMap(prev => ({ ...prev, [noteId]: data || [] }));
+  };
+
+  const handleComment = async (noteId: string, text: string, name: string, year: number) => {
+    await supabase.from("note_comments").insert({ note_id: noteId, author_name: name, graduation_year: year, content: text });
+    const { data } = await supabase.from("note_comments").select("*").eq("note_id", noteId).order("created_at", { ascending: true });
+    setCommentsMap(prev => ({ ...prev, [noteId]: data || [] }));
+  };
 
   return (
     <section className="py-16">
@@ -120,35 +248,16 @@ function PulseFeed({ notes }: { notes: ClassNote[] }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {filtered.map(note => {
-              const CatIcon = CAT_ICONS[note.category] || BookOpen;
-              const catColor = CAT_COLORS[note.category] || "bg-stone-100 text-stone-600";
-              return (
-                <div key={note.id} className="rounded-2xl bg-white border border-stone-200 p-6 hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                      <span className="text-lg font-bold text-green-800">{note.author_name.charAt(0)}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="font-display text-lg font-bold text-stone-900">{note.author_name}</h3>
-                        <span className="text-sm text-stone-400">Class of {note.graduation_year}</span>
-                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${catColor}`}>
-                          <CatIcon className="h-3 w-3" /> {note.category}
-                        </span>
-                      </div>
-                      <p className="text-stone-600 font-body leading-relaxed mt-2">{note.content}</p>
-                      {note.photo_url && (
-                        <img src={note.photo_url} alt="" className="mt-4 rounded-xl max-h-64 object-cover" loading="lazy" />
-                      )}
-                      <p className="text-xs text-stone-400 mt-3 flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {new Date(note.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {filtered.map(note => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                likes={likesMap[note.id] || []}
+                comments={commentsMap[note.id] || []}
+                onLike={handleLike}
+                onComment={handleComment}
+              />
+            ))}
           </div>
         )}
       </div>
