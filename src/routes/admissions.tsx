@@ -18,15 +18,15 @@ const STEPS = [
 
 const SCHOLARSHIPS = [
   { title: "Academic Scholarship", desc: "For students who demonstrate exceptional academic potential. Awarded based on previous school results and interview. Covers tuition and boarding fees.", criteria: ["Strong previous school report", "Demonstrated academic curiosity", "Good conduct and character"] },
-  { title: "Sports Scholarship", desc: "For talented athletes who show promise in football, athletics, netball, or other sports. The school has a proven track record of developing athletes like Joshua Cheptegei.", criteria: ["Demonstrated athletic talent", "Coach recommendation", "Commitment to training"] },
-  { title: "Need-Based Bursary", desc: "For bright students from families who cannot afford school fees. The college and alumni fund bursaries to ensure no student is turned away for financial reasons.", criteria: ["Financial need demonstrated", "Good academic performance", "Character and determination"] },
+  { title: "Sports Scholarship", desc: "Competitive award for talented athletes who show promise in football, athletics, netball, or other sports. The school has a proven track record of developing athletes like Joshua Cheptegei. Awarded based on athletic performance and coach recommendation.", criteria: ["Demonstrated athletic talent", "Coach recommendation", "Commitment to training"] },
+  { title: "Need-Based Bursary", desc: "Competitive bursary awarded to bright students based on end-of-term examination results. Funded primarily by alumni through the Wairaka Trust Fund. Bursaries cover tuition and boarding fees for the following term.", criteria: ["Strong end-of-term exam results", "Demonstrated academic potential", "Competitive selection each term"] },
 ];
 
 const FAQ = [
   { q: "When does admission open?", a: "Admission opens every term. Contact the college early to inquire about available places and the application timeline." },
-  { q: "What are the school fees?", a: "School fees plus PTA contribution is UGX 709,800 per term. This is payable through Centenary Bank using the school bank slip. Uniform is not included." },
+  { q: "What are the school fees?", a: "School fees plus PTA contribution total UGX 709,800 per term (approximately UGX 236,600 per month over a 3-month term). Payment is made through Centenary Bank using the school bank slip. Uniform, books, and personal effects are not included in this amount." },
   { q: "What documents do I need?", a: "You need a recommendation, pass slip, or report card from your previous school, two plastic folders, and the admission letter from the college." },
-  { q: "Are there scholarships?", a: "Yes. We offer academic scholarships, sports scholarships, and need-based bursaries for bright students. Contact the college to learn more." },
+  { q: "Are there bursaries?", a: "Yes. Bursaries are awarded competitively at the end of each term based on examination results. They are funded primarily by alumni through the Wairaka Trust Fund. Top-performing students in financial need are selected for fee and boarding support the following term. Contact the college for details." },
   { q: "What subjects are offered?", a: "O-Level students study both Arts and Science subjects. A-Level students select subject combinations under Arts or Sciences, taking three essential subjects plus two subsidiary subjects." },
   { q: "Is the school a UNEB centre?", a: "Yes. M.M College Wairaka is a UNEB examination centre for both UCE (O-Level) and UACE (A-Level) examinations." },
 ];function HeroSection() {

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/giving")({
 
 const WAYS = [
   { title: "Trust Fund Contribution", desc: "Join the Wairaka Trust Fund with a minimum monthly contribution of UGX 10,000. Every shilling goes directly to college rehabilitation and infrastructure projects.", tag: "Monthly" },
-  { title: "Bursary Support", desc: "Fund a student education. Bursaries cover fees, uniforms, and boarding for students who would otherwise leave school. Two hundred and eleven students were supported last year.", tag: "Per Student" },
+  { title: "Bursary Support", desc: "Fund a bright student future. Bursaries are awarded competitively at the end of each term based on exam results. Last year, alumni-funded bursaries supported 211 students through fees and boarding.", tag: "Per Student" },
   { title: "Laboratory Renovation", desc: "Help equip and maintain the Physics, Chemistry, and Biology laboratories. The alumni have already renovated two labs through the Trust Fund.", tag: "Project" },
   { title: "Infrastructure Projects", desc: "Contribute to dormitory rehabilitation, classroom renovation, and the ongoing asbestos removal programme. Every project is identified by the college administration.", tag: "Capital" },
   { title: "Scholarships", desc: "Establish a scholarship in your name or class year. Scholarships attract talented students through sports, academic, and need-based awards.", tag: "Named" },
@@ -24,7 +24,7 @@ const FAQ = [
   { q: "Is my gift tax-deductible?", a: "Gifts to registered educational institutions in Uganda may qualify for tax benefits. Consult your tax adviser for specifics related to your jurisdiction." },
   { q: "How do I set up a scholarship?", a: "Contact the college administration to discuss scholarship criteria, naming, and funding levels. Scholarships can be need-based, sports-based, or academic." },
   { q: "Can I give in-kind instead of cash?", a: "Yes. The college accepts books, laboratory equipment, furniture, and other materials. Contact the college to discuss what is currently needed." },
-  { q: "How is the money used?", a: "All contributions are tracked by the Trust Fund and reported to members. Funds go directly to identified projects: laboratory renovation, dormitory rehabilitation, bursaries, and college infrastructure." },
+  { q: "How are bursaries awarded?", a: "Bursaries are competitive. At the end of each term, the college identifies top-performing students in financial need based on examination results. Alumni through the Trust Fund then finance their fees and boarding for the following term. Contact the college or MMCWOSA for details." },
 ];function HeroSection() {
   return (
     <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
