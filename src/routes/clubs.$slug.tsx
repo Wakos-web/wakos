@@ -321,22 +321,24 @@ const PORTRAIT_COLORS = ['#FACC15', '#2563EB', '#EC4899', '#EF4444', '#F97316', 
 function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: number; size?: 'lg' | 'md' | 'sm' }) {
   const img = person.img || getAvatar(person.name);
   const color = PORTRAIT_COLORS[index % PORTRAIT_COLORS.length];
-  const dims = size === 'lg' ? { circle: 'w-28 h-28 sm:w-40 sm:h-40', bg: 'w-32 h-32 sm:w-44 sm:h-44', name: 'text-base sm:text-lg', role: 'text-xs sm:text-sm', gap: 'mt-2 sm:mt-3' }
-    : size === 'md' ? { circle: 'w-24 h-24 sm:w-28 sm:h-28', bg: 'w-28 h-28 sm:w-32 sm:h-32', name: 'text-sm', role: 'text-xs', gap: 'mt-2' }
-    : { circle: 'w-16 h-16 sm:w-20 sm:h-20', bg: 'w-20 h-20 sm:w-24 sm:h-24', name: 'text-[11px] sm:text-xs', role: 'text-[9px] sm:text-[10px]', gap: 'mt-1 sm:mt-1.5' };
+  // bg circle is only 16px larger than photo (8px offset each side) — tight peek of color
+  const dims = size === 'lg' ? { circle: 'w-36 h-36 sm:w-44 sm:h-44', bg: 'w-40 h-40 sm:w-48 sm:h-48', name: 'text-base sm:text-lg', role: 'text-xs sm:text-sm', gap: 'mt-2 sm:mt-3' }
+    : size === 'md' ? { circle: 'w-28 h-28 sm:w-32 sm:h-32', bg: 'w-32 h-32 sm:w-36 sm:h-36', name: 'text-sm', role: 'text-xs', gap: 'mt-2' }
+    : { circle: 'w-20 h-20 sm:w-24 sm:h-24', bg: 'w-24 h-24 sm:w-28 sm:h-28', name: 'text-[11px] sm:text-xs', role: 'text-[9px] sm:text-[10px]', gap: 'mt-1 sm:mt-1.5' };
 
+  // Offset the bg circle slightly up-left so color peeks at top-left corner only
   return (
     <div className='flex flex-col items-center cursor-pointer group hover:-translate-y-2 transition-all duration-300'>
-      <div className='relative'>
-        {/* Colored circle behind */}
-        <div className={`absolute top-1 left-1 ${dims.bg} rounded-full transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl`} style={{ backgroundColor: color, opacity: 0.85 }} />
+      <div className='relative' style={{ paddingBottom: '4px' }}>
+        {/* Colored circle behind — offset up and left, clipped so it doesn't bleed into the name */}
+        <div className={`absolute -top-1 -left-1 ${dims.bg} rounded-full transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl`} style={{ backgroundColor: color, opacity: 0.85 }} />
         {/* Photo circle */}
         <div className={`relative ${dims.circle} rounded-full overflow-hidden shadow-lg ring-2 ring-white transition-all duration-300 group-hover:shadow-2xl group-hover:ring-4`}>          
           <img src={img} alt={person.name} className='w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500' loading='lazy' />
         </div>
       </div>
-      {/* Name + Role label below */}
-      <div className={'text-center ' + dims.gap + ' transition-all duration-300'}>
+      {/* Name + Role label below — extra margin to stay clear of colored circle */}
+      <div className={'text-center ' + dims.gap + ' transition-all duration-300 pt-1'}>
         <p className={'font-display font-bold text-stone-900 group-hover:text-green-800 transition-colors duration-300 ' + dims.name}>{person.name}</p>
         <p className={dims.role + ' text-green-800 font-medium'}>{person.role}</p>
         {person.year && <p className='text-xs text-stone-500 mt-0.5'>{person.year}{person.joined ? ' · Since ' + person.joined : ''}</p>}
