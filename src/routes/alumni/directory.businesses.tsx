@@ -169,7 +169,7 @@ function BusinessesPage() {
 
 function BusinessCard({ biz }: { biz: BusinessWithOwner }) {
   return (
-    <div className="rounded-2xl bg-white border border-stone-200 p-6 hover:border-green-800 hover:shadow-md transition-all">
+    <div className="rounded-2xl bg-white border border-stone-200 p-6 transition-all cursor-default">
       <div className="flex items-start gap-4">
         {/* Headshot / Logo */}
         <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
@@ -198,7 +198,7 @@ function BusinessCard({ biz }: { biz: BusinessWithOwner }) {
 
       {/* Description */}
       {biz.description && (
-        <p className="text-sm text-stone-600 mt-4 font-body leading-relaxed line-clamp-3">{biz.description}</p>
+        <p className="text-sm text-stone-600 mt-4 font-body leading-relaxed line-clamp-5">{biz.description}</p>
       )}
 
       {/* Location and phone */}
