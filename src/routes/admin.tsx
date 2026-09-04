@@ -16,6 +16,15 @@ export const Route = createFileRoute("/admin")({
 
 type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "settings";
 
+function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
+  return (
+    <div className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white ${type === "success" ? "bg-green-800" : "bg-red-600"}`}>
+      {message}
+    </div>
+  );
+}
+
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number | string; color: string }) {
   return (
     <div className="rounded-2xl bg-white border border-stone-200 p-6 hover:shadow-md transition-shadow">
@@ -41,27 +50,27 @@ function OverviewTab({ stats }: { stats: Record<string, number> }) {
         <StatCard icon={Megaphone} label="Club Posts" value={stats.clubPosts} color="bg-indigo-600" />
         <StatCard icon={MessageSquare} label="Inquiries" value={stats.inquiries} color="bg-orange-600" />
       </div>
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Link to="/clubs" className="group rounded-2xl bg-green-50 border border-green-200 p-6 hover:border-green-800 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-green-800 uppercase tracking-wider">Clubs CMS</p>
-              <p className="font-display text-lg font-bold text-stone-900 mt-1">Manage Clubs & Members</p>
-              <p className="text-sm text-stone-500 mt-1">Create, edit, and manage all 10 clubs, their members, and blog posts.</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-green-800 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </Link>
-        <Link to="/alumni/directory/admin" className="group rounded-2xl bg-purple-50 border border-purple-200 p-6 hover:border-purple-800 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-purple-800 uppercase tracking-wider">Alumni Admin</p>
-              <p className="font-display text-lg font-bold text-stone-900 mt-1">Moderate Alumni & Businesses</p>
-              <p className="text-sm text-stone-500 mt-1">Approve or reject alumni profiles and business directory listings.</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-purple-800 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </Link>
+      <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <button onClick={() => setTab("clubs")} className="group rounded-2xl bg-green-50 border border-green-200 p-5 hover:border-green-800 hover:shadow-md transition-all text-left">
+          <Users className="h-6 w-6 text-green-800 mb-2" />
+          <p className="font-display text-sm font-bold text-stone-900">Clubs</p>
+          <p className="text-xs text-stone-500">Manage clubs & members</p>
+        </button>
+        <button onClick={() => setTab("events")} className="group rounded-2xl bg-rose-50 border border-rose-200 p-5 hover:border-rose-800 hover:shadow-md transition-all text-left">
+          <Calendar className="h-6 w-6 text-rose-800 mb-2" />
+          <p className="font-display text-sm font-bold text-stone-900">Events</p>
+          <p className="text-xs text-stone-500">Create & manage events</p>
+        </button>
+        <button onClick={() => setTab("notes")} className="group rounded-2xl bg-cyan-50 border border-cyan-200 p-5 hover:border-cyan-800 hover:shadow-md transition-all text-left">
+          <BookOpen className="h-6 w-6 text-cyan-800 mb-2" />
+          <p className="font-display text-sm font-bold text-stone-900">Class Notes</p>
+          <p className="text-xs text-stone-500">Approve submissions</p>
+        </button>
+        <button onClick={() => setTab("settings")} className="group rounded-2xl bg-stone-100 border border-stone-200 p-5 hover:border-stone-400 hover:shadow-md transition-all text-left">
+          <Settings className="h-6 w-6 text-stone-600 mb-2" />
+          <p className="font-display text-sm font-bold text-stone-900">Settings</p>
+          <p className="text-xs text-stone-500">Site info & hero media</p>
+        </button>
       </div>
     </div>
   );
@@ -615,6 +624,66 @@ function BusinessesTab({ businesses, onRefresh }: { businesses: any[]; onRefresh
   );
 }
 
+function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const approve = async (id: string) => {
+    await supabase.from("alumni_profiles").update({ approved: true }).eq("id", id);
+    setToast({ message: "Alumni approved", type: "success" });
+    onRefresh();
+  };
+  const remove = async (id: string) => {
+    if (!confirm("Delete this alumni profile?")) return;
+    await supabase.from("alumni_profiles").delete().eq("id", id);
+    setToast({ message: "Profile deleted", type: "success" });
+    onRefresh();
+  };
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-display text-xl font-bold text-stone-900">Alumni Profiles ({alumni.length})</h3>
+        <Link to="/alumni/directory/admin" className="text-sm font-semibold text-green-800 hover:underline">Full Admin →</Link>
+      </div>
+      {alumni.length === 0 ? (
+        <div className="text-center py-12 text-stone-400">
+          <GraduationCap className="h-10 w-10 mx-auto mb-3" />
+          <p>No alumni profiles yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {alumni.map((a) => (
+            <div key={a.id} className="rounded-xl bg-white border border-stone-200 p-5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                  <span className="text-lg font-bold text-purple-800">{a.full_name?.charAt(0) || "?"}</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+                      {a.approved ? "Approved" : "Pending"}
+                    </span>
+                    <span className="text-xs text-stone-400">Class of {a.graduation_year}</span>
+                  </div>
+                  <p className="font-display text-lg font-bold text-stone-900">{a.full_name}</p>
+                  <p className="text-sm text-stone-500">{a.profession || "No profession"}{a.company ? " at " + a.company : ""}{a.current_location ? " · " + a.current_location : ""}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                {!a.approved && (
+                  <button onClick={() => approve(a.id)} className="p-2 rounded-lg hover:bg-green-50 transition-colors" title="Approve">
+                    <Check className="h-4 w-4 text-green-600" />
+                  </button>
+                )}
+                <button onClick={() => remove(a.id)} className="p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                  <Trash2 className="h-4 w-4 text-red-400" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
@@ -624,17 +693,20 @@ function AdminPage() {
   const [notes, setNotes] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<any[]>([]);
+  const [alumni, setAlumni] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
       supabase.from("class_notes").select("*").order("created_at", { ascending: false }),
       supabase.from("inquiries").select("*").order("created_at", { ascending: false }),
       supabase.from("alumni_businesses").select("*").order("created_at", { ascending: false }),
+      supabase.from("alumni_profiles").select("*").order("created_at", { ascending: false }),
     ]);
 
     const c = clubsRes.data || [];
@@ -644,12 +716,15 @@ function AdminPage() {
     const i = inqRes.data || [];
     const b = bizRes.data || [];
 
+    const a = alumniRes.data || [];
     setClubs(c);
     setMembers(m);
     setEvents(e);
     setNotes(n);
     setInquiries(i);
     setBusinesses(b);
+    setAlumni(a);
+    const { count: postCount } = await supabase.from("club_posts").select("*", { count: "exact", head: true });
     setStats({
       clubs: c.length,
       clubMembers: m.length,
@@ -657,14 +732,9 @@ function AdminPage() {
       notes: n.length,
       inquiries: i.length,
       businesses: b.length,
-      alumni: 0,
-      clubPosts: 0,
+      alumni: a.length,
+      clubPosts: postCount || 0,
     });
-
-    // Get alumni count
-    const { count: alumniCount } = await supabase.from("alumni_profiles").select("*", { count: "exact", head: true });
-    const { count: postCount } = await supabase.from("club_posts").select("*", { count: "exact", head: true });
-    setStats(prev => ({ ...prev, alumni: alumniCount || 0, clubPosts: postCount || 0 }));
     setLoading(false);
   };
 
@@ -683,6 +753,7 @@ function AdminPage() {
 
   return (
     <div className="min-h-screen bg-stone-50">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {/* Header */}
       <div className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -738,19 +809,7 @@ function AdminPage() {
             {tab === "overview" && <OverviewTab stats={stats} />}
             {tab === "clubs" && <ClubsTab clubs={clubs} members={members} onRefresh={fetchData} />}
             {tab === "alumni" && (
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-display text-xl font-bold text-stone-900">Alumni Profiles ({stats.alumni})</h3>
-                  <Link to="/alumni/directory/admin" className="text-sm font-semibold text-green-800 hover:underline">Full Admin →</Link>
-                </div>
-                <div className="rounded-2xl bg-white border border-stone-200 p-8 text-center">
-                  <GraduationCap className="h-10 w-10 text-stone-300 mx-auto mb-3" />
-                  <p className="text-stone-500">Use the dedicated alumni admin panel to moderate profiles and businesses.</p>
-                  <Link to="/alumni/directory/admin" className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-green-800 hover:underline">
-                    Open Alumni Admin <ChevronRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              </div>
+              <AlumniTab alumni={alumni} onRefresh={fetchData} setToast={setToast} />
             )}
             {tab === "events" && <EventsTab events={events} onRefresh={fetchData} />}
             {tab === "notes" && <NotesTab notes={notes} onRefresh={fetchData} />}
