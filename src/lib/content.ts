@@ -3,6 +3,8 @@ import newsRobotics from "@/assets/news-robotics.jpg";
 import newsBasketball from "@/assets/news-basketball.jpg";
 import newsService from "@/assets/news-service.jpg";
 import newsGraduation from "@/assets/news-graduation.jpg";
+import newsAcademics from "@/assets/academics.jpg";
+import newsStudentLife from "@/assets/student-life.jpg";
 import campus from "@/assets/campus.jpg";
 import academics from "@/assets/academics.jpg";
 import athletics from "@/assets/athletics.jpg";
@@ -170,6 +172,156 @@ export const ARTICLES: Article[] = [
       "The prototype was built entirely in the college workshop over two terms, using salvaged components and a microcontroller donated by an old student.",
       "\u201CWe kept failing at the pump timing until we stopped copying designs from the internet and measured our own soil,\u201D said club chairperson Brenda Nabirye, S6.",
       "The team now plans to trial three units on farms neighbouring the school before the next fair.",
+    ],
+  },
+  {
+    slug: "asbestos-removal-complete",
+    title: "Asbestos Removal Programme Reaches Major Milestone",
+    date: "Aug 15, 2026",
+    category: "Infrastructure",
+    image: newsService,
+    excerpt:
+      "The alumni-funded asbestos removal programme has cleared three major buildings, making campus safer for students and staff.",
+    body: [
+      "The Wairaka Trust Fund asbestos removal programme has reached a significant milestone, with three major campus buildings now completely cleared of hazardous materials.",
+      "The programme, funded entirely by alumni contributions through the Trust Fund, began in 2024 after a safety audit identified asbestos in roofing materials across several older buildings.",
+      "\u201CThis is what \u2018We Do It Ourselves\u2019 looks like in practice,\u201D said Trust Fund Coordinator Moses Wamboga. \u201CThe alumni identified the problem, funded the solution, and hired certified contractors to do the work safely.\u201D",
+      "Phase two targets the remaining four buildings, with completion expected by the end of 2026. The total project cost is estimated at UGX 45 million, with 60\u201370\u2013% already raised through monthly Trust Fund contributions.",
+    ],
+  },
+  {
+    slug: "agriculture-club-reforestation",
+    title: "Agriculture Club Leads Community Reforestation Drive",
+    date: "Aug 09, 2026",
+    category: "Outreach",
+    image: newsService,
+    excerpt:
+      "Students plant 4,000 seedlings along the Wairaka stretch, restoring tree cover lost to decades of deforestation.",
+    body: [
+      "More than four hundred students joined households around the college on Saturday to plant 4,000 tree seedlings raised in the school nursery, part of a five-year drive to restore tree cover along the Wairaka stretch.",
+      "The nursery is run entirely by the Agriculture Club, which grows seedlings from seed collected by students during the holidays.",
+      "\u201CThe motto is not decoration,\u201D said deputy head teacher Grace Kadondi. \u201CWe do it ourselves means the seedlings are ours, the labour is ours, and the shade will be the community\u2019s.\u201D",
+      "A second planting is scheduled for the start of next term. The club aims to plant 10,000 seedlings annually, with species selected for rapid growth and soil stability.",
+    ],
+  },
+  {
+    slug: "debate-team-regional-winners",
+    title: "Debate Team Wins Eastern Regional Championships",
+    date: "Jul 28, 2026",
+    category: "Academics",
+    image: newsAcademics,
+    excerpt:
+      "The WACOS debate team defeated fifteen schools to claim the Eastern Regional debating title for the first time.",
+    body: [
+      "The M.M College Wairaka debate team made history by winning the Eastern Regional Schools Debate Championship, defeating fifteen schools including established powerhouses Jinja College and Busoga College Mwiri.",
+      "The team of four S5 students argued passionately for the motion \u201CThis house believes technology does more harm than good in developing countries,\u201D ultimately winning on points of argumentation and rebuttal.",
+      "\u201CWe trained three times a week for two months,\u201D said team captain Ahmed Muwonge. \u201COur coach, Mr. Okello, pushed us to research every angle of the argument.\u201D",
+      "The victory earns WACOS a place at the National Schools Debate Championship in October, where they will compete against the best teams from across Uganda.",
+    ],
+  },
+  {
+    slug: "red-cross-blood-drive",
+    title: "Red Cross Club Hosts Annual Blood Drive",
+    date: "Jul 15, 2026",
+    category: "Community",
+    image: newsService,
+    excerpt:
+      "Students and staff donate over 200 units of blood in the club\u2019s biggest drive yet, supporting Jinja Regional Hospital.",
+    body: [
+      "The WACOS Red Cross Club hosted its annual blood donation drive last week, collecting over 200 units of blood from students, staff, and community members.",
+      "The drive, organised in partnership with the Uganda Blood Transfusion Service, saw 180 students donate for the first time, with many describing the experience as \u201Cempowering.\u201D",
+      "\u201CWhen you donate blood, you\u2019re not just giving a unit, you\u2019re giving someone a chance at life,\u201D said club chairperson Patricia Auma. \u201CThat\u2019s what service means at WACOS.\u201D",
+      "The collected blood will be distributed to Jinja Regional Hospital and surrounding health centres, addressing chronic shortages in the region.",
+    ],
+  },
+  {
+    slug: "writers-club-magazine-launch",
+    title: "Writers Club Launches New School Magazine \u201CThe Wairaka Voice\u201D",
+    date: "Jul 02, 2026",
+    category: "Arts",
+    image: newsStudentLife,
+    excerpt:
+      "The inaugural issue of \u201CThe Wairaka Voice\u201D features student poetry, fiction, and investigative journalism on campus issues.",
+    body: [
+      "The WACOS Writers Club has launched \u201CThe Wairaka Voice,\u201D a new school magazine featuring original poetry, short fiction, essays, and investigative journalism produced entirely by students.",
+      "The 48-page inaugural issue includes a special feature on the school\u2019s 73-year history, interviews with alumni, and a investigative piece on water access in surrounding communities.",
+      "\u201CWe wanted to create something that captures the real WACOS experience,\u201D said editor-in-chief Catherine Nabwire, S6. \u201CNot just the achievements, but the daily life, the struggles, and the dreams of our students.\u201D",
+      "The magazine will be published termly, with copies distributed to students, staff, and alumni. Digital versions will be available on the school website.",
+    ],
+  },
+  {
+    slug: "old-students-reunion-2026",
+    title: "Old Students Reunion Brings Together Six Decades of WACOS Graduates",
+    date: "Jun 20, 2026",
+    category: "Alumni",
+    image: newsGraduation,
+    excerpt:
+      "Over 300 alumni from the 1960s to 2020s gathered at the school grounds for the annual reunion celebration.",
+    body: [
+      "More than 300 alumni spanning six decades returned to the Wairaka campus last weekend for the annual Old Students Reunion, celebrating the school\u2019s 73-year legacy.",
+      "The event featured speeches from head teacher Samuel Balikowa, Trust Fund Coordinator Moses Wamboga, and guest of honour Joshua Cheptegei, who encouraged current students to embrace the school motto.",
+      "\u201CWhen I sat in those classrooms, I never imagined I would stand here as an Olympic champion,\u201D Cheptegei told the gathering. \u201CBut the discipline I learned at WACOS made everything possible.\u201D",
+      "The reunion also saw the launch of the Trust Fund\u2019s new \u201CClass of 2026\u201D giving campaign, encouraging recent graduates to begin monthly contributions of UGX 10,000.",
+    ],
+  },
+  {
+    slug: "netball-team-inter-school-victory",
+    title: "Netball Team Triumphs in Inter-School Tournament",
+    date: "Jun 10, 2026",
+    category: "Athletics",
+    image: newsBasketball,
+    excerpt:
+      "The WACOS netball team defeated five schools to win the Jinja District Inter-School Netball Tournament.",
+    body: [
+      "The M.M College Wairaka netball team claimed victory at the Jinja District Inter-School Netball Tournament, defeating five schools in a commanding display of skill and teamwork.",
+      "Captain Grace Nambogo led from the front, scoring 12 goals in the final against Jinja College to secure a 35-28 victory.",
+      "\u201CWe trained every morning at 6am before classes,\u201D said coach Sarah Nakamya. \u201CThe girls showed incredible dedication and sportsmanship throughout the tournament.\u201D",
+      "The team will represent Jinja District at the Eastern Regional Netball Championships in September.",
+    ],
+  },
+  {
+    slug: "laboratory-renovation-update",
+    title: "Physics and Chemistry Laboratories Fully Renovated",
+    date: "May 28, 2026",
+    category: "Infrastructure",
+    image: newsAcademics,
+    excerpt:
+      "Alumni-funded renovations have transformed the science laboratories with new equipment and modern safety features.",
+    body: [
+      "The Physics and Chemistry laboratories at M.M College Wairaka have been fully renovated through the Trust Fund, bringing the facilities up to UNEB examination standards.",
+      "The renovation included new workbenches, safety equipment, chemical storage cabinets, and modern analytical instruments. The total investment was UGX 35 million, funded entirely by alumni contributions.",
+      "\u201CWhen I was a student here, we did experiments with broken equipment and makeshift tools,\u201D said alumni donor Patrick Isabirye. \u201CNow our children have proper facilities. That\u2019s progress.\u201D",
+      "The Biology laboratory renovation is scheduled for next term, with the Trust Fund seeking an additional UGX 20 million to complete the project.",
+    ],
+  },
+  {
+    slug: "entertainment-club-talent-show",
+    title: "Entertainment Club Hosts Sold-Out Talent Show \u201CWACOS Has Talent\u201D",
+    date: "May 15, 2026",
+    category: "Arts",
+    image: newsStudentLife,
+    excerpt:
+      "Over 500 students and parents packed the school hall for an evening of music, dance, comedy, and drama performances.",
+    body: [
+      "The WACOS Entertainment Club hosted its inaugural \u201CWACOS Has Talent\u201D show last Friday, with over 500 students and parents filling the school hall for an evening of extraordinary performances.",
+      "The show featured 18 acts ranging from traditional Busoga dance to contemporary music, stand-up comedy, and a dramatic interpretation of the school\u2019s founding story.",
+      "\u201CThis is what happens when you give students a stage,\u201D said club patron Mr. Wasswa. \u201CThey surprise you every time.\u201D",
+      "Winner Jennifer Akello, S4, performed a powerful spoken word piece about growing up in rural Uganda, earning a standing ovation from the audience.",
+    ],
+  },
+  {
+    slug: "current-affairs-mock-parliament",
+    title: "Current Affairs Club Hosts Mock Parliament Session",
+    date: "May 02, 2026",
+    category: "Academics",
+    image: newsAcademics,
+    excerpt:
+      "Students role-play as MPs debating education funding, healthcare, and youth employment in a simulated parliamentary session.",
+    body: [
+      "The WACOS Current Affairs Club hosted a mock parliament session last week, with students role-playing as Members of Parliament debating critical national issues including education funding, healthcare access, and youth employment.",
+      "The session, modelled after the real Parliament of Uganda, saw students argue passionately for and against motions on free education, universal healthcare, and job creation programmes.",
+      "\u201CUnderstanding how government works is essential for active citizenship,\u201D said club patron Mr. Mugisha. \u201CThese students are learning to think critically about the issues that affect their communities.\u201D",
+      "The best speaker, Patrick Ochieng of S5, was awarded a certificate and a copy of the Ugandan Constitution.",
     ],
   },
   {
