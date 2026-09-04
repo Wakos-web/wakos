@@ -1004,7 +1004,7 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
   const [selectedPage, setSelectedPage] = useState<string>("");
   const [editItem, setEditItem] = useState<any>(null);
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [contentFields, setContentFields] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const pageNames: Record<string, string> = {
@@ -1018,14 +1018,47 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
   const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
   const uniquePages = [...new Set(pages.map(p => p.page))];
 
-  const reset = () => { setTitle(""); setContent(""); setEditItem(null); };
+  // Flatten content object to string fields for editing
+  const flattenContent = (obj: any, prefix = ''): Record<string, string> => {
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(obj || {})) {
+      const fullKey = prefix ? `${prefix}.${key}` : key;
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        result[fullKey] = String(value);
+      } else if (Array.isArray(value)) {
+        result[fullKey] = value.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join('\n');
+      } else if (typeof value === 'object' && value !== null) {
+        Object.assign(result, flattenContent(value, fullKey));
+      }
+    }
+    return result;
+  };
+
+  const reset = () => { setTitle(""); setContentFields({}); setEditItem(null); };
 
   const save = async () => {
     if (!editItem) return;
     setSaving(true);
-    let contentJson;
-    try { contentJson = JSON.parse(content); } catch { setToast({ message: "Invalid JSON content", type: "error" }); setSaving(false); return; }
-    const { error } = await supabase.from("page_content").update({ title: title.trim(), content: contentJson }).eq("id", editItem.id);
+    // Reconstruct content from flat fields
+    const content: any = {};
+    for (const [key, value] of Object.entries(contentFields)) {
+      const parts = key.split('.');
+      let current = content;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!current[parts[i]]) current[parts[i]] = {};
+        current = current[parts[i]];
+      }
+      const lastKey = parts[parts.length - 1];
+      // Try to parse arrays/objects
+      if (value.includes('\n')) {
+        const lines = value.split('\n').filter(l => l.trim());
+        const parsed = lines.map(l => { try { return JSON.parse(l); } catch { return l; } });
+        current[lastKey] = parsed;
+      } else {
+        current[lastKey] = value;
+      }
+    }
+    const { error } = await supabase.from("page_content").update({ title: title.trim(), content }).eq("id", editItem.id);
     setSaving(false);
     if (error) { setToast({ message: error.message, type: "error" }); return; }
     setToast({ message: "Content updated", type: "success" });
@@ -1053,9 +1086,33 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
       </div>
       {editItem && (
         <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
-          <h4 className="font-display text-lg font-bold text-stone-900">Edit: {editItem.title}</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-display text-lg font-bold text-stone-900">Edit: {editItem.title}</h4>
+            <button onClick={reset} className="text-stone-400 hover:text-stone-600">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Section Title" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-          <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Content (JSON)" className="w-full p-3 border border-stone-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[200px]" />
+          <div className="space-y-3">
+            {Object.entries(contentFields).map(([key, value]) => (
+              <div key={key}>
+                <label className="block text-xs font-semibold text-stone-500 mb-1 capitalize">{key.replace(/[._]/g, ' ')}</label>
+                {value.includes('\n') || value.length > 100 ? (
+                  <textarea
+                    value={value}
+                    onChange={(e) => setContentFields(prev => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[100px]"
+                  />
+                ) : (
+                  <input
+                    value={value}
+                    onChange={(e) => setContentFields(prev => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
           <div className="flex gap-3">
             <button onClick={save} disabled={saving} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save"}</button>
             <button onClick={reset} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
@@ -1086,7 +1143,7 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
                   <button onClick={() => togglePublish(item.id, item.published)} className={`p-2.5 rounded-lg border transition-colors ${item.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={item.published ? "Hide" : "Publish"}>
                     {item.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
                   </button>
-                  <button onClick={() => { setEditItem(item); setTitle(item.title || ""); setContent(JSON.stringify(item.content, null, 2)); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                  <button onClick={() => { setEditItem(item); setTitle(item.title || ""); setContentFields(flattenContent(item.content)); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
                     <Settings className="h-4 w-4 text-blue-600" />
                   </button>
                 </div>
