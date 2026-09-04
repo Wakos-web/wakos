@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { IMAGES } from "@/lib/content";
@@ -367,12 +367,9 @@ function CTASection() {
 }
 
 function AlumniPage() {
-  return (
-    <>
-      <AlumniPulsePage />
-      <Outlet />
-    </>
-  );
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isIndex = pathname === "/alumni";
+  return isIndex ? <AlumniPulsePage /> : <Outlet />;
 }
 
 function AlumniPulsePage() {
