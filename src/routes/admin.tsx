@@ -1190,21 +1190,31 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
   );
 }
 
-function SubmissionsList({ title, icon: Icon, data, columns, onRefresh, setToast }: { title: string; icon: any; data: any[]; columns: { key: string; label: string }[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, setToast }: { title: string; icon: any; data: any[]; columns: { key: string; label: string }[]; table: string; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [filter, setFilter] = useState("all");
+  const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
   const filtered = filter === "all" ? data : data.filter((d: any) => d.status === filter);
 
-  const updateStatus = async (id: string, status: string, table: string) => {
-    await supabase.from(table).update({ status }).eq("id", id);
-    setToast({ message: `Status updated to ${status}`, type: "success" });
-    onRefresh();
-  };
-
-  const remove = async (id: string, table: string) => {
+  const remove = async (id: string) => {
     if (!confirm("Delete this submission?")) return;
     await supabase.from(table).delete().eq("id", id);
     setToast({ message: "Deleted", type: "success" });
     onRefresh();
+  };
+
+  const openReview = (item: any) => {
+    const details: Record<string, any> = {};
+    columns.forEach(col => { details[col.key] = item[col.key]; });
+    setReviewItem({
+      id: item.id,
+      title: item[columns[0]?.key] || title,
+      author: item[columns[1]?.key] || item.student_name || item.mentor_name || item.donor_name || "",
+      content: item.reason || item.message || item.purpose || item.experience || item.achievement || "",
+      details,
+      approved: item.status === "approved",
+      rejected_notes: item.rejected_notes,
+      table
+    });
   };
 
   return (
@@ -1236,21 +1246,24 @@ function SubmissionsList({ title, icon: Icon, data, columns, onRefresh, setToast
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.status === "approved" ? "bg-green-100 text-green-800" : item.status === "rejected" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>{item.status}</span>
                     <span className="text-xs text-stone-400">{new Date(item.created_at).toLocaleDateString()}</span>
                   </div>
-                  {columns.map(col => (
+                  {columns.slice(0, 3).map(col => (
                     <p key={col.key} className="text-sm text-stone-600"><span className="font-medium text-stone-900">{col.label}:</span> {item[col.key] || "-"}</p>
                   ))}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {item.status === "pending" && (
-                    <button onClick={() => updateStatus(item.id, "approved", title.toLowerCase().replace(/ /g, "_"))} className="p-2 rounded-lg hover:bg-green-100 border border-green-200" title="Approve"><Check className="h-4 w-4 text-green-600" /></button>
-                  )}
-                  <button onClick={() => remove(item.id, title.toLowerCase().replace(/ /g, "_"))} className="p-2 rounded-lg hover:bg-red-100 border border-red-200" title="Delete"><Trash2 className="h-4 w-4 text-red-400" /></button>
+                  <button onClick={() => openReview(item)} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
+                    <Eye className="h-4 w-4 text-blue-600" />
+                  </button>
+                  <button onClick={() => remove(item.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
     </div>
   );
 }
@@ -1415,10 +1428,10 @@ function AdminPage() {
             {tab === "articles" && <ArticlesTab articles={articles} onRefresh={fetchData} setToast={setToast} />}
             {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} setToast={setToast} />}
             {tab === "pages" && <PagesTab pages={pageContent} onRefresh={fetchData} setToast={setToast} />}
-            {tab === "applications" && <SubmissionsList title="Club Applications" icon={Users} data={applications} columns={[{ key: "club_name", label: "Club" }, { key: "student_name", label: "Student" }, { key: "class_level", label: "Class" }, { key: "reason", label: "Reason" }]} onRefresh={fetchData} setToast={setToast} />}
-            {tab === "mentorship" && <SubmissionsList title="Mentorship Requests" icon={Heart} data={mentorship} columns={[{ key: "mentor_name", label: "Name" }, { key: "mentor_email", label: "Email" }, { key: "club_interest", label: "Club" }, { key: "graduation_year", label: "Class Of" }, { key: "expertise", label: "Expertise" }]} onRefresh={fetchData} setToast={setToast} />}
-            {tab === "donations" && <SubmissionsList title="Donations" icon={Heart} data={donations} columns={[{ key: "donor_name", label: "Donor" }, { key: "amount", label: "Amount" }, { key: "donation_type", label: "Type" }, { key: "purpose", label: "Purpose" }]} onRefresh={fetchData} setToast={setToast} />}
-            {tab === "scholarships" && <SubmissionsList title="Sports Scholarships" icon={GraduationCap} data={scholarships} columns={[{ key: "student_name", label: "Student" }, { key: "parent_name", label: "Parent" }, { key: "phone", label: "Phone" }, { key: "sport", label: "Sport" }, { key: "achievement", label: "Achievement" }]} onRefresh={fetchData} setToast={setToast} />}
+            {tab === "applications" && <SubmissionsList title="Club Applications" icon={Users} data={applications} columns={[{ key: "club_name", label: "Club" }, { key: "student_name", label: "Student" }, { key: "class_level", label: "Class" }, { key: "reason", label: "Reason" }]} table="club_applications" onRefresh={fetchData} setToast={setToast} />}
+            {tab === "mentorship" && <SubmissionsList title="Mentorship Requests" icon={Heart} data={mentorship} columns={[{ key: "mentor_name", label: "Name" }, { key: "mentor_email", label: "Email" }, { key: "club_interest", label: "Club" }, { key: "graduation_year", label: "Class Of" }, { key: "expertise", label: "Expertise" }]} table="mentorship_requests" onRefresh={fetchData} setToast={setToast} />}
+            {tab === "donations" && <SubmissionsList title="Donations" icon={Heart} data={donations} columns={[{ key: "donor_name", label: "Donor" }, { key: "amount", label: "Amount" }, { key: "donation_type", label: "Type" }, { key: "purpose", label: "Purpose" }]} table="donations" onRefresh={fetchData} setToast={setToast} />}
+            {tab === "scholarships" && <SubmissionsList title="Sports Scholarships" icon={GraduationCap} data={scholarships} columns={[{ key: "student_name", label: "Student" }, { key: "parent_name", label: "Parent" }, { key: "phone", label: "Phone" }, { key: "sport", label: "Sport" }, { key: "achievement", label: "Achievement" }]} table="sports_scholarships" onRefresh={fetchData} setToast={setToast} />}
             {tab === "settings" && <SettingsTab />}
           </>
         )}
