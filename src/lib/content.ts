@@ -28,7 +28,14 @@ export const IMAGES = {
 };
 
 export const NAV_ITEMS = [
-  { label: "About", to: "/about" },
+  { label: "About", to: "/about", children: [
+    { label: "Overview", to: "/about" },
+    { label: "Our Identity", to: "/about#identity" },
+    { label: "Mission", to: "/about#mission" },
+    { label: "History", to: "/about#history" },
+    { label: "Core Values", to: "/about#values" },
+    { label: "Facilities", to: "/about#facilities" },
+  ] },
   { label: "Academics", to: "/academics", children: [
     { label: "Overview", to: "/academics" },
     { label: "O-Level", to: "/academics#olevel" },
