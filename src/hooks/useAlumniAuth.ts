@@ -13,6 +13,11 @@ export type AlumniProfile = {
   company: string | null;
   bio: string | null;
   avatar_url: string | null;
+  website: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  instagram_url: string | null;
+  email: string | null;
   is_public: boolean;
   approved: boolean;
 };

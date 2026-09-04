@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 
 
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
-import { Search, MapPin, Briefcase, Plus, Building2 } from "lucide-react";
+import { Search, MapPin, Briefcase, Plus, Building2, Globe, Mail, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/alumni/directory")({
   head: () => ({
@@ -150,14 +150,14 @@ function DirectoryContent() {
                     className="group rounded-2xl bg-white border border-stone-200 p-6 hover:border-green-800 hover:shadow-md transition-all"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                      <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
                         {person.avatar_url ? (
-                          <img src={person.avatar_url} alt={person.full_name} className="w-12 h-12 rounded-full object-cover" />
+                          <img src={person.avatar_url} alt={person.full_name} className="w-16 h-16 rounded-2xl object-cover" />
                         ) : (
-                          <span className="text-lg font-bold text-green-800">{person.full_name.charAt(0)}</span>
+                          <span className="text-2xl font-bold text-green-800">{person.full_name.charAt(0)}</span>
                         )}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <h3 className="font-display text-lg font-bold text-stone-900 group-hover:text-green-800 transition-colors truncate">
                           {person.full_name}
                         </h3>
@@ -175,6 +175,35 @@ function DirectoryContent() {
                           </p>
                         )}
                       </div>
+                    </div>
+                    {person.bio && (
+                      <p className="text-sm text-stone-600 mt-4 font-body leading-relaxed line-clamp-2">{person.bio}</p>
+                    )}
+                    <div className="mt-3 pt-3 border-t border-stone-100 flex items-center gap-2 flex-wrap">
+                      {person.website && (
+                        <a href={person.website} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-green-800 bg-green-50 px-2 py-1 rounded-full hover:bg-green-100 transition-colors">
+                          <Globe className="h-3 w-3" /> Website
+                        </a>
+                      )}
+                      {person.linkedin_url && (
+                        <a href={person.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 transition-colors">
+                          <ExternalLink className="h-3 w-3" /> LinkedIn
+                        </a>
+                      )}
+                      {person.twitter_url && (
+                        <a href={person.twitter_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-1 rounded-full hover:bg-sky-100 transition-colors">
+                          <ExternalLink className="h-3 w-3" /> Twitter
+                        </a>
+                      )}
+                      {person.email && (
+                        <a href={`mailto:${person.email}`} onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-stone-600 bg-stone-100 px-2 py-1 rounded-full hover:bg-stone-200 transition-colors">
+                          <Mail className="h-3 w-3" /> Email
+                        </a>
+                      )}
                     </div>
                   </Link>
                 ))}
