@@ -225,7 +225,7 @@ function NewsSection() {
         {ARTICLES.map((article) => (
           <Link
             key={article.slug}
-            to="/news/$slug"
+            to="/campus-stores/$slug"
             params={{ slug: article.slug }}
             className="group"
           >
