@@ -7,6 +7,12 @@ import studentLifeImg from '@/assets/student-life.jpg';
 import academicsImg from '@/assets/academics.jpg';
 import newsServiceImg from '@/assets/news-service.jpg';
 import givingImg from '@/assets/giving.jpg';
+import newsRoboticsImg from '@/assets/news-robotics.jpg';
+import newsBasketballImg from '@/assets/news-basketball.jpg';
+import newsGraduationImg from '@/assets/news-graduation.jpg';
+import heroImg from '@/assets/hero.jpg';
+
+const AVATARS = [campusImg, athleticsImg, studentLifeImg, academicsImg, newsServiceImg, givingImg, newsRoboticsImg, newsBasketballImg, newsGraduationImg, heroImg];
 
 type Person = { name: string; role: string; year?: string; joined?: string; img?: string };
 
@@ -293,13 +299,18 @@ function AnimatedNumber({ target, suffix = '' }: { target: number; suffix?: stri
   }, [visible, target]);
 
   return <span ref={ref}>{count}{suffix}</span>;
+}function getAvatar(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  return AVATARS[Math.abs(hash) % AVATARS.length];
 }
 
 function MemberAvatar({ person, size = 'md' }: { person: Person; size?: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'w-10 h-10 text-xs' : 'w-14 h-14 text-sm';
+  const img = person.img || getAvatar(person.name);
   return (
-    <div className={`${sizeClass} rounded-full bg-green-100 flex items-center justify-center shrink-0 ring-2 ring-white shadow-sm`}>
-      <span className='font-bold text-green-800'>{person.name.split(' ').map(n => n[0]).join('')}</span>
+    <div className={`${sizeClass} rounded-full overflow-hidden shrink-0 ring-2 ring-white shadow-sm`}>
+      <img src={img} alt={person.name} className='w-full h-full object-cover' loading='lazy' />
     </div>
   );
 }
