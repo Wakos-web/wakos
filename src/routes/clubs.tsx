@@ -185,11 +185,43 @@ function StudentVoices() {
 
 function CTASection() {
   return (
-    <section className='bg-green-900 py-16'>
-      <div className='max-w-4xl mx-auto px-6 text-center'>
-        <h2 className='font-display text-3xl md:text-4xl text-white font-bold mb-4'>Find your club</h2>
-        <p className='text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body'>Join a club, lead a project, and discover what you are capable of.</p>
-        <a href='/admissions' className='inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors'>Apply Now</a>
+    <section className='py-20'>
+      <div className='max-w-6xl mx-auto px-6 space-y-8'>
+        {/* Tier 1: Student Recruitment */}
+        <div className='rounded-3xl bg-green-900 p-10 md:p-14 flex flex-col md:flex-row items-center gap-8'>
+          <div className='flex-1'>
+            <span className='inline-block text-xs font-semibold uppercase tracking-wider text-green-300 bg-green-800 px-3 py-1 rounded-full mb-4'>For Prospective Students</span>
+            <h2 className='font-display text-3xl md:text-4xl text-white font-bold mb-4'>Want to lead? Start here.</h2>
+            <p className='text-white/70 text-lg font-body max-w-xl'>At Wairaka, you do not wait until university to lead. You elect leaders in Form 1. You plan events in Form 2. You run clubs in Form 3. By the time you leave, you have already managed a team, a budget, and a project. That is not extra. That is Wairaka.</p>
+          </div>
+          <div className='shrink-0'>
+            <a href='/admissions' className='inline-flex items-center gap-2 bg-white text-green-900 px-10 py-5 rounded-full font-bold text-lg hover:bg-stone-100 transition-colors shadow-lg'>Apply Now</a>
+          </div>
+        </div>
+
+        {/* Tier 2: Alumni Mentorship */}
+        <div className='rounded-3xl bg-white border-2 border-green-800 p-10 md:p-14 flex flex-col md:flex-row items-center gap-8'>
+          <div className='flex-1'>
+            <span className='inline-block text-xs font-semibold uppercase tracking-wider text-green-800 bg-green-100 px-3 py-1 rounded-full mb-4'>For Alumni</span>
+            <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold mb-4'>Your club shaped you. Come back and shape the next generation.</h2>
+            <p className='text-stone-600 text-lg font-body max-w-xl'>The Wildlife Club needs a conservationist. The Debate Club needs a lawyer. The Red Cross Club needs a nurse. Your club needs you. Volunteer as a mentor. Visit once a term. Coach a team. The students are waiting for someone who has been where they are.</p>
+          </div>
+          <div className='shrink-0'>
+            <a href='/contact' className='inline-flex items-center gap-2 bg-green-900 text-white px-10 py-5 rounded-full font-bold text-lg hover:bg-green-800 transition-colors shadow-lg'>Become a Mentor</a>
+          </div>
+        </div>
+
+        {/* Tier 3: Sponsorship */}
+        <div className='rounded-3xl bg-stone-50 border border-stone-200 p-10 md:p-14 flex flex-col md:flex-row items-center gap-8'>
+          <div className='flex-1'>
+            <span className='inline-block text-xs font-semibold uppercase tracking-wider text-amber-700 bg-amber-100 px-3 py-1 rounded-full mb-4'>Sponsorship</span>
+            <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold mb-4'>Fund the next generation of leaders.</h2>
+            <p className='text-stone-600 text-lg font-body max-w-xl'>Every club activity costs money. Transport to competitions. Equipment for training. Materials for projects. Your sponsorship puts a student on the pitch, in the lab, on the stage. Name a club activity. Fund a competition trip. Sponsor a scholarship athlete. Your contribution has a name and a result.</p>
+          </div>
+          <div className='shrink-0'>
+            <a href='/giving' className='inline-flex items-center gap-2 bg-amber-600 text-white px-10 py-5 rounded-full font-bold text-lg hover:bg-amber-700 transition-colors shadow-lg'>Sponsor a Club</a>
+          </div>
+        </div>
       </div>
     </section>
   );
