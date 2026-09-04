@@ -3,7 +3,7 @@ import { IMAGES, SCHOOL_NAME } from '@/lib/content';
 
 export const Route = createFileRoute('/alumni')({
   head: () => ({
-    meta: [{ title: 'Alumni — M.M College Wairaka' },{ name: 'description', content: 'Reconnect with WACOS. MMCWOSA, the Trust Fund, and 73 years of alumni who keep the college alive.' }],
+    meta: [{ title: 'Alumni ,  M.M College Wairaka' },{ name: 'description', content: 'Reconnect with WACOS. MMCWOSA, the Trust Fund, and 73 years of alumni who keep the college alive.' }],
     links: [{ rel: 'canonical', href: '/alumni' }],
   }),
   component: AlumniPage,
@@ -89,7 +89,7 @@ function FeaturedAlumni() {
           <div>
             <p className='text-sm font-semibold text-green-800 uppercase tracking-widest mb-3'>Alumni Association</p>
             <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold mb-6'>MMCWOSA</h2>
-            <p className='text-stone-600 text-lg leading-relaxed font-body mb-4'>MMCWOSA is more than an alumni association. It is the engine behind the college revival. When the labs needed renovation, alumni did it. When students needed bursaries, alumni funded them. This is what "We Do It Ourselves" means — even after you leave.</p>
+            <p className='text-stone-600 text-lg leading-relaxed font-body mb-4'>MMCWOSA is more than an alumni association. It is the engine behind the college revival. When the labs needed renovation, alumni did it. When students needed bursaries, alumni funded them. This is what "We Do It Ourselves" means ,  even after you leave.</p>
             <p className='text-stone-600 text-lg leading-relaxed font-body mb-4'>Every October, old students return to Wairaka. They encourage current students, reconnect with staff, and prove that the WACOS bond does not expire. Will you be there this year?</p>
             <p className='text-stone-600 text-lg leading-relaxed font-body'>MMCWOSA also created the Wairaka Business Directory, a marketing platform where former students can market their products, services, and businesses to one another and the wider public.</p>
           </div>
@@ -121,7 +121,7 @@ function FeaturedAlumni() {
           <div className='order-1 lg:order-2'>
             <p className='text-sm font-semibold text-green-800 uppercase tracking-widest mb-3'>Support Wairaka</p>
             <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold mb-6'>Wairaka Trust Fund</h2>
-            <p className='text-stone-600 text-lg leading-relaxed font-body mb-4'>Launched in 2020, the Wairaka Trust Fund was created because alumni refused to let their school deteriorate. The minimum contribution is UGX 10,000 per month — less than a phone bill. Already, the fund has renovated two laboratories. Your contribution continues the work.</p>
+            <p className='text-stone-600 text-lg leading-relaxed font-body mb-4'>Launched in 2020, the Wairaka Trust Fund was created because alumni refused to let their school deteriorate. The minimum contribution is UGX 10,000 per month ,  less than a phone bill. Already, the fund has renovated two laboratories. Your contribution continues the work.</p>
             <p className='text-stone-600 text-lg leading-relaxed font-body mb-4'>The fund has already supported the renovation of the Physics Laboratory, Chemistry Laboratory, and student washrooms. Every contribution goes directly to rebuilding the college.</p>
             <div className='grid grid-cols-3 gap-4 mt-8'>
               <div className='rounded-xl bg-stone-50 border border-stone-200 p-4 text-center'>
@@ -154,7 +154,7 @@ function FeaturedAlumni() {
           <div className="rounded-2xl bg-white p-8 border border-stone-200">
             <p className="text-xs font-semibold text-green-800 uppercase tracking-wider mb-2">Annual</p>
             <h3 className="font-display text-xl font-bold text-stone-900 mb-3">Alumni Homecoming</h3>
-            <p className="text-stone-600 font-body leading-relaxed">Every October, the gates open and old students come home. This is not just a reunion — it is a reminder of what WACOS gave you and what you can give back.</p>
+            <p className="text-stone-600 font-body leading-relaxed">Every October, the gates open and old students come home. This is not just a reunion ,  it is a reminder of what WACOS gave you and what you can give back.</p>
             <p className="text-sm text-stone-400 mt-4">October annually</p>
           </div>
           <div className="rounded-2xl bg-white p-8 border border-stone-200">
@@ -187,7 +187,7 @@ function CTASection() {
     <section className="bg-green-900 py-20">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Stay Connected</h2>
-        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">The school you attended is being rebuilt — by alumni who remember what it gave them. Join MMCWOSA, contribute to the Trust Fund, and help rebuild the college that made you who you are.</p>
+        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">The school you attended is being rebuilt ,  by alumni who remember what it gave them. Join MMCWOSA, contribute to the Trust Fund, and help rebuild the college that made you who you are.</p>
         <div className="flex flex-wrap justify-center gap-4">
           <a href="/giving" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">Support Wairaka</a>
           <a href="/contact" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Contact Us</a>

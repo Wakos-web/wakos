@@ -18,7 +18,7 @@ import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS } from "@/lib/content"
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "M.M College Wairaka — Where Your Child Becomes Someone" },
+      { title: "M.M College Wairaka ,  Where Your Child Becomes Someone" },
       {
         name: "description",
         content:
@@ -261,8 +261,8 @@ function MissionSection() {
             An education earned, not purchased
           </h2>
           <p className="mt-6 leading-relaxed text-muted-foreground">
-            Founded in 1953 on a single conviction — that discipline, hard work,
-            and self-reliance are the foundations of greatness — M.M College Wairaka
+            Founded in 1953 on a single conviction ,  that discipline, hard work,
+            and self-reliance are the foundations of greatness ,  M.M College Wairaka
             has grown to serve over 1,800 students from 58 districts across Uganda,
             with a reputation for academic excellence and practical skills development.
           </p>

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/campus-stores/$slug")({
     if (!loaderData) return { meta: [{ title: "Story unavailable" }] };
     const { article } = loaderData;
     return {
-      meta: [{ title: article.title + " — Campus Stores" },{ name: "description", content: article.excerpt }],
+      meta: [{ title: article.title + " ,  Campus Stores" },{ name: "description", content: article.excerpt }],
       links: [{ rel: "canonical", href: "/campus-stores/" + params.slug }],
     };
   },

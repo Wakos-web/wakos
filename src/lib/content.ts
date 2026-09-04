@@ -13,7 +13,7 @@ export const SCHOOL_NAME = "M.M College Wairaka";
 export const SCHOOL_SHORT = "WACOS";
 export const SCHOOL_MOTTO = "We Do It Ourselves";
 export const SCHOOL_TAGLINE =
-  "Where your child becomes someone — since 1953";
+  "Where your child becomes someone ,  since 1953";
 export const LOGO_URL = "/wacos-logo.png";
 export const HERO_VIDEO = "/hero-video.mp4";
 export const HERO_POSTER = "/hero-poster.png";
@@ -67,7 +67,7 @@ export const STATS = [
   {
     icon: "graduation-cap",
     value: "73",
-    label: "years of proven results — your child is next",
+    label: "years of proven results ,  your child is next",
   },
   {
     icon: "badge-check",
@@ -85,7 +85,7 @@ export const CLUBS = [
   { slug: "writers", name: "Writers Club", tagline: "Write. Read. Share.", desc: "The Writers Club nurtures a love of language. Members write poetry, short stories, essays, and journalism. The club produces the school magazine and provides a platform for students to find their voice through the written word.", activities: ["School magazine production", "Creative writing workshops", "Poetry slams and open mic events", "Journalism and reporting"], img: "IMAGES.studentLife" },
   { slug: "red-cross", name: "Red Cross Club", tagline: "Care. Respond. Serve.", desc: "The Red Cross Club teaches students the principles of humanitarian service. Members learn first aid, disaster preparedness, and health education. The club organises blood drives, health camps, and community outreach programmes that directly serve the Wairaka community.", activities: ["First aid training and certification", "Blood donation drives", "Health education campaigns", "Disaster preparedness workshops"], img: "IMAGES.giving" },
   { slug: 'entertainment', name: 'Entertainment Club', tagline: 'Perform. Inspire. Entertain.', desc: 'The Entertainment Club is where talent meets stage. Members organise talent shows, music performances, comedy nights, and cultural events. The club gives students a platform to express themselves, build confidence, and entertain the school community.', activities: ['Talent shows and open mic nights', 'Music and dance performances', 'Comedy and drama sketches', 'Event planning and MC duties'], img: 'IMAGES.studentLife' },
-  { slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.', desc: 'The Home Science Club teaches practical life skills — cooking, nutrition, textiles, and household management. Members learn to prepare nutritious meals, sew and mend clothing, and understand the science behind everyday domestic life. The club connects classroom learning to real-world self-reliance.', activities: ['Cooking and nutrition workshops', 'Textile and fashion design', 'Food preservation techniques', 'Health and hygiene education'], img: 'IMAGES.campus' },
+  { slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.', desc: 'The Home Science Club teaches practical life skills ,  cooking, nutrition, textiles, and household management. Members learn to prepare nutritious meals, sew and mend clothing, and understand the science behind everyday domestic life. The club connects classroom learning to real-world self-reliance.', activities: ['Cooking and nutrition workshops', 'Textile and fashion design', 'Food preservation techniques', 'Health and hygiene education'], img: 'IMAGES.campus' },
   { slug: 'current-affairs', name: 'Current Affairs Club', tagline: 'Read. Discuss. Understand.', desc: 'The Current Affairs Club keeps students informed about national and global events. Members discuss politics, economics, science, and social issues. The club builds informed citizens who can think critically about the world around them.', activities: ['Weekly news discussion sessions', 'Mock parliament and governance simulations', 'Guest speakers and panels', 'Model African Union and UN programmes'], img: 'IMAGES.academics' }
 ];
 

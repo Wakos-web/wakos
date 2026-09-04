@@ -3,14 +3,14 @@ import { IMAGES, SCHOOL_NAME } from "@/lib/content";
 
 export const Route = createFileRoute("/giving")({
   head: () => ({
-    meta: [{ title: "Giving — M.M College Wairaka" },{ name: "description", content: "Support M.M College Wairaka. From UGX 10,000/month. Fund bursaries, laboratories, and student futures." }],
+    meta: [{ title: "Giving ,  M.M College Wairaka" },{ name: "description", content: "Support M.M College Wairaka. From UGX 10,000/month. Fund bursaries, laboratories, and student futures." }],
     links: [{ rel: "canonical", href: "/giving" }],
   }),
   component: GivingPage,
 });
 
 const WAYS = [
-  { title: "Trust Fund Contribution", desc: "UGX 10,000 per month — less than a mobile phone bill — funds laboratory renovation, dormitory repair, and student bursaries. Join the Trust Fund and see exactly where your money goes.", tag: "Monthly" },
+  { title: "Trust Fund Contribution", desc: "UGX 10,000 per month ,  less than a mobile phone bill ,  funds laboratory renovation, dormitory repair, and student bursaries. Join the Trust Fund and see exactly where your money goes.", tag: "Monthly" },
   { title: "Bursary Support", desc: "Fund a bright student future. Bursaries are awarded competitively at the end of each term based on exam results. Last year, alumni-funded bursaries supported 211 students through fees and boarding.", tag: "Per Student" },
   { title: "Laboratory Renovation", desc: "Help equip and maintain the Physics, Chemistry, and Biology laboratories. The alumni have already renovated two labs through the Trust Fund.", tag: "Project" },
   { title: "Infrastructure Projects", desc: "Contribute to dormitory rehabilitation, classroom renovation, and the ongoing asbestos removal programme. Your name can be on a laboratory, a classroom, a future.", tag: "Capital" },

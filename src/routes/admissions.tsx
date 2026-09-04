@@ -3,14 +3,14 @@ import { IMAGES, SCHOOL_NAME } from "@/lib/content";
 
 export const Route = createFileRoute("/admissions")({
   head: () => ({
-    meta: [{ title: "Admissions — M.M College Wairaka" },{ name: "description", content: "Admission opens every term at M.M College Wairaka. Bursaries for bright students. No entrance exams. Government-aided boarding school in Jinja." }],
+    meta: [{ title: "Admissions ,  M.M College Wairaka" },{ name: "description", content: "Admission opens every term at M.M College Wairaka. Bursaries for bright students. No entrance exams. Government-aided boarding school in Jinja." }],
     links: [{ rel: "canonical", href: "/admissions" }],
   }),
   component: AdmissionsPage,
 });
 
 const STEPS = [
-  { num: "01", title: "Inquire", desc: "Fill out the inquiry form below or visit the college. Our admissions team will guide you through every step. No entrance exams — just a conversation about your child future." },
+  { num: "01", title: "Inquire", desc: "Fill out the inquiry form below or visit the college. Our admissions team will guide you through every step. No entrance exams ,  just a conversation about your child future." },
   { num: "02", title: "Apply", desc: "Submit your application with a recommendation or pass slip from your previous school, two plastic folders, and the admission letter from the college." },
   { num: "03", title: "Review", desc: "The college reviews your application and school report. Admission is based on merit and available places. We look at character, not just marks." },
   { num: "04", title: "Enrol", desc: "Welcome to WACOS. Your child receives their admission letter and joins a community of 1,840 students who chose to earn their future. Bring your uniform: black trousers and white shirt for boys, caribbean black skirt and white shirt for girls." },
@@ -55,7 +55,7 @@ const FAQ = [
         <div className="text-center mb-12">
           <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">How to Apply</p>
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Four steps to enrolment</h2>
-          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Places fill quickly each term. Contact the college early to secure your child place. The process is simple — four steps to a transformed future.</p>
+          <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Places fill quickly each term. Contact the college early to secure your child place. The process is simple ,  four steps to a transformed future.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {STEPS.map((step) => (
@@ -184,7 +184,7 @@ function CTASection() {
     <section className="bg-green-900 py-16">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Ready to begin?</h2>
-        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Every term, more families choose WACOS. Places are limited. Contact the college or fill out the inquiry form above — your child future starts here.</p>
+        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">Every term, more families choose WACOS. Places are limited. Contact the college or fill out the inquiry form above ,  your child future starts here.</p>
         <div className="flex flex-wrap justify-center gap-4">
           <a href="#inquire" className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">Inquire Now</a>
           <a href="/contact" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Contact Us</a>

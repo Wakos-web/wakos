@@ -3,7 +3,7 @@ import { ARTICLES, IMAGES } from "@/lib/content";
 
 export const Route = createFileRoute("/campus-stores/")({
   head: () => ({
-    meta: [{ title: "Campus Stores — M.M College Wairaka" },{ name: "description", content: "The latest news, stories, and updates from M.M College Wairaka." }],
+    meta: [{ title: "Campus Stores ,  M.M College Wairaka" },{ name: "description", content: "The latest news, stories, and updates from M.M College Wairaka." }],
     links: [{ rel: "canonical", href: "/campus-stores" }],
   }),
   component: CampusStoresPage,
