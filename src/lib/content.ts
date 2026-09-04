@@ -99,6 +99,7 @@ export const NAV_ITEMS = [
 export const MORE_ITEMS = [
   { label: "Calendar", to: "/calendar" },
   { label: "Contact", to: "/contact" },
+  { label: "Admin", to: "/admin" },
 ] as const;
 
 export const STATS = [
