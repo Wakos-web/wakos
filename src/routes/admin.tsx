@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -94,12 +94,16 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
   const resetMember = () => { setMemberName(""); setMemberRole("Member"); setMemberYear(""); setMemberJoined(""); setShowAddMember(null); };
 
   const saveClub = async () => {
+    const trimmedName = name.trim();
+    const trimmedSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+    if (!trimmedName || !trimmedSlug) { setToast({ message: "Name and slug are required", type: "error" }); return; }
     setSaving(true);
     if (editClub) {
-      await supabase.from("clubs").update({ name, slug, tagline, overview }).eq("id", editClub.id);
+      await supabase.from("clubs").update({ name: trimmedName, slug: trimmedSlug, tagline: tagline.trim(), overview: overview.trim() }).eq("id", editClub.id);
     } else {
-      await supabase.from("clubs").insert({ name, slug, tagline, overview, members_count: 0, events_count: 0, years_active: 0, alumni_count: 0 });
+      await supabase.from("clubs").insert({ name: trimmedName, slug: trimmedSlug, tagline: tagline.trim(), overview: overview.trim(), members_count: 0, events_count: 0, years_active: 0, alumni_count: 0 });
     }
+    setToast({ message: editClub ? "Club updated" : "Club created", type: "success" });
     resetClub(); setSaving(false); onRefresh();
   };
 
@@ -112,8 +116,11 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
   };
 
   const saveMember = async (clubId: string) => {
+    const trimmedName = memberName.trim();
+    if (!trimmedName) { setToast({ message: "Member name is required", type: "error" }); return; }
     setSaving(true);
-    await supabase.from("club_members").insert({ club_id: clubId, name: memberName, role: memberRole, year: memberYear || null, joined: memberJoined || null, sort_order: memberRole === "Patron" ? 0 : memberRole === "Member" ? 2 : 1 });
+    await supabase.from("club_members").insert({ club_id: clubId, name: trimmedName, role: memberRole, year: memberYear?.trim() || null, joined: memberJoined?.trim() || null, sort_order: memberRole === "Patron" ? 0 : memberRole === "Member" ? 2 : 1 });
+    setToast({ message: "Member added", type: "success" });
     resetMember(); setSaving(false); onRefresh();
   };
 
@@ -244,8 +251,11 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
     onRefresh();
   };
   const create = async () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { setToast({ message: "Event title is required", type: "error" }); return; }
     setSaving(true);
-    await supabase.from("events").insert({ title, description: description || null, event_date: eventDate || null, location: location || null, category, approved: true });
+    await supabase.from("events").insert({ title: trimmedTitle, description: description?.trim() || null, event_date: eventDate || null, location: location?.trim() || null, category, approved: true });
+    setToast({ message: "Event created", type: "success" });
     setTitle(""); setDescription(""); setEventDate(""); setLocation(""); setShowAdd(false); setSaving(false); onRefresh();
   };
 
@@ -684,6 +694,8 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
 }
 
 function AdminPage() {
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
   const [clubs, setClubs] = useState<any[]>([]);
@@ -693,6 +705,13 @@ function AdminPage() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [alumni, setAlumni] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsAuthed(!!data.user);
+      setAuthLoading(false);
+    }).catch(() => setAuthLoading(false));
+  }, []);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -749,6 +768,28 @@ function AdminPage() {
     { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses },
     { key: "settings", label: "Site Settings", icon: Settings },
   ];
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!isAuthed) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="font-display text-3xl font-bold text-stone-900 mb-4">Admin Access Required</h1>
+          <p className="text-stone-500 mb-6">Please sign in to access the admin dashboard.</p>
+          <Link to="/alumni/directory/login" className="inline-flex items-center gap-2 bg-green-800 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-900 transition-colors">
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50">
