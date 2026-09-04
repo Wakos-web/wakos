@@ -4,42 +4,76 @@ import { supabase } from "@/lib/supabase";
 import { ARTICLES } from "@/lib/content";
 
 export const Route = createFileRoute("/campus-news/$slug")({
-  loader: async ({ params }) => {
-    // Try Supabase first - only show published articles
-    const { data } = await supabase
-      .from("articles")
-      .select("*")
-      .eq("slug", params.slug)
-      .eq("published", true)
-      .single();
-    
-    if (data) return { article: data };
-    
-    // Fallback to static articles
-    const staticArticle = ARTICLES.find((a) => a.slug === params.slug);
-    if (staticArticle) return { article: staticArticle };
-    
-    throw notFound();
-  },
-  head: ({ loaderData, params }) => {
-    if (!loaderData) return { meta: [{ title: "Story unavailable" }] };
-    const { article } = loaderData;
+  head: ({ params }) => {
     return {
-      meta: [{ title: article.title + " ,  Campus News" },{ name: "description", content: article.excerpt }],
+      meta: [{ title: "Campus News — M.M College Wairaka" }],
       links: [{ rel: "canonical", href: "/campus-news/" + params.slug }],
     };
   },
   component: ArticlePage,
-  notFoundComponent: () => (
-    <main className="mx-auto max-w-3xl px-6 py-40 text-center">
-      <h1 className="font-display text-4xl font-bold text-stone-900">Story not found</h1>
-      <Link to="/campus-news" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-green-800 hover:underline">Back to Campus News</Link>
-    </main>
-  ),
 });
 
 function ArticlePage() {
-  const { article } = Route.useLoaderData();
+  const { slug } = Route.useParams();
+  const [article, setArticle] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFoundState, setNotFound] = useState(false);
+
+  useEffect(() => {
+    const fetchArticle = async () => {
+      // Try Supabase first
+      const { data } = await supabase
+        .from("articles")
+        .select("*")
+        .eq("slug", slug)
+        .eq("published", true)
+        .single();
+
+      if (data) {
+        setArticle(data);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback to static articles
+      const staticArticle = ARTICLES.find((a) => a.slug === slug);
+      if (staticArticle) {
+        setArticle(staticArticle);
+        setLoading(false);
+        return;
+      }
+
+      setNotFound(true);
+      setLoading(false);
+    };
+    fetchArticle();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-stone-50">
+        <div className="animate-pulse">
+          <div className="h-[50vh] bg-stone-200" />
+          <div className="max-w-3xl mx-auto px-6 py-16 space-y-4">
+            <div className="h-4 bg-stone-200 rounded w-1/4" />
+            <div className="h-8 bg-stone-200 rounded w-3/4" />
+            <div className="h-4 bg-stone-200 rounded w-full" />
+            <div className="h-4 bg-stone-200 rounded w-full" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (notFoundState || !article) {
+    return (
+      <main className="mx-auto max-w-3xl px-6 py-40 text-center">
+        <h1 className="font-display text-4xl font-bold text-stone-900">Story not found</h1>
+        <Link to="/campus-news" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-green-800 hover:underline">Back to Campus News</Link>
+      </main>
+    );
+  }
+
   return (
     <main>
       <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
