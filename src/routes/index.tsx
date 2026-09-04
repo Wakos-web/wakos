@@ -245,7 +245,7 @@ function NewsSection() {
           Recent News
         </h2>
         <Link
-          to="/campus-stores"
+          to="/campus-news"
           className="hidden items-center gap-2 text-sm font-semibold text-primary hover:underline hover:underline-offset-4 md:inline-flex"
         >
           All news <ArrowRight className="h-4 w-4" />
@@ -255,7 +255,7 @@ function NewsSection() {
         {ARTICLES.map((article) => (
           <Link
             key={article.slug}
-            to="/campus-stores/$slug"
+            to="/campus-news/$slug"
             params={{ slug: article.slug }}
             className="group"
           >
@@ -282,7 +282,7 @@ function NewsSection() {
         ))}
       </div>
       <Link
-        to="/campus-stores"
+        to="/campus-news"
         className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground md:hidden"
       >
         All news <ArrowRight className="h-4 w-4" />

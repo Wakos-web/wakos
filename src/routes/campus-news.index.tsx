@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ARTICLES, IMAGES } from "@/lib/content";
 
-export const Route = createFileRoute("/campus-stores/")({
+export const Route = createFileRoute("/campus-news/")({
   head: () => ({
-    meta: [{ title: "Campus Stores ,  M.M College Wairaka" },{ name: "description", content: "The latest news, stories, and updates from M.M College Wairaka." }],
-    links: [{ rel: "canonical", href: "/campus-stores" }],
+    meta: [{ title: "Campus News ,  M.M College Wairaka" },{ name: "description", content: "The latest news, stories, and updates from M.M College Wairaka." }],
+    links: [{ rel: "canonical", href: "/campus-news" }],
   }),
-  component: CampusStoresPage,
+  component: CampusNewsPage,
 });
 
 function HeroSection() {
@@ -17,7 +17,7 @@ function HeroSection() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
-        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Campus Stores</h1>
+        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Campus News</h1>
         <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">The latest news, stories, and updates from M.M College Wairaka.</p>
       </div>
     </section>
@@ -29,7 +29,7 @@ function BlogGrid() {
       <div className="max-w-6xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {ARTICLES.map((article) => (
-            <Link key={article.slug} to="/campus-stores/" params={{ slug: article.slug }} className="group">
+            <Link key={article.slug} to="/campus-news/" params={{ slug: article.slug }} className="group">
               <div className="overflow-hidden rounded-2xl">
                 <img src={article.image} alt={article.title} className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
               </div>
@@ -51,7 +51,7 @@ function BlogGrid() {
   );
 }
 
-function CampusStoresPage() {
+function CampusNewsPage() {
   return (
     <div>
       <HeroSection />

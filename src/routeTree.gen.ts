@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AcademicsRouteImport } from './routes/academics'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdmissionsRouteImport } from './routes/admissions'
 import { Route as AlumniRouteImport } from './routes/alumni'
 import { Route as AthleticsRouteImport } from './routes/athletics'
@@ -21,8 +22,8 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as GivingRouteImport } from './routes/giving'
 import { Route as StudentLifeRouteImport } from './routes/student-life'
 import { Route as AlumniDirectoryRouteImport } from './routes/alumni/directory'
-import { Route as CampusStoresIndexRouteImport } from './routes/campus-stores.index'
-import { Route as CampusStoresSlugRouteImport } from './routes/campus-stores.$slug'
+import { Route as CampusNewsIndexRouteImport } from './routes/campus-news.index'
+import { Route as CampusNewsSlugRouteImport } from './routes/campus-news.$slug'
 import { Route as ClubsSlugRouteImport } from './routes/clubs.$slug'
 import { Route as AlumniDirectoryIdRouteImport } from './routes/alumni/directory/$id'
 import { Route as AlumniDirectoryAdminRouteImport } from './routes/alumni/directory.admin'
@@ -30,6 +31,7 @@ import { Route as AlumniDirectoryBusinessesRouteImport } from './routes/alumni/d
 import { Route as AlumniDirectoryClaimRouteImport } from './routes/alumni/directory.claim'
 import { Route as AlumniDirectoryLoginRouteImport } from './routes/alumni/directory.login'
 import { Route as AlumniDirectoryRegisterRouteImport } from './routes/alumni/directory.register'
+import { Route as ClubsSlugPostsPostIdRouteImport } from './routes/clubs.$slug.posts.$postId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -44,6 +46,11 @@ const AboutRoute = AboutRouteImport.update({
 const AcademicsRoute = AcademicsRouteImport.update({
   id: '/academics',
   path: '/academics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdmissionsRoute = AdmissionsRouteImport.update({
@@ -91,14 +98,14 @@ const AlumniDirectoryRoute = AlumniDirectoryRouteImport.update({
   path: '/directory',
   getParentRoute: () => AlumniRoute,
 } as any)
-const CampusStoresIndexRoute = CampusStoresIndexRouteImport.update({
-  id: '/campus-stores/',
-  path: '/campus-stores/',
+const CampusNewsIndexRoute = CampusNewsIndexRouteImport.update({
+  id: '/campus-news/',
+  path: '/campus-news/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CampusStoresSlugRoute = CampusStoresSlugRouteImport.update({
-  id: '/campus-stores/$slug',
-  path: '/campus-stores/$slug',
+const CampusNewsSlugRoute = CampusNewsSlugRouteImport.update({
+  id: '/campus-news/$slug',
+  path: '/campus-news/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClubsSlugRoute = ClubsSlugRouteImport.update({
@@ -137,11 +144,17 @@ const AlumniDirectoryRegisterRoute = AlumniDirectoryRegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => AlumniDirectoryRoute,
 } as any)
+const ClubsSlugPostsPostIdRoute = ClubsSlugPostsPostIdRouteImport.update({
+  id: '/posts/$postId',
+  path: '/posts/$postId',
+  getParentRoute: () => ClubsSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
+  '/admin': typeof AdminRoute
   '/admissions': typeof AdmissionsRoute
   '/alumni': typeof AlumniRouteWithChildren
   '/athletics': typeof AthleticsRoute
@@ -151,20 +164,22 @@ export interface FileRoutesByFullPath {
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
-  '/campus-stores/$slug': typeof CampusStoresSlugRoute
-  '/clubs/$slug': typeof ClubsSlugRoute
-  '/campus-stores/': typeof CampusStoresIndexRoute
+  '/campus-news/$slug': typeof CampusNewsSlugRoute
+  '/clubs/$slug': typeof ClubsSlugRouteWithChildren
+  '/campus-news/': typeof CampusNewsIndexRoute
   '/alumni/directory/$id': typeof AlumniDirectoryIdRoute
   '/alumni/directory/admin': typeof AlumniDirectoryAdminRoute
   '/alumni/directory/businesses': typeof AlumniDirectoryBusinessesRoute
   '/alumni/directory/claim': typeof AlumniDirectoryClaimRoute
   '/alumni/directory/login': typeof AlumniDirectoryLoginRoute
   '/alumni/directory/register': typeof AlumniDirectoryRegisterRoute
+  '/clubs/$slug/posts/$postId': typeof ClubsSlugPostsPostIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
+  '/admin': typeof AdminRoute
   '/admissions': typeof AdmissionsRoute
   '/alumni': typeof AlumniRouteWithChildren
   '/athletics': typeof AthleticsRoute
@@ -174,21 +189,23 @@ export interface FileRoutesByTo {
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
-  '/campus-stores/$slug': typeof CampusStoresSlugRoute
-  '/clubs/$slug': typeof ClubsSlugRoute
-  '/campus-stores': typeof CampusStoresIndexRoute
+  '/campus-news/$slug': typeof CampusNewsSlugRoute
+  '/clubs/$slug': typeof ClubsSlugRouteWithChildren
+  '/campus-news': typeof CampusNewsIndexRoute
   '/alumni/directory/$id': typeof AlumniDirectoryIdRoute
   '/alumni/directory/admin': typeof AlumniDirectoryAdminRoute
   '/alumni/directory/businesses': typeof AlumniDirectoryBusinessesRoute
   '/alumni/directory/claim': typeof AlumniDirectoryClaimRoute
   '/alumni/directory/login': typeof AlumniDirectoryLoginRoute
   '/alumni/directory/register': typeof AlumniDirectoryRegisterRoute
+  '/clubs/$slug/posts/$postId': typeof ClubsSlugPostsPostIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
+  '/admin': typeof AdminRoute
   '/admissions': typeof AdmissionsRoute
   '/alumni': typeof AlumniRouteWithChildren
   '/athletics': typeof AthleticsRoute
@@ -198,15 +215,16 @@ export interface FileRoutesById {
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
-  '/campus-stores/$slug': typeof CampusStoresSlugRoute
-  '/clubs/$slug': typeof ClubsSlugRoute
-  '/campus-stores/': typeof CampusStoresIndexRoute
+  '/campus-news/$slug': typeof CampusNewsSlugRoute
+  '/clubs/$slug': typeof ClubsSlugRouteWithChildren
+  '/campus-news/': typeof CampusNewsIndexRoute
   '/alumni/directory/$id': typeof AlumniDirectoryIdRoute
   '/alumni/directory/admin': typeof AlumniDirectoryAdminRoute
   '/alumni/directory/businesses': typeof AlumniDirectoryBusinessesRoute
   '/alumni/directory/claim': typeof AlumniDirectoryClaimRoute
   '/alumni/directory/login': typeof AlumniDirectoryLoginRoute
   '/alumni/directory/register': typeof AlumniDirectoryRegisterRoute
+  '/clubs/$slug/posts/$postId': typeof ClubsSlugPostsPostIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -214,6 +232,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/academics'
+    | '/admin'
     | '/admissions'
     | '/alumni'
     | '/athletics'
@@ -223,20 +242,22 @@ export interface FileRouteTypes {
     | '/giving'
     | '/student-life'
     | '/alumni/directory'
-    | '/campus-stores/$slug'
+    | '/campus-news/$slug'
     | '/clubs/$slug'
-    | '/campus-stores/'
+    | '/campus-news/'
     | '/alumni/directory/$id'
     | '/alumni/directory/admin'
     | '/alumni/directory/businesses'
     | '/alumni/directory/claim'
     | '/alumni/directory/login'
     | '/alumni/directory/register'
+    | '/clubs/$slug/posts/$postId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/academics'
+    | '/admin'
     | '/admissions'
     | '/alumni'
     | '/athletics'
@@ -246,20 +267,22 @@ export interface FileRouteTypes {
     | '/giving'
     | '/student-life'
     | '/alumni/directory'
-    | '/campus-stores/$slug'
+    | '/campus-news/$slug'
     | '/clubs/$slug'
-    | '/campus-stores'
+    | '/campus-news'
     | '/alumni/directory/$id'
     | '/alumni/directory/admin'
     | '/alumni/directory/businesses'
     | '/alumni/directory/claim'
     | '/alumni/directory/login'
     | '/alumni/directory/register'
+    | '/clubs/$slug/posts/$postId'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/academics'
+    | '/admin'
     | '/admissions'
     | '/alumni'
     | '/athletics'
@@ -269,21 +292,23 @@ export interface FileRouteTypes {
     | '/giving'
     | '/student-life'
     | '/alumni/directory'
-    | '/campus-stores/$slug'
+    | '/campus-news/$slug'
     | '/clubs/$slug'
-    | '/campus-stores/'
+    | '/campus-news/'
     | '/alumni/directory/$id'
     | '/alumni/directory/admin'
     | '/alumni/directory/businesses'
     | '/alumni/directory/claim'
     | '/alumni/directory/login'
     | '/alumni/directory/register'
+    | '/clubs/$slug/posts/$postId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AcademicsRoute: typeof AcademicsRoute
+  AdminRoute: typeof AdminRoute
   AdmissionsRoute: typeof AdmissionsRoute
   AlumniRoute: typeof AlumniRouteWithChildren
   AthleticsRoute: typeof AthleticsRoute
@@ -292,8 +317,8 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   GivingRoute: typeof GivingRoute
   StudentLifeRoute: typeof StudentLifeRoute
-  CampusStoresSlugRoute: typeof CampusStoresSlugRoute
-  CampusStoresIndexRoute: typeof CampusStoresIndexRoute
+  CampusNewsSlugRoute: typeof CampusNewsSlugRoute
+  CampusNewsIndexRoute: typeof CampusNewsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -317,6 +342,13 @@ declare module '@tanstack/react-router' {
       path: '/academics'
       fullPath: '/academics'
       preLoaderRoute: typeof AcademicsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admissions': {
@@ -382,18 +414,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlumniDirectoryRouteImport
       parentRoute: typeof AlumniRoute
     }
-    '/campus-stores/': {
-      id: '/campus-stores/'
-      path: '/campus-stores'
-      fullPath: '/campus-stores/'
-      preLoaderRoute: typeof CampusStoresIndexRouteImport
+    '/campus-news/': {
+      id: '/campus-news/'
+      path: '/campus-news'
+      fullPath: '/campus-news/'
+      preLoaderRoute: typeof CampusNewsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/campus-stores/$slug': {
-      id: '/campus-stores/$slug'
-      path: '/campus-stores/$slug'
-      fullPath: '/campus-stores/$slug'
-      preLoaderRoute: typeof CampusStoresSlugRouteImport
+    '/campus-news/$slug': {
+      id: '/campus-news/$slug'
+      path: '/campus-news/$slug'
+      fullPath: '/campus-news/$slug'
+      preLoaderRoute: typeof CampusNewsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clubs/$slug': {
@@ -445,6 +477,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlumniDirectoryRegisterRouteImport
       parentRoute: typeof AlumniDirectoryRoute
     }
+    '/clubs/$slug/posts/$postId': {
+      id: '/clubs/$slug/posts/$postId'
+      path: '/posts/$postId'
+      fullPath: '/clubs/$slug/posts/$postId'
+      preLoaderRoute: typeof ClubsSlugPostsPostIdRouteImport
+      parentRoute: typeof ClubsSlugRoute
+    }
   }
 }
 
@@ -481,12 +520,24 @@ const AlumniRouteChildren: AlumniRouteChildren = {
 const AlumniRouteWithChildren =
   AlumniRoute._addFileChildren(AlumniRouteChildren)
 
+interface ClubsSlugRouteChildren {
+  ClubsSlugPostsPostIdRoute: typeof ClubsSlugPostsPostIdRoute
+}
+
+const ClubsSlugRouteChildren: ClubsSlugRouteChildren = {
+  ClubsSlugPostsPostIdRoute: ClubsSlugPostsPostIdRoute,
+}
+
+const ClubsSlugRouteWithChildren = ClubsSlugRoute._addFileChildren(
+  ClubsSlugRouteChildren,
+)
+
 interface ClubsRouteChildren {
-  ClubsSlugRoute: typeof ClubsSlugRoute
+  ClubsSlugRoute: typeof ClubsSlugRouteWithChildren
 }
 
 const ClubsRouteChildren: ClubsRouteChildren = {
-  ClubsSlugRoute: ClubsSlugRoute,
+  ClubsSlugRoute: ClubsSlugRouteWithChildren,
 }
 
 const ClubsRouteWithChildren = ClubsRoute._addFileChildren(ClubsRouteChildren)
@@ -495,6 +546,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AcademicsRoute: AcademicsRoute,
+  AdminRoute: AdminRoute,
   AdmissionsRoute: AdmissionsRoute,
   AlumniRoute: AlumniRouteWithChildren,
   AthleticsRoute: AthleticsRoute,
@@ -503,8 +555,8 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   GivingRoute: GivingRoute,
   StudentLifeRoute: StudentLifeRoute,
-  CampusStoresSlugRoute: CampusStoresSlugRoute,
-  CampusStoresIndexRoute: CampusStoresIndexRoute,
+  CampusNewsSlugRoute: CampusNewsSlugRoute,
+  CampusNewsIndexRoute: CampusNewsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -43,3 +43,5 @@ _*.b64
 _gen.js
 _build.js
 _write-header.js
+
+.env*.local

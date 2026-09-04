@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ARTICLES } from "@/lib/content";
 
-export const Route = createFileRoute("/campus-stores/$slug")({
+export const Route = createFileRoute("/campus-news/$slug")({
   loader: ({ params }) => {
     const article = ARTICLES.find((a) => a.slug === params.slug);
     if (!article) throw notFound();
@@ -11,15 +11,15 @@ export const Route = createFileRoute("/campus-stores/$slug")({
     if (!loaderData) return { meta: [{ title: "Story unavailable" }] };
     const { article } = loaderData;
     return {
-      meta: [{ title: article.title + " ,  Campus Stores" },{ name: "description", content: article.excerpt }],
-      links: [{ rel: "canonical", href: "/campus-stores/" + params.slug }],
+      meta: [{ title: article.title + " ,  Campus News" },{ name: "description", content: article.excerpt }],
+      links: [{ rel: "canonical", href: "/campus-news/" + params.slug }],
     };
   },
   component: ArticlePage,
   notFoundComponent: () => (
     <main className="mx-auto max-w-3xl px-6 py-40 text-center">
       <h1 className="font-display text-4xl font-bold text-stone-900">Story not found</h1>
-      <Link to="/campus-stores" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-green-800 hover:underline">Back to Campus Stores</Link>
+      <Link to="/campus-news" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-green-800 hover:underline">Back to Campus News</Link>
     </main>
   ),
 });
@@ -48,7 +48,7 @@ function ArticlePage() {
           ))}
         </div>
         <div className="mt-12 pt-8 border-t border-stone-200">
-          <Link to="/campus-stores" className="inline-flex items-center gap-2 text-sm font-semibold text-green-800 hover:underline hover:underline-offset-4">Back to Campus Stores</Link>
+          <Link to="/campus-news" className="inline-flex items-center gap-2 text-sm font-semibold text-green-800 hover:underline hover:underline-offset-4">Back to Campus News</Link>
         </div>
       </article>
     </main>

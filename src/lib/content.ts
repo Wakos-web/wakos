@@ -86,13 +86,13 @@ export const NAV_ITEMS = [
     { label: "Our Impact", to: "/giving#impact" },
     { label: "FAQ", to: "/giving#faq" },
   ] },
-  { label: "Campus Stores", to: "/campus-stores", children: [
-    { label: "All Stories", to: "/campus-stores" },
-    { label: "Latest News", to: "/campus-stores" },
-    { label: "STEM", to: "/campus-stores" },
-    { label: "Athletics", to: "/campus-stores" },
-    { label: "Outreach", to: "/campus-stores" },
-    { label: "Community", to: "/campus-stores" },
+  { label: "Campus News", to: "/campus-news", children: [
+    { label: "All Stories", to: "/campus-news" },
+    { label: "Latest News", to: "/campus-news" },
+    { label: "STEM", to: "/campus-news" },
+    { label: "Athletics", to: "/campus-news" },
+    { label: "Outreach", to: "/campus-news" },
+    { label: "Community", to: "/campus-news" },
   ] },
 ] as const;
 
