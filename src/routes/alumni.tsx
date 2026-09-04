@@ -368,6 +368,7 @@ function CTASection() {
 
 function RegistrationForm() {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [year, setYear] = useState("");
   const [programme, setProgramme] = useState("O-Level");
   const [profession, setProfession] = useState("");
@@ -376,17 +377,41 @@ function RegistrationForm() {
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [error, setError] = useState("");
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 1952 }, (_, i) => currentYear - i);
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    const specials = "@#$%!";
+    let pw = "Wacos";
+    for (let i = 0; i < 6; i++) pw += chars.charAt(Math.floor(Math.random() * chars.length));
+    pw += specials.charAt(Math.floor(Math.random() * specials.length));
+    return pw;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+      const tempPassword = generatePassword();
+
+      // 1. Create Supabase Auth account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password: tempPassword,
+        options: { data: { full_name: name } },
+      });
+      if (authError) throw authError;
+
+      const userId = authData.user?.id;
+
+      // 2. Create alumni profile linked to the account
       const { error: insertError } = await supabase.from("alumni_profiles").insert({
+        user_id: userId || null,
         full_name: name,
         graduation_year: parseInt(year),
         programme,
@@ -398,21 +423,29 @@ function RegistrationForm() {
         approved: false,
       });
       if (insertError) throw insertError;
+
+      setCredentials({ email, password: tempPassword });
       setSuccess(true);
-      setName(""); setYear(""); setProfession(""); setCompany(""); setLocation(""); setBio("");
+      setName(""); setEmail(""); setYear(""); setProfession(""); setCompany(""); setLocation(""); setBio("");
     } catch (err: any) {
       setError(err.message || "Registration failed");
     }
     setLoading(false);
   };
 
-  if (success) {
+  if (success && credentials) {
     return (
       <div className="rounded-2xl bg-green-50 border border-green-200 p-8 text-center">
         <Award className="h-10 w-10 text-green-800 mx-auto mb-3" />
-        <h3 className="font-display text-xl font-bold text-stone-900 mb-2">Registration submitted!</h3>
-        <p className="text-stone-600 font-body">Your profile is pending review by MMCWOSA. Once approved, you will appear in the alumni directory.</p>
-        <button onClick={() => setSuccess(false)} className="mt-4 text-green-800 font-semibold hover:underline">Register another alumnus</button>
+        <h3 className="font-display text-xl font-bold text-stone-900 mb-2">Welcome to WACOS!</h3>
+        <p className="text-stone-600 font-body mb-4">Your alumni account has been created and your profile is pending review by MMCWOSA.</p>
+        <div className="rounded-xl bg-white border border-green-200 p-4 text-left mb-4">
+          <p className="text-sm font-semibold text-stone-700 mb-2">Your login credentials:</p>
+          <p className="text-sm text-stone-600"><span className="font-semibold">Email:</span> {credentials.email}</p>
+          <p className="text-sm text-stone-600 mt-1"><span className="font-semibold">Password:</span> <code className="bg-stone-100 px-2 py-0.5 rounded text-green-900 font-mono">{credentials.password}</code></p>
+          <p className="text-xs text-amber-600 mt-3 flex items-center gap-1"><Clock className="h-3 w-3" /> Save these credentials. You can log in at /alumni/directory/login once your profile is approved.</p>
+        </div>
+        <button onClick={() => { setSuccess(false); setCredentials(null); }} className="text-green-800 font-semibold hover:underline">Register another alumnus</button>
       </div>
     );
   }
@@ -421,12 +454,22 @@ function RegistrationForm() {
     <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-stone-200 p-8 space-y-5">
       {error && <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
 
+      <p className="text-sm text-stone-500 font-body -mt-2">Registering creates your alumni account and directory profile in one step.</p>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-stone-700 mb-2">Full Name *</label>
           <input type="text" required value={name} onChange={e => setName(e.target.value)}
             className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Your full name" />
         </div>
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-2">Email Address *</label>
+          <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="you@example.com" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-stone-700 mb-2">Graduation Year *</label>
           <select required value={year} onChange={e => setYear(e.target.value)}
@@ -435,9 +478,6 @@ function RegistrationForm() {
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-stone-700 mb-2">Programme *</label>
           <select required value={programme} onChange={e => setProgramme(e.target.value)}
@@ -446,24 +486,25 @@ function RegistrationForm() {
             <option value="A-Level">A-Level</option>
           </select>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-stone-700 mb-2">Profession</label>
           <input type="text" value={profession} onChange={e => setProfession(e.target.value)}
             className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. Engineer, Teacher, Doctor" />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-stone-700 mb-2">Company / Organisation</label>
           <input type="text" value={company} onChange={e => setCompany(e.target.value)}
             className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Where do you work?" />
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location</label>
-          <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. Kampala, Uganda" />
-        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location</label>
+        <input type="text" value={location} onChange={e => setLocation(e.target.value)}
+          className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. Kampala, Uganda" />
       </div>
 
       <div>
@@ -475,7 +516,7 @@ function RegistrationForm() {
 
       <button type="submit" disabled={loading}
         className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-        {loading ? "Submitting..." : "Register for Directory"}
+        {loading ? "Creating your account..." : "Register & Join Directory"}
       </button>
     </form>
   );
