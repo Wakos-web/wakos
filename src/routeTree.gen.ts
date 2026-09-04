@@ -15,7 +15,9 @@ import { Route as AcademicsRouteImport } from './routes/academics'
 import { Route as AdmissionsRouteImport } from './routes/admissions'
 import { Route as AlumniRouteImport } from './routes/alumni'
 import { Route as AthleticsRouteImport } from './routes/athletics'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ClubsRouteImport } from './routes/clubs'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as GivingRouteImport } from './routes/giving'
 import { Route as StudentLifeRouteImport } from './routes/student-life'
 import { Route as AlumniDirectoryRouteImport } from './routes/alumni/directory'
@@ -59,9 +61,19 @@ const AthleticsRoute = AthleticsRouteImport.update({
   path: '/athletics',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClubsRoute = ClubsRouteImport.update({
   id: '/clubs',
   path: '/clubs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GivingRoute = GivingRouteImport.update({
@@ -133,7 +145,9 @@ export interface FileRoutesByFullPath {
   '/admissions': typeof AdmissionsRoute
   '/alumni': typeof AlumniRouteWithChildren
   '/athletics': typeof AthleticsRoute
+  '/calendar': typeof CalendarRoute
   '/clubs': typeof ClubsRouteWithChildren
+  '/contact': typeof ContactRoute
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
@@ -154,7 +168,9 @@ export interface FileRoutesByTo {
   '/admissions': typeof AdmissionsRoute
   '/alumni': typeof AlumniRouteWithChildren
   '/athletics': typeof AthleticsRoute
+  '/calendar': typeof CalendarRoute
   '/clubs': typeof ClubsRouteWithChildren
+  '/contact': typeof ContactRoute
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
@@ -176,7 +192,9 @@ export interface FileRoutesById {
   '/admissions': typeof AdmissionsRoute
   '/alumni': typeof AlumniRouteWithChildren
   '/athletics': typeof AthleticsRoute
+  '/calendar': typeof CalendarRoute
   '/clubs': typeof ClubsRouteWithChildren
+  '/contact': typeof ContactRoute
   '/giving': typeof GivingRoute
   '/student-life': typeof StudentLifeRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
@@ -199,7 +217,9 @@ export interface FileRouteTypes {
     | '/admissions'
     | '/alumni'
     | '/athletics'
+    | '/calendar'
     | '/clubs'
+    | '/contact'
     | '/giving'
     | '/student-life'
     | '/alumni/directory'
@@ -220,7 +240,9 @@ export interface FileRouteTypes {
     | '/admissions'
     | '/alumni'
     | '/athletics'
+    | '/calendar'
     | '/clubs'
+    | '/contact'
     | '/giving'
     | '/student-life'
     | '/alumni/directory'
@@ -241,7 +263,9 @@ export interface FileRouteTypes {
     | '/admissions'
     | '/alumni'
     | '/athletics'
+    | '/calendar'
     | '/clubs'
+    | '/contact'
     | '/giving'
     | '/student-life'
     | '/alumni/directory'
@@ -263,7 +287,9 @@ export interface RootRouteChildren {
   AdmissionsRoute: typeof AdmissionsRoute
   AlumniRoute: typeof AlumniRouteWithChildren
   AthleticsRoute: typeof AthleticsRoute
+  CalendarRoute: typeof CalendarRoute
   ClubsRoute: typeof ClubsRouteWithChildren
+  ContactRoute: typeof ContactRoute
   GivingRoute: typeof GivingRoute
   StudentLifeRoute: typeof StudentLifeRoute
   CampusStoresSlugRoute: typeof CampusStoresSlugRoute
@@ -314,11 +340,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AthleticsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clubs': {
       id: '/clubs'
       path: '/clubs'
       fullPath: '/clubs'
       preLoaderRoute: typeof ClubsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/giving': {
@@ -458,7 +498,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdmissionsRoute: AdmissionsRoute,
   AlumniRoute: AlumniRouteWithChildren,
   AthleticsRoute: AthleticsRoute,
+  CalendarRoute: CalendarRoute,
   ClubsRoute: ClubsRouteWithChildren,
+  ContactRoute: ContactRoute,
   GivingRoute: GivingRoute,
   StudentLifeRoute: StudentLifeRoute,
   CampusStoresSlugRoute: CampusStoresSlugRoute,
