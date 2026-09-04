@@ -152,7 +152,7 @@ function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
   }, [imgs.length]);
 
   return (
-    <div className='absolute inset-0 flex items-center justify-center overflow-hidden'>
+    <div className='absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none'>
       {/* Background glow */}
       <div className='absolute inset-0 bg-gradient-to-br from-green-900/80 via-green-800/90 to-stone-900/95' />
 
@@ -198,7 +198,7 @@ function OrbCarousel({ imgs, name }: { imgs: string[]; name: string }) {
       })}
 
       {/* Dot indicators */}
-      <div className='absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10'>
+      <div className='absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-auto'>
         {imgs.map((_, i) => (
           <button
             key={i}
