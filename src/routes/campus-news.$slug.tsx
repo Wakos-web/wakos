@@ -1,11 +1,24 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { ARTICLES } from "@/lib/content";
 
 export const Route = createFileRoute("/campus-news/$slug")({
-  loader: ({ params }) => {
-    const article = ARTICLES.find((a) => a.slug === params.slug);
-    if (!article) throw notFound();
-    return { article };
+  loader: async ({ params }) => {
+    // Try Supabase first
+    const { data } = await supabase
+      .from("articles")
+      .select("*")
+      .eq("slug", params.slug)
+      .single();
+    
+    if (data) return { article: data };
+    
+    // Fallback to static articles
+    const staticArticle = ARTICLES.find((a) => a.slug === params.slug);
+    if (staticArticle) return { article: staticArticle };
+    
+    throw notFound();
   },
   head: ({ loaderData, params }) => {
     if (!loaderData) return { meta: [{ title: "Story unavailable" }] };
@@ -43,7 +56,7 @@ function ArticlePage() {
       <article className="max-w-3xl mx-auto px-6 py-16">
         <p className="font-display text-2xl leading-relaxed text-stone-700 mb-8">{article.excerpt}</p>
         <div className="space-y-5 text-stone-600 font-body leading-relaxed">
-          {article.body.map((para) => (
+          {article.body?.map((para: string) => (
             <p key={para.slice(0, 24)}>{para}</p>
           ))}
         </div>

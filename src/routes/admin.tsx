@@ -14,7 +14,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "settings";
+type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "settings";
 
 function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
@@ -836,6 +836,112 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
   );
 }
 
+function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [category, setCategory] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [body, setBody] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => { setTitle(""); setSlug(""); setCategory(""); setExcerpt(""); setBody(""); setImageUrl(""); setEditItem(null); setShowAdd(false); };
+
+  const save = async () => {
+    const trimmedTitle = title.trim();
+    const trimmedSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+    if (!trimmedTitle || !trimmedSlug) { setToast({ message: "Title and slug are required", type: "error" }); return; }
+    setSaving(true);
+    const bodyArray = body.split("\n").filter((p: string) => p.trim());
+    if (editItem) {
+      const { error } = await supabase.from("articles").update({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || editItem.image }).eq("id", editItem.id);
+      setSaving(false);
+      if (error) { setToast({ message: error.message, type: "error" }); return; }
+    } else {
+      const { error } = await supabase.from("articles").insert({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || "/assets/news-service.jpg", date: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) });
+      setSaving(false);
+      if (error) { setToast({ message: error.message, type: "error" }); return; }
+    }
+    setToast({ message: editItem ? "Article updated" : "Article created", type: "success" });
+    reset();
+    onRefresh();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this article?")) return;
+    await supabase.from("articles").delete().eq("id", id);
+    setToast({ message: "Article deleted", type: "success" });
+    onRefresh();
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-display text-xl font-bold text-stone-900">Campus News ({articles.length})</h3>
+        <div className="flex gap-2">
+          <button onClick={() => { reset(); setShowAdd(true); }} className="px-4 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Article</button>
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
+      </div>
+      {(showAdd || editItem) && (
+        <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+          <h4 className="font-display text-lg font-bold text-stone-900">{editItem ? "Edit Article" : "New Article"}</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="Slug (auto-generated)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category (STEM, Athletics, etc.)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL (optional)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+          <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Excerpt (short summary)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[60px]" />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Body (one paragraph per line)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[150px]" />
+          <div className="flex gap-3">
+            <button onClick={save} disabled={saving} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save"}</button>
+            <button onClick={reset} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
+      {articles.length === 0 ? (
+        <div className="text-center py-12 text-stone-400">
+          <Megaphone className="h-10 w-10 mx-auto mb-3" />
+          <p>No articles yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {articles.map((article) => (
+            <div key={article.id} className="rounded-xl bg-white border border-stone-200 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-16 h-12 rounded-lg bg-stone-100 overflow-hidden shrink-0">
+                    {article.image && <img src={article.image} alt="" className="w-full h-full object-cover" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">{article.category}</span>
+                      <span className="text-xs text-stone-400">{article.date}</span>
+                    </div>
+                    <p className="font-display text-lg font-bold text-stone-900">{article.title}</p>
+                    <p className="text-sm text-stone-600 line-clamp-2">{article.excerpt}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => { setEditItem(article); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                    <Settings className="h-4 w-4 text-blue-600" />
+                  </button>
+                  <button onClick={() => remove(article.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPage() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -848,6 +954,7 @@ function AdminPage() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [alumni, setAlumni] = useState<any[]>([]);
+  const [articles, setArticles] = useState<any[]>([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -860,7 +967,7 @@ function AdminPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
@@ -868,6 +975,7 @@ function AdminPage() {
       supabase.from("inquiries").select("*").order("created_at", { ascending: false }),
       supabase.from("alumni_businesses").select("*").order("created_at", { ascending: false }),
       supabase.from("alumni_profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("articles").select("*").order("created_at", { ascending: false }),
     ]);
 
     const c = clubsRes.data || [];
@@ -876,8 +984,8 @@ function AdminPage() {
     const n = notesRes.data || [];
     const i = inqRes.data || [];
     const b = bizRes.data || [];
-
     const a = alumniRes.data || [];
+    const art = articlesRes.data || [];
     setClubs(c);
     setMembers(m);
     setEvents(e);
@@ -885,6 +993,7 @@ function AdminPage() {
     setInquiries(i);
     setBusinesses(b);
     setAlumni(a);
+    setArticles(art);
     const { count: postCount } = await supabase.from("club_posts").select("*", { count: "exact", head: true });
     setStats({
       clubs: c.length,
@@ -895,6 +1004,7 @@ function AdminPage() {
       businesses: b.length,
       alumni: a.length,
       clubPosts: postCount || 0,
+      articles: art.length,
     });
     setLoading(false);
   };
@@ -907,6 +1017,7 @@ function AdminPage() {
     { key: "alumni", label: "Alumni", icon: GraduationCap, count: stats.alumni },
     { key: "events", label: "Events", icon: Calendar, count: stats.events },
     { key: "notes", label: "Class Notes", icon: BookOpen, count: stats.notes },
+    { key: "articles", label: "Campus News", icon: Megaphone, count: stats.articles },
     { key: "inquiries", label: "Inquiries", icon: MessageSquare, count: stats.inquiries },
     { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses },
     { key: "settings", label: "Site Settings", icon: Settings },
@@ -997,6 +1108,7 @@ function AdminPage() {
             {tab === "events" && <EventsTab events={events} onRefresh={fetchData} />}
             {tab === "notes" && <NotesTab notes={notes} onRefresh={fetchData} setToast={setToast} />}
             {tab === "inquiries" && <InquiriesTab inquiries={inquiries} onRefresh={fetchData} />}
+            {tab === "articles" && <ArticlesTab articles={articles} onRefresh={fetchData} setToast={setToast} />}
             {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} setToast={setToast} />}
             {tab === "settings" && <SettingsTab />}
           </>

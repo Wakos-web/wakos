@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ARTICLES, IMAGES } from "@/lib/content";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { IMAGES, ARTICLES } from "@/lib/content";
 
 export const Route = createFileRoute("/campus-news/")({
   head: () => ({
@@ -23,12 +25,55 @@ function HeroSection() {
     </section>
   );
 }
+
 function BlogGrid() {
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchArticles = async () => {
+      const { data, error } = await supabase
+        .from("articles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error || !data || data.length === 0) {
+        // Fallback to static articles
+        setArticles(ARTICLES);
+      } else {
+        setArticles(data);
+      }
+      setLoading(false);
+    };
+    fetchArticles();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="py-20">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="aspect-[3/2] bg-stone-200 rounded-2xl" />
+                <div className="mt-4 space-y-2">
+                  <div className="h-3 bg-stone-200 rounded w-1/4" />
+                  <div className="h-5 bg-stone-200 rounded w-3/4" />
+                  <div className="h-3 bg-stone-200 rounded w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-20">
       <div className="max-w-6xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {ARTICLES.map((article) => (
+          {articles.map((article) => (
             <Link key={article.slug} to="/campus-news/" params={{ slug: article.slug }} className="group">
               <div className="overflow-hidden rounded-2xl">
                 <img src={article.image} alt={article.title} className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
