@@ -20,8 +20,15 @@ export function SiteFooter() {
   }, []);
 
   return (
-    <footer className="bg-[#153816] text-[#FBF6E5]">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+    <footer className="relative overflow-hidden bg-[#153816] text-[#FBF6E5]">
+      {/* Pillar image faded behind the green footer */}
+      <img
+        src="/hero-poster.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.1]"
+      />
+      <div className="relative mx-auto max-w-6xl px-6 py-8">
         <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-[#97C600] mb-3">About</p>
