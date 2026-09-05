@@ -71,6 +71,7 @@ const CHANNEL_TOPICS: Record<ChannelKey, string> = {
 const DECADES = ["2020s", "2010s", "2000s", "1990s", "1980s", "1970s"];
 
 const CAT_ICONS: Record<string, typeof Users> = { update: BookOpen, reunion: Users, memoriam: Heart, achievement: Award, business: Building2 };
+const CHANNEL_KEYS: ChannelKey[] = ["update", "reunion", "memoriam", "achievement", "business", "events"];
 const SESSION_KEY = "wacos_alumnus_session";
 const UNREAD_KEY = "wacos_pulse_unread";
 const readUnread = (): Record<string, number> => {
@@ -991,6 +992,9 @@ function AlumniPulsePage() {
   const [eventsFilter, setEventsFilter] = useState<"upcoming" | "past">("upcoming");
   const [rsvpsMap, setRsvpsMap] = useState<Record<string, string[]>>({});
   const [unread, setUnread] = useState<Record<string, number>>(readUnread);
+  const [readMap, setReadMap] = useState<Record<string, string>>({});
+  const [baselineAt, setBaselineAt] = useState<string | null>(null);
+  const [readsReady, setReadsReady] = useState(false);
   const { alumnus, ready, signIn, refresh, signOut } = useAlumnusSession();
   const channelRef = useRef<ChannelKey>(channel);
   const alumnusRef = useRef(alumnus);
@@ -1000,7 +1004,22 @@ function AlumniPulsePage() {
     try { localStorage.setItem(UNREAD_KEY, JSON.stringify(unread)); } catch { /* noop */ }
   }, [unread]);
 
-  const totalUnread = Object.keys(unread).reduce((sum, k) => sum + (unread[k] || 0), 0);
+  // Members derive unread from server read state; guests keep device-local counters.
+  const displayUnread: Record<string, number> = (() => {
+    if (!alumnus) return unread;
+    if (!readsReady) return { update: 0, reunion: 0, memoriam: 0, achievement: 0, business: 0, events: 0 };
+    const out: Record<string, number> = { update: 0, reunion: 0, memoriam: 0, achievement: 0, business: 0, events: 0 };
+    const baseOf = (k: string) => readMap[k] || baselineAt;
+    notes.forEach(n => {
+      if (out[n.category] === undefined || n.author_name === alumnus.full_name) return;
+      const base = baseOf(n.category);
+      if (!base || new Date(n.created_at) > new Date(base)) out[n.category] += 1;
+    });
+    const eBase = baseOf("events");
+    if (eBase) out.events = events.filter(e => e.approved && new Date(e.created_at) > new Date(eBase)).length;
+    return out;
+  })();
+  const totalUnread = Object.keys(displayUnread).reduce((sum, k) => sum + (displayUnread[k] || 0), 0);
 
   // Reflect unread messages in the browser tab title.
   useEffect(() => {
@@ -1099,9 +1118,65 @@ function AlumniPulsePage() {
     };
   }, []);
 
-  // Unread badge helpers, consumed by the realtime handlers below.
+  // Unread badge helpers. Guests keep device-local counters; members use the
+  // server-backed read timestamps (see the read-state effect below).
   const markUnread = (k: string) => setUnread(prev => ({ ...prev, [k]: (prev[k] || 0) + 1 }));
   const dropUnread = (k: string) => setUnread(prev => (prev[k] ? { ...prev, [k]: prev[k] - 1 } : prev));
+
+  // Push a channel's read time to the server so unread state follows the alumnus
+  // across every device.
+  const memberMarkRead = async (keys: ChannelKey[]) => {
+    const me = alumnusRef.current;
+    if (!me) return;
+    const nowIso = new Date().toISOString();
+    await supabase.from("alumni_channel_reads").upsert(
+      keys.map(ch => ({ alumnus_id: me.id, channel: ch, last_read_at: nowIso })),
+      { onConflict: "alumnus_id,channel" }
+    );
+    setReadMap(prev => {
+      const next = { ...prev };
+      keys.forEach(k => next[k] = nowIso);
+      return next;
+    });
+  };
+
+  // Load the alumnus read state; seed per-channel timestamps on the first ever
+  // device so historical posts are not all surfaced as unread.
+  useEffect(() => {
+    const me = alumnus;
+    if (!me) {
+      setReadMap({});
+      setBaselineAt(null);
+      setReadsReady(true);
+      return;
+    }
+    setReadsReady(false);
+    let dead = false;
+    (async () => {
+      const [{ data: prof }, { data: reads }] = await Promise.all([
+        supabase.from("alumni_profiles").select("created_at").eq("id", me.id).maybeSingle(),
+        supabase.from("alumni_channel_reads").select("channel, last_read_at").eq("alumnus_id", me.id),
+      ]);
+      if (dead) return;
+      setBaselineAt((prof as any)?.created_at || null);
+      if (!reads || reads.length === 0) {
+        const nowIso = new Date().toISOString();
+        await supabase.from("alumni_channel_reads").upsert(
+          CHANNEL_KEYS.map(ch => ({ alumnus_id: me.id, channel: ch, last_read_at: nowIso })),
+          { onConflict: "alumnus_id,channel" }
+        );
+        const next: Record<string, string> = {};
+        CHANNEL_KEYS.forEach(ch => next[ch] = nowIso);
+        setReadMap(next);
+      } else {
+        const next: Record<string, string> = {};
+        (reads as any[]).forEach(r => { next[r.channel] = r.last_read_at; });
+        setReadMap(next);
+      }
+      setReadsReady(true);
+    })();
+    return () => { dead = true; };
+  }, [alumnus?.id]);
 
   // Live updates: new posts, replies, likes and members stream in without a refresh.
   useEffect(() => {
@@ -1116,7 +1191,7 @@ function AlumniPulsePage() {
         const me = alumnusRef.current;
         const mine = !!me && n.author_name === me.full_name;
         if (!mine && n.category !== active && active !== "all") {
-          markUnread(n.category);
+          if (!me) markUnread(n.category); // Members derive unread from server read state.
           // Nudge only when the tab is in the background / unfocused — on-page readers
           // already see the badges and don't need a sound.
           if (typeof document !== "undefined" && (document.hidden || !document.hasFocus())) playChime();
@@ -1131,12 +1206,12 @@ function AlumniPulsePage() {
               : [n, ...prev]
             : prev.filter(x => x.id !== n.id)
         );
-        if (!n.approved) dropUnread(n.category);
+        if (!n.approved && !alumnusRef.current) dropUnread(n.category);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "class_notes" }, (p) => {
         const old = p.old as ClassNote;
         setNotes(prev => prev.filter(x => x.id !== old.id));
-        if (old.category) dropUnread(old.category);
+        if (old.category && !alumnusRef.current) dropUnread(old.category);
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "note_comments" }, (p) => {
         const c = p.new as NoteComment;
@@ -1158,7 +1233,7 @@ function AlumniPulsePage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "events" }, (p) => {
         const evt = p.new as Event;
         setEvents(prev => (prev.some(x => x.id === evt.id) ? prev : [evt, ...prev]));
-        if (evt.approved && channelRef.current !== "events") markUnread("events");
+        if (evt.approved && !alumnusRef.current && channelRef.current !== "events") markUnread("events");
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "events" }, (p) => {
         const evt = p.new as Event;
@@ -1217,12 +1292,18 @@ function AlumniPulsePage() {
     setChannel(k);
     setDecade("");
     setDrawer("none");
-    setUnread(prev => (prev[k] ? { ...prev, [k]: 0 } : prev));
+    if (alumnusRef.current) {
+      if (k === "all") memberMarkRead([...CHANNEL_KEYS]);
+      else memberMarkRead([k]);
+    } else {
+      setUnread(prev => (prev[k] ? { ...prev, [k]: 0 } : prev));
+    }
   };
 
   const handleBellClick = () => {
     if (totalUnread > 0) {
-      setUnread({});
+      if (alumnusRef.current) memberMarkRead([...CHANNEL_KEYS]);
+      else setUnread({});
       setNotice("Marked all channels as read. New posts will badge the ones you're not reading.");
       window.setTimeout(() => setNotice(""), 3500);
     } else if (!alumnus) {
@@ -1328,7 +1409,7 @@ function AlumniPulsePage() {
 
       {/* Chat list panel (desktop) */}
       <aside className="hidden md:flex flex-col w-[290px] border-r border-white/[0.06] bg-[#0C1018] shrink-0 relative">
-        <ChannelList channels={channels} active={channel} counts={counts} unread={unread} onSelect={selectChannel}
+        <ChannelList channels={channels} active={channel} counts={counts} unread={displayUnread} onSelect={selectChannel}
           members={members} onJoin={openJoin} alumnus={alumnus} onEditProfile={openEdit} />
       </aside>
 
@@ -1488,7 +1569,7 @@ function AlumniPulsePage() {
             <div className="flex justify-end p-2">
               <button onClick={() => setDrawer("none")} className="p-2 text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
-            <ChannelList channels={channels} active={channel} counts={counts} unread={unread} onSelect={selectChannel}
+            <ChannelList channels={channels} active={channel} counts={counts} unread={displayUnread} onSelect={selectChannel}
               members={members} onJoin={() => { setDrawer("none"); openJoin(); }} alumnus={alumnus} onEditProfile={() => { setDrawer("none"); openEdit(); }} />
           </div>
         </div>
