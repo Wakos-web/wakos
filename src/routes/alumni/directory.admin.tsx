@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { adminSupabase as supabase } from "@/lib/supabase";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
 
 import { ArrowLeft, CheckCircle, XCircle, Clock, Users, Building2 } from "lucide-react";

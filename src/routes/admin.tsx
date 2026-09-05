@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { adminSupabase as supabase } from "@/lib/supabase";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
