@@ -76,8 +76,8 @@ function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; 
 function MediaCard({ item }: { item: MediaItem }) {
   if (item.media_type === 'video') {
     return (
-      <figure className="group mb-6 break-inside-avoid overflow-hidden rounded-2xl bg-stone-100 border border-stone-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500">
-        <div className="relative">
+      <figure className="group mb-8 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
+        <div className="relative overflow-hidden">
           <video
             src={item.media_url}
             controls
@@ -85,18 +85,20 @@ function MediaCard({ item }: { item: MediaItem }) {
             preload="metadata"
             className="w-full aspect-video object-cover bg-black transition-transform duration-700 ease-out group-hover:scale-[1.03]"
           />
+          {/* Glossy bubble highlight */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent" />
           <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition-all duration-500 group-hover:bg-green-800 group-hover:scale-105">
             <PlayCircle className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-12" /> Video
           </span>
         </div>
         {item.caption && (
-          <figcaption className="px-4 py-3 text-sm text-stone-600 font-body leading-relaxed transition-colors duration-500 group-hover:text-stone-800">{item.caption}</figcaption>
+          <figcaption className="px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">{item.caption}</figcaption>
         )}
       </figure>
     );
   }
   return (
-    <figure className="group mb-6 break-inside-avoid overflow-hidden rounded-2xl bg-stone-100 border border-stone-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500">
+    <figure className="group mb-8 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
       <div className="relative overflow-hidden">
         <img
           src={item.media_url}
@@ -104,10 +106,11 @@ function MediaCard({ item }: { item: MediaItem }) {
           loading="lazy"
           className="w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
         />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        {/* Glossy bubble highlight */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-transparent" />
       </div>
       {item.caption && (
-        <figcaption className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out bg-gradient-to-t from-black/85 via-black/60 to-transparent px-4 pt-12 pb-3 text-sm text-white font-body leading-relaxed">
+        <figcaption className="px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">
           {item.caption}
         </figcaption>
       )}
@@ -209,7 +212,7 @@ function PostDetailPage() {
       {/* Masonry gallery of animated, captioned media */}
       {media.length > 0 && (
         <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-14">
-          <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 [column-fill:_balance]">
+          <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 [column-fill:_balance]">
             {media.map((item, i) => (
               <Reveal key={item.id} delay={(i % 3) * 90}>
                 <MediaCard item={item} />
