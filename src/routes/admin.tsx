@@ -3105,23 +3105,34 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <div className="rounded-2xl bg-white border border-stone-200 p-8 shadow-sm">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-green-900 text-white mb-5 mx-auto">
-            <ShieldCheck className="h-5 w-5" />
+    <div className="relative min-h-screen overflow-y-auto bg-[#0A0D14] text-white flex items-center justify-center px-4 py-10">
+      {/* Pillar faded behind the dark navy */}
+      <img
+        src="/hero-poster.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.14]"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0A0D14]/70 via-[#0A0D14]/60 to-[#0A0D14]/85" />
+      <div className="relative w-full max-w-md">
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.05] backdrop-blur-xl shadow-2xl">
+          <div className="p-8 sm:p-10">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-400/15 ring-1 ring-emerald-400/30 flex items-center justify-center mb-5">
+              <ShieldCheck className="h-8 w-8 text-emerald-300" />
+            </div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300/90 mb-2">Staff Portal</p>
+            <h1 className="font-display text-2xl md:text-3xl font-bold text-white leading-tight mb-2">M.M College Wairaka</h1>
+            <p className="text-sm text-white/55 mb-6">
+              {usePasscode
+                ? "Super admin only: enter your email and the fallback passcode."
+                : usePassword
+                  ? "Enter the email and password you set from your invite."
+                  : sent
+                    ? "Enter the one-time code emailed to you."
+                    : "Sign in with your staff email."}
+            </p>
           </div>
-          <p className="text-center text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Staff Portal</p>
-          <h1 className="text-center font-display text-2xl font-bold text-stone-900 mb-2">M.M College Wairaka</h1>
-          <p className="text-center text-sm text-stone-500 mb-6">
-            {usePasscode
-              ? "Super admin only: enter your email and the fallback passcode."
-              : usePassword
-                ? "Enter the email and password you set from your invite."
-                : sent
-                  ? "Enter the one-time code emailed to you."
-                  : "Sign in with your staff email."}
-          </p>
 
           {usePassword ? (
             <div className="space-y-4">
@@ -3130,20 +3141,20 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 placeholder="staff@email.com"
                 autoFocus
-                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-40"
               />
               <input
                 type="password" value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(""); }}
                 onKeyDown={(e) => e.key === "Enter" && passwordLogin()}
                 placeholder="Password"
-                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-40"
               />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button onClick={passwordLogin} disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-colors">
+              {error && <p className="text-sm text-red-300">{error}</p>}
+              <button onClick={passwordLogin} disabled={busy} className="w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 text-sm font-bold hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
                 <KeyRound className="h-4 w-4" /> {busy ? "Signing in…" : "Sign in with password"}
               </button>
-              <button onClick={() => { setUsePassword(false); setPassword(""); setError(""); }} className="w-full text-center text-sm text-stone-400 hover:text-stone-600">
+              <button onClick={() => { setUsePassword(false); setPassword(""); setError(""); }} className="w-full text-center text-sm text-white/40 hover:text-white">
                 Back to email sign-in
               </button>
             </div>
@@ -3154,20 +3165,20 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 placeholder="superadmin@email.com"
                 autoFocus
-                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-40"
               />
               <input
                 type="password" value={passcode}
                 onChange={(e) => { setPasscode(e.target.value); setError(""); }}
                 onKeyDown={(e) => e.key === "Enter" && passcodeLogin()}
                 placeholder="Passcode"
-                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-40"
               />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button onClick={passcodeLogin} disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-colors">
+              {error && <p className="text-sm text-red-300">{error}</p>}
+              <button onClick={passcodeLogin} disabled={busy} className="w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 text-sm font-bold hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
                 <KeyRound className="h-4 w-4" /> {busy ? "Signing in…" : "Sign in with passcode"}
               </button>
-              <button onClick={() => { setUsePasscode(false); setPasscode(""); setError(""); }} className="w-full text-center text-sm text-stone-400 hover:text-stone-600">
+              <button onClick={() => { setUsePasscode(false); setPasscode(""); setError(""); }} className="w-full text-center text-sm text-white/40 hover:text-white">
                 Back to email sign-in
               </button>
             </div>
@@ -3179,35 +3190,35 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
                 onKeyDown={(e) => e.key === "Enter" && sendCode()}
                 placeholder="staff@email.com"
                 autoFocus
-                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-40"
               />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button onClick={sendCode} disabled={busy || resend.sendsLeft <= 0} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-colors">
+              {error && <p className="text-sm text-red-300">{error}</p>}
+              <button onClick={sendCode} disabled={busy || resend.sendsLeft <= 0} className="w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 text-sm font-bold hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
                 <Send className="h-4 w-4" /> {busy ? "Sending…" : "Email me a code"}
               </button>
               {resend.sendsLeft < resend.maxSends && (
-                <p className="text-center text-[11px] text-stone-400">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
+                <p className="text-center text-[11px] text-white/35">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
               )}
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-xs text-stone-400">Code sent to <span className="font-medium text-stone-600">{email.trim().toLowerCase()}</span></p>
+              <p className="text-xs text-white/40">Code sent to <span className="font-medium text-white/80">{email.trim().toLowerCase()}</span></p>
               <input
                 value={code}
                 onChange={(e) => { setCode(e.target.value); setError(""); }}
                 onKeyDown={(e) => e.key === "Enter" && verifyAndLink()}
                 placeholder="One-time code"
                 inputMode="numeric"
-                className="w-full p-3 border rounded-xl text-sm text-center tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 text-center tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-40"
               />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button onClick={verifyAndLink} disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
+              {error && <p className="text-sm text-red-300">{error}</p>}
+              <button onClick={verifyAndLink} disabled={busy} className="w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 text-sm font-bold hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 {busy ? "Signing in…" : "Sign in"}
               </button>
-              <button onClick={sendCode} disabled={busy || !resend.allowSend()} className="w-full text-center text-sm text-stone-400 hover:text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={sendCode} disabled={busy || !resend.allowSend()} className="w-full text-center text-sm text-white/40 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
                 {resend.label()}
               </button>
-              <p className="text-center text-[11px] text-stone-400">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
+              <p className="text-center text-[11px] text-white/35">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
               <button
                 onClick={async () => {
                   // Start over: go back to the email entry and send a fresh code
@@ -3228,7 +3239,7 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
                     // silent — the user can press "Email me a code" again
                   }
                 }}
-                className="w-full text-center text-sm text-stone-400 hover:text-stone-600"
+                className="w-full text-center text-sm text-white/40 hover:text-white"
               >
                 Wrong email? Start over — a new code will be sent
               </button>
@@ -3237,15 +3248,16 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
 
           {!usePasscode && !usePassword && (
             <div className="mt-5 space-y-2">
-              <button onClick={() => { setUsePassword(true); setPassword(""); setError(""); }} className="block mx-auto text-xs font-medium text-stone-400 hover:text-stone-600 underline underline-offset-2">
+              <button onClick={() => { setUsePassword(true); setPassword(""); setError(""); }} className="block mx-auto text-xs font-medium text-white/40 hover:text-white underline underline-offset-2">
                 Have a password? Sign in with email & password
               </button>
-              <button onClick={() => { setUsePasscode(true); setPasscode(""); setError(""); }} className="block mx-auto text-xs font-medium text-stone-400 hover:text-stone-600 underline underline-offset-2">
+              <button onClick={() => { setUsePasscode(true); setPasscode(""); setError(""); }} className="block mx-auto text-xs font-medium text-white/40 hover:text-white underline underline-offset-2">
                 Email unavailable? Use the super admin passcode
               </button>
             </div>
           )}
-          <Link to="/" className="block text-center mt-2 text-sm font-medium text-stone-400 hover:text-stone-600">← Back to site</Link>
+            <Link to="/" className="block text-center mt-4 text-sm font-medium text-white/40 hover:text-white">← Back to site</Link>
+          </div>
         </div>
       </div>
     </div>
