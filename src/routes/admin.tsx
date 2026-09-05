@@ -5,6 +5,7 @@ import { notifyClubEditor } from "@/lib/club-notify";
 import { notifyAlumniApplicant } from "@/lib/alumni-notify";
 import { LOGO_URL } from "@/lib/content";
 import { useOtpResend } from "@/hooks/useOtpResend";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
@@ -2860,6 +2861,13 @@ function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  // Live viewport detection (matchMedia listener): the layout re-renders the
+  // moment the user crosses the mobile/desktop breakpoint, so no refresh is
+  // ever needed when moving between devices or resizing.
+  const isMobile = useIsMobile();
+  useEffect(() => {
+    if (!isMobile) setMoreOpen(false); // close the sheet when switching to desktop
+  }, [isMobile]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -2986,7 +2994,8 @@ function AdminPage() {
     <div className="min-h-screen bg-stone-50">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {/* Header (desktop) */}
-      <div className="hidden md:block bg-white border-b border-stone-200">
+      {!isMobile && (
+      <div className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -3009,9 +3018,11 @@ function AdminPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Header (mobile) */}
-      <div className="md:hidden sticky top-0 z-20 bg-white border-b border-stone-200">
+      {isMobile && (
+      <div className="sticky top-0 z-20 bg-white border-b border-stone-200">
         <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <img src={LOGO_URL} alt="WACOS logo" className="h-9 w-auto shrink-0 drop-shadow" aria-hidden="true" />
@@ -3041,9 +3052,11 @@ function AdminPage() {
           Signed in as <span className="font-medium text-stone-600">{session.user?.email || ""}</span> · {roleLabel}
         </p>
       </div>
+      )}
 
       {/* Tabs (desktop) */}
-      <div className="hidden md:block bg-white border-b border-stone-200 sticky top-0 z-10">
+      {!isMobile && (
+      <div className="bg-white border-b border-stone-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide -mb-px">
             {tabs.filter((t) => visibleTabs.has(t.key)).map((t) => {
@@ -3069,6 +3082,7 @@ function AdminPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-32 md:py-8">
@@ -3103,7 +3117,8 @@ function AdminPage() {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-stone-200 pb-[env(safe-area-inset-bottom)]">
+      {isMobile && (
+      <nav className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-stone-200 pb-[env(safe-area-inset-bottom)]">
         <div className="flex">
           {primaryTabs.map((t) => {
             const Icon = t.icon;
@@ -3137,10 +3152,11 @@ function AdminPage() {
           )}
         </div>
       </nav>
+      )}
 
       {/* Mobile More sheet */}
-      {moreOpen && (
-        <div className="md:hidden fixed inset-0 z-30">
+      {isMobile && moreOpen && (
+        <div className="fixed inset-0 z-30">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMoreOpen(false)} />
           <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl max-h-[78vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <div className="sticky top-0 bg-white rounded-t-2xl border-b border-stone-100">
