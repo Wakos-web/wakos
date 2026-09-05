@@ -1007,6 +1007,7 @@ function AlumniPulsePage() {
   const [readMap, setReadMap] = useState<Record<string, string>>({});
   const [baselineAt, setBaselineAt] = useState<string | null>(null);
   const [readsReady, setReadsReady] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const { alumnus, ready, signIn, refresh, signOut } = useAlumnusSession();
   const channelRef = useRef<ChannelKey>(channel);
   const alumnusRef = useRef(alumnus);
@@ -1032,6 +1033,26 @@ function AlumniPulsePage() {
     return out;
   })();
   const totalUnread = Object.keys(displayUnread).reduce((sum, k) => sum + (displayUnread[k] || 0), 0);
+
+  // "Since you were last here" — fresh posts and events newer than the member's
+  // last-read timestamps, surfaced as a welcome-back banner on the All Updates view.
+  const NOTE_CHANNELS = ["update", "reunion", "memoriam", "achievement", "business"];
+  const welcome = (() => {
+    if (!alumnus || !readsReady || welcomeDismissed) return null;
+    const baseOf = (k: string) => readMap[k] || baselineAt;
+    const freshNotes = notes.filter(n => {
+      if (!NOTE_CHANNELS.includes(n.category)) return false;
+      if (n.author_name === alumnus.full_name) return false;
+      const base = baseOf(n.category);
+      if (!base) return false;
+      return new Date(n.created_at) > new Date(base);
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const eBase = baseOf("events");
+    const freshEvents = (eBase ? events.filter(e => e.approved && new Date(e.created_at) > new Date(eBase)) : [])
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    if (freshNotes.length === 0 && freshEvents.length === 0) return null;
+    return { freshNotes: freshNotes.slice(0, 5), freshEvents: freshEvents.slice(0, 3) };
+  })();
 
   // Reflect unread messages in the browser tab title.
   useEffect(() => {
@@ -1482,6 +1503,57 @@ function AlumniPulsePage() {
         {/* Thread */}
         <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 md:px-8 pt-6 pb-10 relative">
           <div className="max-w-3xl mx-auto">
+            {channel !== "events" && welcome && (
+              <div className="relative rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-400/[0.12] via-transparent to-teal-400/[0.06] p-5 mb-6 overflow-hidden">
+                <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-emerald-400/10 blur-2xl" />
+                <div className="relative flex items-start gap-3">
+                  <div className="shrink-0 w-10 h-10 rounded-xl bg-emerald-400/15 ring-1 ring-emerald-400/30 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-emerald-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="font-display font-bold text-white text-lg">Welcome back{alumnus?.full_name ? `, ${alumnus.full_name.split(" ")[0]}` : ""}</h2>
+                      <button onClick={() => setWelcomeDismissed(true)} className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white" aria-label="Dismiss welcome summary">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm text-white/50 mt-0.5">Here's what's new since you were last here:</p>
+                    <ul className="mt-3 space-y-2.5">
+                      {welcome.freshNotes.map(n => (
+                        <li key={n.id} className="flex items-start gap-2.5 text-sm">
+                          <span className="shrink-0 mt-0.5 rounded-md bg-white/[0.06] border border-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300/90">
+                            {CATS.find(c => c.key === n.category)?.label || n.category}
+                          </span>
+                          <span className="min-w-0 text-white/75">
+                            <span className="font-semibold text-white">{n.author_name}</span>{" "}
+                            <span className="text-white/45">{n.content.length > 90 ? n.content.slice(0, 90) + "…" : n.content}</span>
+                          </span>
+                        </li>
+                      ))}
+                      {welcome.freshEvents.map(evt => (
+                        <li key={evt.id} className="flex items-start gap-2.5 text-sm">
+                          <span className="shrink-0 mt-0.5 rounded-md bg-teal-400/15 border border-teal-400/25 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-300">Event</span>
+                          <span className="min-w-0 text-white/75">
+                            <span className="font-semibold text-white">{evt.title}</span>
+                            <span className="text-white/45"> · {evt.event_date ? dateLabel(evt.event_date) : "Date TBA"}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button onClick={handleBellClick} className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-4 py-2 text-sm font-bold hover:brightness-110">
+                        Mark all as read
+                      </button>
+                      {welcome.freshEvents.length > 0 && (
+                        <button onClick={() => selectChannel("events")} className="rounded-full border border-white/15 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white/70 hover:text-white hover:border-emerald-400/50">
+                          View events →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             {channel === "events" ? (
               <>
                 {/* Upcoming / Past filter */}
