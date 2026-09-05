@@ -80,6 +80,41 @@ const readUnread = (): Record<string, number> => {
   } catch { /* noop */ }
   return {};
 };
+const BASE_TITLE = "Alumni Pulse — M.M College Wairaka";
+
+// Subtle two-note ping synthesized with the Web Audio API (no audio assets).
+let audioCtx: AudioContext | null = null;
+function ensureAudio(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+    return audioCtx;
+  } catch { return null; }
+}
+function playChime() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  try {
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(783.99, t0);
+    osc.frequency.exponentialRampToValueAtTime(1046.5, t0 + 0.1);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.05, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.5);
+  } catch { /* ignore */ }
+}
 
 async function uploadFileToBucket(bucket: string, folder: string, file: File): Promise<string> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
@@ -965,6 +1000,24 @@ function AlumniPulsePage() {
     try { localStorage.setItem(UNREAD_KEY, JSON.stringify(unread)); } catch { /* noop */ }
   }, [unread]);
 
+  const totalUnread = Object.keys(unread).reduce((sum, k) => sum + (unread[k] || 0), 0);
+
+  // Reflect unread messages in the browser tab title.
+  useEffect(() => {
+    document.title = totalUnread > 0 ? `(${totalUnread > 99 ? "99+" : totalUnread}) ${BASE_TITLE}` : BASE_TITLE;
+  }, [totalUnread]);
+
+  // Browsers only let audio play after a user gesture, so unlock once on first tap.
+  useEffect(() => {
+    const unlock = () => { ensureAudio(); };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
   const fetchData = async () => {
     setLoading(true);
     const [notesRes, eventsRes, membersRes] = await Promise.all([
@@ -1062,7 +1115,12 @@ function AlumniPulsePage() {
         const active = channelRef.current;
         const me = alumnusRef.current;
         const mine = !!me && n.author_name === me.full_name;
-        if (!mine && n.category !== active && active !== "all") markUnread(n.category);
+        if (!mine && n.category !== active && active !== "all") {
+          markUnread(n.category);
+          // Nudge only when the tab is in the background / unfocused — on-page readers
+          // already see the badges and don't need a sound.
+          if (typeof document !== "undefined" && (document.hidden || !document.hasFocus())) playChime();
+        }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "class_notes" }, (p) => {
         const n = p.new as ClassNote;
@@ -1162,7 +1220,6 @@ function AlumniPulsePage() {
     setUnread(prev => (prev[k] ? { ...prev, [k]: 0 } : prev));
   };
 
-  const totalUnread = Object.keys(unread).reduce((sum, k) => sum + (unread[k] || 0), 0);
   const handleBellClick = () => {
     if (totalUnread > 0) {
       setUnread({});
