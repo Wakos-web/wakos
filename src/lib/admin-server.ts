@@ -256,6 +256,7 @@ const SUPER_TABLES = new Set<string>([
   "class_notes", "note_comments", "note_likes", "events", "event_rsvps", "inquiries",
   "articles", "page_content", "donations", "giving_ways", "giving_stats",
   "donation_accounts", "mobile_donations", "giving_contact", "site_settings",
+  "mwosa_stats", "mwosa_links", "mwosa_updates",
   "user_roles", "role_scopes", "role_permissions", "staff_invites",
 ]);
 
