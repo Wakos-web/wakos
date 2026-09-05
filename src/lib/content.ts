@@ -74,7 +74,9 @@ export const NAV_ITEMS = [
     { label: "Home Science", to: "/clubs/home-science" },
     { label: "Current Affairs", to: "/clubs/current-affairs" },
   ] },
-  { label: "Alumni", to: "/alumni", children: [
+  // MWOSA (the old students association) is the default Alumni landing page;
+  // the Pulse chat lives at /alumni and stays reachable from the dropdown.
+  { label: "Alumni", to: "/mwosa", children: [
     { label: "MWOSA", to: "/mwosa" },
     { label: "Pulse", to: "/alumni" },
     { label: "Alumni Directory", to: "/alumni/directory" },

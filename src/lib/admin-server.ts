@@ -251,12 +251,12 @@ type ProxyRequest = {
 
 /** Table allowlist per role. Row-level scoping (own club only) is the next step. */
 const SUPER_TABLES = new Set<string>([
-  "clubs", "club_members", "club_posts", "club_editors", "club_applications",
+  "clubs", "club_members", "club_posts", "club_post_media", "club_editors", "club_applications",
   "mentorship_requests", "sports_scholarships", "alumni_profiles", "alumni_businesses",
   "class_notes", "note_comments", "note_likes", "events", "event_rsvps", "inquiries",
   "articles", "page_content", "donations", "giving_ways", "giving_stats",
   "donation_accounts", "mobile_donations", "giving_contact", "site_settings",
-  "mwosa_stats", "mwosa_links", "mwosa_updates",
+  "mwosa_stats", "mwosa_links", "mwosa_updates", "mwosa_update_media",
   "user_roles", "role_scopes", "role_permissions", "staff_invites",
 ]);
 
@@ -566,31 +566,44 @@ export const adminListStaff = createServerFn().handler(async () => {
 async function sendStaffInviteEmail(email: string, name: string, roleLabel: string, code: string): Promise<void> {
   const apiKey = envVal(process.env.RESEND_API_KEY);
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
+  // Production portal URL — the invite must never point at localhost or a
+  // preview deployment. Set PORTAL_URL explicitly if the domain changes.
+  const portalBase = (process.env.PORTAL_URL || "https://wacos.alerotek.co.ke").replace(/\/$/, "");
+  const portal = portalBase + "/admin";
+  // Direct link to the password-creation screen (code + new password), so the
+  // flow is one hop: code → create password → sign in.
+  const acceptUrl = portalBase + "/admin/accept-invite?email=" + encodeURIComponent(email);
   const html = `
     <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #1c1917;">
       <p style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #166534; margin-bottom: 4px;">
         M.M College Wairaka · Staff Portal
       </p>
-      <h1 style="font-size: 24px; margin: 0 0 12px;">You're invited to the staff portal</h1>
+      <h1 style="font-size: 24px; margin: 0 0 12px;">Welcome to the WACOS staff team</h1>
       <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
         Hi ${name}, you have been added to the M.M College Wairaka admin dashboard
         as <strong>${roleLabel}</strong>. Your access is limited to what that role allows.
       </p>
       <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">
-        Your one-time acceptance code is:
+        To finish setting up your account:
       </p>
+      <ol style="font-size: 15px; line-height: 1.7; margin: 0 0 20px; padding-left: 20px; color: #1c1917;">
+        <li>
+          Open the staff portal: <a href="${acceptUrl}" style="color: #166534; font-weight: 700;">${portal}</a>
+        </li>
+        <li>Enter your email and this one-time code, then choose your new password:</li>
+      </ol>
       <p style="margin: 0 0 20px;">
         <span style="display: inline-block; background: #f0fdf4; border: 2px solid #166534; color: #14532d;
                      padding: 14px 28px; border-radius: 12px; font-size: 30px; font-weight: 700; letter-spacing: 0.35em;">${code}</span>
       </p>
       <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-        Open <strong>wacos-site-main.vercel.app/admin/accept-invite</strong>, enter your email
-        and this code, then choose your password. After that, sign in at
-        <strong>/admin</strong> with your email and new password.
+        You'll then create your own password. From then on, sign in at
+        <a href="${portal}" style="color: #166534; font-weight: 700;">${portal}</a>
+        with your email and password.
       </p>
       <p style="font-size: 13px; color: #57534e; line-height: 1.6; margin: 0 0 8px;">
-        This code expires in 24 hours and can only be used once. If it stops working,
-        ask your super admin to resend it from Staff &amp; Roles.
+        This code does not expire and can be used once. If you lose it, ask your
+        super admin to resend it from Staff &amp; Roles.
       </p>
       <p style="font-size: 12px; color: #a8a29e; margin-top: 24px;">
         This invite is for ${email}. If you weren't expecting it, you can ignore this email.
@@ -692,10 +705,11 @@ export const adminInviteStaff = createServerFn({ method: "POST" })
   try {
     await ensureAuthUser(supabase, cleanEmail);
     const code = generateOtpCode();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    // No expiry on acceptance codes — the invite stays valid until used or revoked.
+    const farFuture = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString();
     await supabase
       .from("staff_invites")
-      .update({ otp_code_hash: hashOtpCode(code, cleanEmail), otp_expires_at: expiresAt, otp_attempts: 0 })
+      .update({ otp_code_hash: hashOtpCode(code, cleanEmail), otp_expires_at: farFuture, otp_attempts: 0 })
       .eq("email", cleanEmail);
     const roleLabel =
       cleanRole === "super_admin" ? "Super Admin"
@@ -746,9 +760,7 @@ export const adminAcceptInvite = createServerFn({ method: "POST" })
   if (!invite.otp_code_hash || !invite.otp_expires_at) {
     return { ok: false as const, reason: "No acceptance code was sent. Ask your super admin to resend it." };
   }
-  if (new Date(invite.otp_expires_at).getTime() < Date.now()) {
-    return { ok: false as const, reason: "That code has expired. Ask your super admin to resend it." };
-  }
+  // No expiry: an acceptance code stays valid until the invite is used or revoked.
   if ((invite.otp_attempts || 0) >= 5) {
     return { ok: false as const, reason: "Too many wrong attempts. Ask your super admin to resend the code." };
   }
@@ -815,9 +827,11 @@ export const adminResendInviteCode = createServerFn({ method: "POST" })
 
   await ensureAuthUser(supabase, invite.email);
   const code = generateOtpCode();
+  // No expiry on acceptance codes — consistent with the original invite.
+  const farFuture = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString();
   await supabase.from("staff_invites").update({
     otp_code_hash: hashOtpCode(code, invite.email),
-    otp_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    otp_expires_at: farFuture,
     otp_attempts: 0,
   }).eq("id", id);
 

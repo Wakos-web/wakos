@@ -78,7 +78,7 @@ function DirectoryContent() {
       <div className="bg-white border-b border-stone-200 sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/alumni" className="text-sm font-medium text-stone-500 hover:text-green-800">
+            <Link to="/mwosa" className="text-sm font-medium text-stone-500 hover:text-green-800">
               Alumni
             </Link>
             <span className="text-stone-300">/</span>

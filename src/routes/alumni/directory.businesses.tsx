@@ -97,7 +97,7 @@ function BusinessesPage() {
       <section className="relative h-[40vh] min-h-[280px] flex items-end overflow-hidden">
         <div className="absolute inset-0 bg-green-900" />
         <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-10">
-          <Link to="/alumni" className="inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-4">
+          <Link to="/mwosa" className="inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-4">
             <ArrowLeft className="h-4 w-4" /> Alumni
           </Link>
           <h1 className="font-display text-4xl md:text-5xl text-white font-bold tracking-tight">

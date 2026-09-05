@@ -34,6 +34,7 @@ import { Route as AlumniDirectoryBusinessesRouteImport } from './routes/alumni/d
 import { Route as AlumniDirectoryClaimRouteImport } from './routes/alumni/directory.claim'
 import { Route as AlumniDirectoryLoginRouteImport } from './routes/alumni/directory.login'
 import { Route as AlumniDirectoryRegisterRouteImport } from './routes/alumni/directory.register'
+import { Route as MwosaUpdateIdRouteImport } from './routes/mwosa.update.$id'
 import { Route as ClubsSlugPostsPostIdRouteImport } from './routes/clubs.$slug.posts.$postId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -162,6 +163,11 @@ const AlumniDirectoryRegisterRoute = AlumniDirectoryRegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => AlumniDirectoryRoute,
 } as any)
+const MwosaUpdateIdRoute = MwosaUpdateIdRouteImport.update({
+  id: '/update/$id',
+  path: '/update/$id',
+  getParentRoute: () => MwosaRoute,
+} as any)
 const ClubsSlugPostsPostIdRoute = ClubsSlugPostsPostIdRouteImport.update({
   id: '/posts/$postId',
   path: '/posts/$postId',
@@ -180,7 +186,7 @@ export interface FileRoutesByFullPath {
   '/clubs': typeof ClubsRouteWithChildren
   '/contact': typeof ContactRoute
   '/giving': typeof GivingRoute
-  '/mwosa': typeof MwosaRoute
+  '/mwosa': typeof MwosaRouteWithChildren
   '/student-life': typeof StudentLifeRoute
   '/admin/accept-invite': typeof AdminAcceptInviteRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/alumni/directory/claim': typeof AlumniDirectoryClaimRoute
   '/alumni/directory/login': typeof AlumniDirectoryLoginRoute
   '/alumni/directory/register': typeof AlumniDirectoryRegisterRoute
+  '/mwosa/update/$id': typeof MwosaUpdateIdRoute
   '/clubs/$slug/posts/$postId': typeof ClubsSlugPostsPostIdRoute
 }
 export interface FileRoutesByTo {
@@ -208,7 +215,7 @@ export interface FileRoutesByTo {
   '/clubs': typeof ClubsRouteWithChildren
   '/contact': typeof ContactRoute
   '/giving': typeof GivingRoute
-  '/mwosa': typeof MwosaRoute
+  '/mwosa': typeof MwosaRouteWithChildren
   '/student-life': typeof StudentLifeRoute
   '/admin/accept-invite': typeof AdminAcceptInviteRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/alumni/directory/claim': typeof AlumniDirectoryClaimRoute
   '/alumni/directory/login': typeof AlumniDirectoryLoginRoute
   '/alumni/directory/register': typeof AlumniDirectoryRegisterRoute
+  '/mwosa/update/$id': typeof MwosaUpdateIdRoute
   '/clubs/$slug/posts/$postId': typeof ClubsSlugPostsPostIdRoute
 }
 export interface FileRoutesById {
@@ -237,7 +245,7 @@ export interface FileRoutesById {
   '/clubs': typeof ClubsRouteWithChildren
   '/contact': typeof ContactRoute
   '/giving': typeof GivingRoute
-  '/mwosa': typeof MwosaRoute
+  '/mwosa': typeof MwosaRouteWithChildren
   '/student-life': typeof StudentLifeRoute
   '/admin/accept-invite': typeof AdminAcceptInviteRoute
   '/alumni/directory': typeof AlumniDirectoryRouteWithChildren
@@ -251,6 +259,7 @@ export interface FileRoutesById {
   '/alumni/directory/claim': typeof AlumniDirectoryClaimRoute
   '/alumni/directory/login': typeof AlumniDirectoryLoginRoute
   '/alumni/directory/register': typeof AlumniDirectoryRegisterRoute
+  '/mwosa/update/$id': typeof MwosaUpdateIdRoute
   '/clubs/$slug/posts/$postId': typeof ClubsSlugPostsPostIdRoute
 }
 export interface FileRouteTypes {
@@ -281,6 +290,7 @@ export interface FileRouteTypes {
     | '/alumni/directory/claim'
     | '/alumni/directory/login'
     | '/alumni/directory/register'
+    | '/mwosa/update/$id'
     | '/clubs/$slug/posts/$postId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/alumni/directory/claim'
     | '/alumni/directory/login'
     | '/alumni/directory/register'
+    | '/mwosa/update/$id'
     | '/clubs/$slug/posts/$postId'
   id:
     | '__root__'
@@ -337,6 +348,7 @@ export interface FileRouteTypes {
     | '/alumni/directory/claim'
     | '/alumni/directory/login'
     | '/alumni/directory/register'
+    | '/mwosa/update/$id'
     | '/clubs/$slug/posts/$postId'
   fileRoutesById: FileRoutesById
 }
@@ -352,7 +364,7 @@ export interface RootRouteChildren {
   ClubsRoute: typeof ClubsRouteWithChildren
   ContactRoute: typeof ContactRoute
   GivingRoute: typeof GivingRoute
-  MwosaRoute: typeof MwosaRoute
+  MwosaRoute: typeof MwosaRouteWithChildren
   StudentLifeRoute: typeof StudentLifeRoute
   CampusNewsSlugRoute: typeof CampusNewsSlugRoute
   CampusNewsIndexRoute: typeof CampusNewsIndexRoute
@@ -535,6 +547,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlumniDirectoryRegisterRouteImport
       parentRoute: typeof AlumniDirectoryRoute
     }
+    '/mwosa/update/$id': {
+      id: '/mwosa/update/$id'
+      path: '/update/$id'
+      fullPath: '/mwosa/update/$id'
+      preLoaderRoute: typeof MwosaUpdateIdRouteImport
+      parentRoute: typeof MwosaRoute
+    }
     '/clubs/$slug/posts/$postId': {
       id: '/clubs/$slug/posts/$postId'
       path: '/posts/$postId'
@@ -612,6 +631,16 @@ const ClubsRouteChildren: ClubsRouteChildren = {
 
 const ClubsRouteWithChildren = ClubsRoute._addFileChildren(ClubsRouteChildren)
 
+interface MwosaRouteChildren {
+  MwosaUpdateIdRoute: typeof MwosaUpdateIdRoute
+}
+
+const MwosaRouteChildren: MwosaRouteChildren = {
+  MwosaUpdateIdRoute: MwosaUpdateIdRoute,
+}
+
+const MwosaRouteWithChildren = MwosaRoute._addFileChildren(MwosaRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -624,7 +653,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClubsRoute: ClubsRouteWithChildren,
   ContactRoute: ContactRoute,
   GivingRoute: GivingRoute,
-  MwosaRoute: MwosaRoute,
+  MwosaRoute: MwosaRouteWithChildren,
   StudentLifeRoute: StudentLifeRoute,
   CampusNewsSlugRoute: CampusNewsSlugRoute,
   CampusNewsIndexRoute: CampusNewsIndexRoute,

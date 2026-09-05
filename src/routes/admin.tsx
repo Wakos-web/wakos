@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff } from "@/lib/supabase";
 import { notifyClubEditor } from "@/lib/club-notify";
 import { notifyAlumniApplicant } from "@/lib/alumni-notify";
@@ -11,7 +11,8 @@ import {
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
   CalendarCheck, ChevronDown, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
-  Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft
+  Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
+  Image as ImageIcon, Video as VideoIcon, Upload, GripVertical
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -2167,6 +2168,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
   const [updates, setUpdates] = useState<any[]>([]);
   const [edit, setEdit] = useState<any | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [imageUrl, setImageUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -2182,14 +2184,15 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
 
   useEffect(() => { load(); }, []);
 
-  const resetForm = () => { setEdit(null); setForm({}); };
+  const resetForm = () => { setEdit(null); setForm({}); setImageUrl(""); };
   const startEdit = (item: any) => {
     const f: Record<string, string> = {};
     Object.entries(item || {}).forEach(([k, v]) => {
-      if (v !== null && v !== undefined && k !== "id" && k !== "created_at" && k !== "updated_at") f[k] = String(v);
+      if (v !== null && v !== undefined && k !== "id" && k !== "created_at" && k !== "updated_at" && k !== "image_url") f[k] = String(v);
     });
     setEdit(item);
     setForm(f);
+    setImageUrl(item?.image_url || "");
   };
 
   const tableFor = (sec: string) =>
@@ -2218,6 +2221,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
       payload[k] = fieldDefs[section].find(f => f.label === k)?.type === "number" ? parseInt(v) || 0 : v;
     });
     if (section === "links" && !payload.category) payload.category = "quick";
+    if (section === "updates") payload.image_url = imageUrl.trim() ? imageUrl.trim() : null;
     let error: any = null;
     if (edit?.id) {
       ({ error } = await supabase.from(table).update(payload).eq("id", edit.id));
@@ -2297,6 +2301,17 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
               "channel" shows the Whats Up class channels by decade.
             </p>
           )}
+          {section === "updates" && (
+            <div>
+              <ImageUpload value={imageUrl} onChange={setImageUrl} label="Card cover photo (optional)" />
+              <p className="text-xs text-stone-400 mt-1">This photo leads the card on the public page. Leave empty to remove.</p>
+            </div>
+          )}
+          {section === "updates" && edit?.id && (
+            <div className="border-t border-stone-100 pt-5">
+              <UpdateMediaManager updateId={edit.id} setToast={setToast} />
+            </div>
+          )}
           <div className="flex gap-2">
             <button onClick={save} disabled={saving} className="px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
               {saving ? "Saving..." : "Save"}
@@ -2308,7 +2323,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
 
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-stone-500">{rows.length} items</p>
-        <button onClick={() => { setEdit({}); setForm({}); }}
+        <button onClick={() => { setEdit({}); setForm({}); setImageUrl(""); }}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors">
           <UserPlus className="h-4 w-4" /> Add {section === "stats" ? "Stat" : section === "updates" ? "Update" : "Link"}
         </button>
@@ -2325,6 +2340,9 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
           const sub = item.url || item.body || item.label || "";
           return (
             <div key={item.id} className="rounded-xl bg-white border border-stone-200 p-4 flex items-center justify-between gap-4 hover:border-green-800 transition-colors">
+              {section === "updates" && item.image_url && (
+                <img src={item.image_url} alt="" className="w-24 h-16 rounded-lg object-cover border border-stone-200 shrink-0" />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-display font-bold text-stone-900 truncate">{title}</p>
@@ -2355,6 +2373,254 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* Media manager for a single MWOSA project update: photos and videos with
+ * captions, reordered, uploaded straight to Supabase Storage (never a URL).
+ * This is the backend for the update's detail/story page. */
+function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [edits, setEdits] = useState<Record<string, { caption: string; sort: string; poster: string }>>({});
+  const [addCaption, setAddCaption] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [posterUploading, setPosterUploading] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("mwosa_update_media").select("*").eq("update_id", updateId).order("sort_order", { ascending: true });
+    setItems(data || []);
+    const e: Record<string, { caption: string; sort: string; poster: string }> = {};
+    (data || []).forEach((m: any) => { e[m.id] = { caption: m.caption || "", sort: String(m.sort_order ?? 0), poster: m.poster_url || "" }; });
+    setEdits(e);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [updateId]);
+
+  const uploadFile = async (file: File): Promise<string> => {
+    const path = `mwosa-updates/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
+    const { error } = await supabase.storage.from("uploads").upload(path, file, { contentType: file.type });
+    if (error) throw error;
+    const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const addMedia = async (file: File | undefined, type: "image" | "video") => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadFile(file);
+      const { error } = await supabase.from("mwosa_update_media").insert({
+        update_id: updateId,
+        media_type: type,
+        media_url: url,
+        caption: addCaption.trim() || null,
+        sort_order: items.length + 1,
+      });
+      if (error) throw error;
+      setAddCaption("");
+      setToast({ message: "Media added", type: "success" });
+      load();
+    } catch (e: any) {
+      setToast({ message: e?.message || "Upload failed", type: "error" });
+    } finally {
+      setUploading(false);
+      if (photoRef.current) photoRef.current.value = "";
+      if (videoRef.current) videoRef.current.value = "";
+    }
+  };
+
+  const saveRow = async (id: string) => {
+    const e = edits[id];
+    if (!e) return;
+    const { error } = await supabase.from("mwosa_update_media").update({
+      caption: e.caption.trim() || null,
+      sort_order: parseInt(e.sort) || 0,
+      poster_url: e.poster.trim() || null,
+    }).eq("id", id);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Saved", type: "success" });
+    load();
+  };
+
+  const setPoster = async (id: string, file: File | undefined) => {
+    if (!file) return;
+    setPosterUploading(id);
+    try {
+      const url = await uploadFile(file);
+      setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || { caption: "", sort: "0", poster: "" }), poster: url } }));
+      setToast({ message: "Poster uploaded — press Save on the row to keep it", type: "success" });
+    } catch (e: any) {
+      setToast({ message: e?.message || "Poster upload failed", type: "error" });
+    } finally {
+      setPosterUploading(null);
+    }
+  };
+
+  const removeRow = async (id: string) => {
+    const { error } = await supabase.from("mwosa_update_media").delete().eq("id", id);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Deleted", type: "success" });
+    load();
+  };
+
+  /* Drag-to-reorder: HTML5 drag & drop. On drop the whole list's sort_order
+   * is rewritten in one batch, then reloaded so the UI matches the DB. */
+  const onDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+    setDragId(id);
+  };
+
+  const onDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (id !== dragId) setDragOverId(id);
+  };
+
+  const onDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!dragId || dragId === targetId) {
+      setDragId(null); setDragOverId(null);
+      return;
+    }
+    const next = [...items];
+    const from = next.findIndex((m) => m.id === dragId);
+    const to = next.findIndex((m) => m.id === targetId);
+    if (from === -1 || to === -1) {
+      setDragId(null); setDragOverId(null);
+      return;
+    }
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setItems(next);
+    setDragId(null); setDragOverId(null);
+    // Persist the new order (1-based) in one batch.
+    const updates = next.map((m, i) =>
+      supabase.from("mwosa_update_media").update({ sort_order: i + 1 }).eq("id", m.id),
+    );
+    await Promise.all(updates);
+    setToast({ message: "Order saved", type: "success" });
+    load();
+  };
+
+  return (
+    <div>
+      <p className="text-sm font-semibold text-stone-700 mb-1">Story media (photos & videos with captions)</p>
+      <p className="text-xs text-stone-400 mb-4">
+        These appear on the update's detailed page. Upload a photo or video, give it a caption, and reorder.
+      </p>
+
+      <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 mb-4 space-y-3">
+        <input
+          value={addCaption}
+          onChange={(e) => setAddCaption(e.target.value)}
+          placeholder="Caption for the new photo / video"
+          className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => photoRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-800 hover:bg-green-900 text-white text-sm font-semibold disabled:opacity-50 transition-colors"
+          >
+            <ImageIcon className="h-4 w-4" /> {uploading ? "Uploading…" : "Add photo"}
+          </button>
+          <button
+            onClick={() => videoRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-stone-300 hover:border-green-800 text-stone-700 text-sm font-semibold disabled:opacity-50 transition-colors"
+          >
+            <VideoIcon className="h-4 w-4" /> {uploading ? "Uploading…" : "Add video"}
+          </button>
+          <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "image")} />
+          <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "video")} />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-6 text-center text-sm text-stone-400">Loading media…</div>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-stone-300 p-6 text-center text-sm text-stone-400">
+          No media yet. Add a photo or video above — it will appear on the detailed page.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((m) => (
+            <div
+              key={m.id}
+              draggable
+              onDragStart={(e) => onDragStart(e, m.id)}
+              onDragOver={(e) => onDragOver(e, m.id)}
+              onDrop={(e) => onDrop(e, m.id)}
+              onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+              className={`rounded-xl border p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all ${dragId === m.id ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverId === m.id && dragId !== m.id ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
+            >
+              <GripVertical className="h-5 w-5 text-stone-400 shrink-0" />
+              <div className="w-28 h-20 shrink-0 rounded-lg overflow-hidden bg-stone-100 border border-stone-200 flex items-center justify-center">
+                {m.media_type === "video" ? (
+                  <video src={m.media_url} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+                ) : (
+                  <img src={m.media_url} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={edits[m.id]?.caption ?? ""}
+                    onChange={(e) => setEdits({ ...edits, [m.id]: { caption: e.target.value, sort: edits[m.id]?.sort ?? "0", poster: edits[m.id]?.poster ?? "" } })}
+                    placeholder="Caption"
+                    className="flex-1 min-w-0 p-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                  />
+                  <input
+                    value={edits[m.id]?.sort ?? "0"}
+                    onChange={(e) => setEdits({ ...edits, [m.id]: { caption: edits[m.id]?.caption ?? "", sort: e.target.value, poster: edits[m.id]?.poster ?? "" } })}
+                    title="Order (1, 2, 3…)"
+                    className="w-16 p-2 border border-stone-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                  />
+                  <span className="text-[10px] uppercase tracking-wide text-stone-400">{m.media_type}</span>
+                </div>
+                {m.media_type === "video" && (
+                  <div className="flex items-center gap-2">
+                    {edits[m.id]?.poster ? (
+                      <img src={edits[m.id]?.poster} alt="poster" className="h-10 w-16 rounded-md object-cover border border-stone-200 shrink-0" />
+                    ) : (
+                      <span className="text-[10px] text-stone-400 italic">No poster frame yet</span>
+                    )}
+                    <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-green-100 text-stone-600 hover:text-green-800 text-[11px] font-semibold cursor-pointer transition-colors">
+                      {posterUploading === m.id ? "Uploading…" : edits[m.id]?.poster ? "Change poster" : "Add poster frame"}
+                      <input type="file" accept="image/*" className="hidden" disabled={posterUploading === m.id} onChange={(e) => setPoster(m.id, e.target.files?.[0])} />
+                    </label>
+                    {edits[m.id]?.poster && (
+                      <button
+                        onClick={() => setEdits({ ...edits, [m.id]: { caption: edits[m.id]?.caption ?? "", sort: edits[m.id]?.sort ?? "0", poster: "" } })}
+                        className="text-[11px] text-stone-400 hover:text-red-500 underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center gap-1">
+                  <button onClick={() => saveRow(m.id)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-green-100 text-stone-600 hover:text-green-800 text-xs font-semibold transition-colors">
+                    <Check className="h-3.5 w-3.5" /> Save
+                  </button>
+                  <button onClick={() => removeRow(m.id)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 text-stone-500 hover:text-red-600 text-xs font-semibold transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2808,8 +3074,29 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
                 {resend.label()}
               </button>
               <p className="text-center text-[11px] text-stone-400">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
-              <button onClick={() => { setSent(false); setCode(""); }} className="w-full text-center text-sm text-stone-400 hover:text-stone-600">
-                Wrong email? Start over
+              <button
+                onClick={async () => {
+                  // Start over: go back to the email entry and send a fresh code
+                  // straight away, so the user is never stuck waiting.
+                  setCode("");
+                  setSent(false);
+                  setError("");
+                  const em = email.trim().toLowerCase();
+                  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return;
+                  if (!resend.allowSend()) return;
+                  try {
+                    await supabase.auth.signInWithOtp({
+                      email: em,
+                      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/admin` },
+                    });
+                    resend.onSent();
+                  } catch {
+                    // silent — the user can press "Email me a code" again
+                  }
+                }}
+                className="w-full text-center text-sm text-stone-400 hover:text-stone-600"
+              >
+                Wrong email? Start over — a new code will be sent
               </button>
             </div>
           )}
