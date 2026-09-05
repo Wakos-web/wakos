@@ -890,6 +890,7 @@ function AlumniPulsePage() {
   const [composerPhoto, setComposerPhoto] = useState<File | null>(null);
   const [composerPreview, setComposerPreview] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [live, setLive] = useState(false);
   const { alumnus, ready, signIn, refresh, signOut } = useAlumnusSession();
 
   const fetchData = async () => {
@@ -922,6 +923,65 @@ function AlumniPulsePage() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Live updates: new posts, replies, likes and members stream in without a refresh.
+  useEffect(() => {
+    const ch = supabase
+      .channel("pulse-live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "class_notes" }, (p) => {
+        const n = p.new as ClassNote;
+        if (!n.approved) return;
+        setNotes(prev => (prev.some(x => x.id === n.id) ? prev : [n, ...prev]));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "class_notes" }, (p) => {
+        const n = p.new as ClassNote;
+        setNotes(prev =>
+          n.approved
+            ? prev.some(x => x.id === n.id)
+              ? prev.map(x => (x.id === n.id ? n : x))
+              : [n, ...prev]
+            : prev.filter(x => x.id !== n.id)
+        );
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "class_notes" }, (p) => {
+        const old = p.old as ClassNote;
+        setNotes(prev => prev.filter(x => x.id !== old.id));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "note_comments" }, (p) => {
+        const c = p.new as NoteComment;
+        setCommentsMap(prev => ({ ...prev, [c.note_id]: [...(prev[c.note_id] || []).filter(x => x.id !== c.id), c] }));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "note_comments" }, (p) => {
+        const c = p.old as NoteComment;
+        setCommentsMap(prev => ({ ...prev, [c.note_id]: (prev[c.note_id] || []).filter(x => x.id !== c.id) }));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "note_likes" }, (p) => {
+        const l = p.new as NoteLike;
+        setLikesMap(prev => ({ ...prev, [l.note_id]: [...(prev[l.note_id] || []).filter(x => x.id !== l.id), l] }));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alumni_profiles" }, (p) => {
+        const m = p.new as Alumnus;
+        if (!m.approved || !m.is_public) return;
+        setMembers(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m].slice(0, 20)));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "events" }, (p) => {
+        const evt = p.new as Event;
+        setEvents(prev => (prev.some(x => x.id === evt.id) ? prev : [evt, ...prev]));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "events" }, (p) => {
+        const evt = p.new as Event;
+        setEvents(prev => (prev.some(x => x.id === evt.id) ? prev.map(x => (x.id === evt.id ? evt : x)) : prev));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "events" }, (p) => {
+        const old = p.old as Event;
+        setEvents(prev => prev.filter(x => x.id !== old.id));
+      })
+      .subscribe((status) => {
+        setLive(status === "SUBSCRIBED");
+        if (status !== "SUBSCRIBED") console.warn("Pulse realtime status:", status);
+      });
+    return () => { supabase.removeChannel(ch); };
+  }, []);
 
   const channelNotes = notes.filter(n => {
     if (channel !== "all" && n.category !== channel) return false;
@@ -1044,6 +1104,15 @@ function AlumniPulsePage() {
                 <ChannelIcon className="h-4 w-4 text-emerald-300" />
               </span>
               {threadTitle}
+              {live && (
+                <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 border border-emerald-400/25 px-2 py-0.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-300">LIVE</span>
+                </span>
+              )}
             </h1>
           </div>
           <div className="hidden md:flex items-center gap-2 bg-white/[0.05] border border-white/10 rounded-full px-4 py-2 flex-1 max-w-sm ml-auto focus-within:border-emerald-400/50">
