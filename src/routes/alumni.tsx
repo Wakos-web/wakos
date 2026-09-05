@@ -1,10 +1,10 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { IMAGES } from "@/lib/content";
 import {
   Send, Calendar, BookOpen, Users, Heart, Award, Building2, Clock, ThumbsUp,
-  MessageCircle, ChevronDown, ChevronUp, LogOut, UserCircle2, ImagePlus,
+  MessageCircle, ChevronDown, ChevronUp, LogOut, UserCircle2, ImagePlus, Home,
+  Search, Bell, Settings, Menu, X, Info, Sparkles, Layers, ExternalLink, Gift,
 } from "lucide-react";
 
 export const Route = createFileRoute("/alumni")({
@@ -46,32 +46,38 @@ type Alumnus = {
   approved: boolean;
 };
 
+type ChannelKey = "all" | "update" | "reunion" | "memoriam" | "achievement" | "business" | "events";
+
 const CATS = [
-  { key: "all", label: "All", icon: Users },
+  { key: "all", label: "All Updates", icon: Layers },
   { key: "update", label: "Updates", icon: BookOpen },
   { key: "reunion", label: "Reunions", icon: Users },
   { key: "memoriam", label: "In Memoriam", icon: Heart },
   { key: "achievement", label: "Achievements", icon: Award },
   { key: "business", label: "Business", icon: Building2 },
-];
+] as const;
+
+const CHANNEL_TOPICS: Record<ChannelKey, string> = {
+  all: "Every class note shared by WACOS alumni, newest first.",
+  update: "What classmates are up to — careers, moves, family, everyday wins.",
+  reunion: "Campus gatherings, meet-ups and plans to come home to Wairaka.",
+  memoriam: "Remembering old students and teachers we have lost.",
+  achievement: "Awards, graduations, business milestones and proud moments.",
+  business: "Alumni businesses and services — support your own.",
+  events: "Upcoming and past reunions and community events.",
+};
 
 const DECADES = ["2020s", "2010s", "2000s", "1990s", "1980s", "1970s"];
 
 const CAT_ICONS: Record<string, typeof Users> = { update: BookOpen, reunion: Users, memoriam: Heart, achievement: Award, business: Building2 };
-const CAT_COLORS: Record<string, string> = { update: "bg-blue-100 text-blue-800", reunion: "bg-purple-100 text-purple-800", memoriam: "bg-stone-100 text-stone-600", achievement: "bg-amber-100 text-amber-800", business: "bg-green-100 text-green-800" };
-
 const SESSION_KEY = "wacos_alumnus_session";
 
-function alumniAvatarBucket(file: File): string {
+async function uploadFileToBucket(bucket: string, folder: string, file: File): Promise<string> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  return `avatars/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-}
-
-async function uploadAvatar(file: File): Promise<string> {
-  const path = alumniAvatarBucket(file);
-  const { error } = await supabase.storage.from("class-notes-photos").upload(path, file);
+  const path = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+  const { error } = await supabase.storage.from(bucket).upload(path, file);
   if (error) throw error;
-  const { data } = supabase.storage.from("class-notes-photos").getPublicUrl(path);
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
@@ -92,7 +98,6 @@ function useAlumnusSession() {
       if (!id) { setReady(true); return; }
       supabase.from("alumni_profiles").select("*").eq("id", id).maybeSingle().then(({ data }) => {
         if (data) {
-          // A recalled/suspended profile can no longer post or edit.
           if (data.approved) setAlumnus(data as Alumnus);
           try { localStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
         } else {
@@ -127,481 +132,49 @@ function useAlumnusSession() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Small shared bits                                                   */
+/* Shared bits                                                         */
 /* ------------------------------------------------------------------ */
 
-function Avatar({ name, url, size = "w-12 h-12", text = "text-lg" }: { name: string; url?: string | null; size?: string; text?: string }) {
+function Avatar({ name, url, size = "w-9 h-9", text = "text-sm" }: { name: string; url?: string | null; size?: string; text?: string }) {
   if (url) {
-    return <img src={url} alt={name} loading="lazy" className={`${size} rounded-full object-cover shrink-0`} />;
+    return <img src={url} alt={name} loading="lazy" className={`${size} rounded-full object-cover shrink-0 ring-1 ring-white/15`} />;
   }
   return (
-    <div className={`${size} rounded-full bg-green-100 flex items-center justify-center shrink-0`}>
-      <span className={`${text} font-bold text-green-800`}>{name.charAt(0) || "?"}</span>
+    <div className={`${size} rounded-full bg-emerald-400/15 flex items-center justify-center shrink-0 ring-1 ring-white/10`}>
+      <span className={`${text} font-bold text-emerald-300`}>{name.charAt(0) || "?"}</span>
     </div>
   );
 }
 
-function PulseGuidelines({ compact }: { compact?: boolean }) {
+function PulseGuidelines() {
   return (
-    <div className={`rounded-xl border border-amber-200 bg-amber-50 p-4 ${compact ? "" : "mt-2"}`}>
-      <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-2">Pulse Community Guidelines</p>
-      <ul className="text-xs text-amber-900/90 space-y-1.5 leading-relaxed">
-        <li><span className="font-semibold">Be kind and truthful.</span> No harassment, hate speech, or personal attacks.</li>
-        <li><span className="font-semibold">Stay on topic.</span> This is the WACOS alumni community. Business promotion belongs in the Business category, in moderation.</li>
-        <li><span className="font-semibold">Respect privacy.</span> Don't post other people's contacts or photos without their consent.</li>
-        <li><span className="font-semibold">Be yourself.</span> Always post under your own alumni identity — no impersonation.</li>
-        <li><span className="font-semibold">We moderate.</span> Posts that break these rules may be unpublished, and repeat offenders may lose access. Administered by MMCWOSA.</li>
+    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
+      <p className="text-[11px] font-bold text-emerald-300 uppercase tracking-widest mb-2">Pulse Community Guidelines</p>
+      <ul className="text-xs text-white/65 space-y-1.5 leading-relaxed">
+        <li><span className="font-semibold text-white/85">Be kind and truthful.</span> No harassment, hate speech, or personal attacks.</li>
+        <li><span className="font-semibold text-white/85">Stay on topic.</span> Business promotion belongs in the Business channel.</li>
+        <li><span className="font-semibold text-white/85">Respect privacy.</span> Don't post others' contacts or photos without consent.</li>
+        <li><span className="font-semibold text-white/85">Be yourself.</span> Always post under your own alumni identity.</li>
+        <li><span className="font-semibold text-white/85">We moderate.</span> Posts breaking these rules may be unpublished and repeat offenders removed. Administered by MMCWOSA.</li>
       </ul>
     </div>
   );
 }
 
-function HeroSection({ onPost }: { onPost: () => void }) {
-  return (
-    <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
-      <div className="absolute inset-0">
-        <img src={IMAGES.giving} alt="WACOS alumni" className="h-full w-full object-cover object-center" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-      </div>
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
-        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">The WACOS Pulse</h1>
-        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">73 years of graduates. One community. Your story is part of it.</p>
-        <div className="mt-6 flex flex-wrap gap-4">
-          <button onClick={onPost} className="inline-flex items-center gap-2 bg-white text-green-900 px-6 py-3 rounded-full font-semibold hover:bg-stone-100 transition-colors">
-            <Send className="h-4 w-4" /> Post to the Pulse
-          </button>
-          <a href="#events" className="inline-flex items-center gap-2 border border-white/40 text-white px-6 py-3 rounded-full font-semibold hover:bg-white/10 transition-colors">
-            <Calendar className="h-4 w-4" /> View Events
-          </a>
-        </div>
-      </div>
-    </section>
-  );
+function timeLabel(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
-function StatsBar({ notes, events, photos }: { notes: number; events: number; photos: number }) {
-  return (
-    <section className="bg-white border-b border-stone-200">
-      <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-center gap-8 text-sm font-medium text-stone-600">
-        <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-green-800" /> {notes} class notes</span>
-        <span className="flex items-center gap-2"><Calendar className="h-4 w-4 text-green-800" /> {events} events</span>
-        <span className="flex items-center gap-2"><Users className="h-4 w-4 text-green-800" /> {photos} photos</span>
-      </div>
-    </section>
-  );
-}
-
-function NoteCard({ note, likes, comments, alumnus, onLike, onComment, onJoin }: {
-  note: ClassNote;
-  likes: NoteLike[];
-  comments: NoteComment[];
-  alumnus: Alumnus | null;
-  onLike: (noteId: string) => void;
-  onComment: (noteId: string, text: string) => void;
-  onJoin: () => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const CatIcon = CAT_ICONS[note.category] || BookOpen;
-  const catColor = CAT_COLORS[note.category] || "bg-stone-100 text-stone-600";
-
-  const handleComment = async () => {
-    if (!commentText.trim()) return;
-    setSubmitting(true);
-    await onComment(note.id, commentText.trim());
-    setCommentText("");
-    setSubmitting(false);
-  };
-
-  const likedByMe = !!alumnus && likes.some(l => l.user_name === alumnus.full_name);
-
-  return (
-    <div className="rounded-2xl bg-white border border-stone-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-start gap-4">
-        <Avatar name={note.author_name} url={note.author_avatar_url} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="font-display text-lg font-bold text-stone-900">{note.author_name}</h3>
-            <span className="text-sm text-stone-400">Class of {note.graduation_year}</span>
-            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${catColor}`}>
-              <CatIcon className="h-3 w-3" /> {note.category}
-            </span>
-          </div>
-          <p className="text-stone-600 font-body leading-relaxed mt-2">{note.content}</p>
-          {note.photo_url && (
-            <img src={note.photo_url} alt="" className="mt-4 rounded-xl max-h-64 object-cover" loading="lazy" />
-          )}
-          <p className="text-xs text-stone-400 mt-3 flex items-center gap-1">
-            <Clock className="h-3 w-3" /> {new Date(note.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-          </p>
-
-          {/* Like + Comment bar */}
-          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-stone-100">
-            {alumnus ? (
-              <button onClick={() => onLike(note.id)}
-                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${likedByMe ? "text-green-800" : "text-stone-500 hover:text-green-800"}`}>
-                <ThumbsUp className={`h-4 w-4 ${likedByMe ? "fill-green-800" : ""}`} /> {likes.length > 0 ? likes.length : ""} Like{likes.length !== 1 ? "s" : ""}
-              </button>
-            ) : (
-              <button onClick={onJoin} className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-400 hover:text-green-800 transition-colors" title="Join to like">
-                <ThumbsUp className="h-4 w-4" /> {likes.length > 0 ? likes.length : ""} Like{likes.length !== 1 ? "s" : ""}
-              </button>
-            )}
-            <button onClick={() => setExpanded(!expanded)}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-green-800 transition-colors">
-              <MessageCircle className="h-4 w-4" /> {comments.length > 0 ? comments.length : ""} Comment{comments.length !== 1 ? "s" : ""}
-              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
-          </div>
-
-          {/* Comments section */}
-          {expanded && (
-            <div className="mt-4 space-y-3">
-              {comments.length > 0 ? (
-                comments.map(c => (
-                  <div key={c.id} className="flex gap-3">
-                    <Avatar name={c.author_name} url={null} size="w-8 h-8" text="text-xs" />
-                    <div className="flex-1 bg-stone-50 rounded-xl px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-stone-900">{c.author_name}</span>
-                        {c.graduation_year && <span className="text-xs text-stone-400">Class of {c.graduation_year}</span>}
-                      </div>
-                      <p className="text-sm text-stone-600 mt-0.5">{c.content}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-stone-400 pl-11">No comments yet. Be the first to comment!</p>
-              )}
-
-              {/* Add comment form */}
-              {alumnus ? (
-                <div className="flex gap-3 pl-11">
-                  <input type="text" placeholder="Write a comment..." value={commentText} onChange={e => setCommentText(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleComment()}
-                    className="flex-1 text-sm px-4 py-2 rounded-full border border-stone-200 focus:ring-2 focus:ring-green-800 focus:border-transparent outline-none" />
-                  <button onClick={handleComment} disabled={submitting || !commentText.trim()}
-                    className="px-4 py-2 rounded-full bg-green-800 text-white text-sm font-medium hover:bg-green-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    {submitting ? "..." : "Post"}
-                  </button>
-                </div>
-              ) : (
-                <div className="pl-11">
-                  <button onClick={onJoin} className="text-sm font-semibold text-green-800 hover:underline">
-                    Join the Pulse as an alumnus to join the conversation →
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PulseFeed({ notes, alumnus, onJoin }: { notes: ClassNote[]; alumnus: Alumnus | null; onJoin: () => void }) {
-  const [cat, setCat] = useState("all");
-  const [decade, setDecade] = useState("");
-  const [likesMap, setLikesMap] = useState<Record<string, NoteLike[]>>({});
-  const [commentsMap, setCommentsMap] = useState<Record<string, NoteComment[]>>({});
-
-  const filtered = notes.filter(n => {
-    if (cat !== "all" && n.category !== cat) return false;
-    if (decade) {
-      const d = Math.floor(n.graduation_year / 10) * 10;
-      if (d.toString() + "s" !== decade) return false;
-    }
-    return true;
-  });
-
-  // Fetch likes & comments for all visible notes
-  useEffect(() => {
-    if (notes.length === 0) return;
-    const ids = notes.map(n => n.id);
-    supabase.from("note_likes").select("*").in("note_id", ids).then(({ data }) => {
-      const map: Record<string, NoteLike[]> = {};
-      (data || []).forEach(l => { (map[l.note_id] = map[l.note_id] || []).push(l); });
-      setLikesMap(map);
-    });
-    supabase.from("note_comments").select("*").in("note_id", ids).order("created_at", { ascending: true }).then(({ data }) => {
-      const map: Record<string, NoteComment[]> = {};
-      (data || []).forEach(c => { (map[c.note_id] = map[c.note_id] || []).push(c); });
-      setCommentsMap(map);
-    });
-  }, [notes]);
-
-  const handleLike = async (noteId: string) => {
-    if (!alumnus) return;
-    await supabase.from("note_likes").insert({ note_id: noteId, user_name: alumnus.full_name });
-    const { data } = await supabase.from("note_likes").select("*").eq("note_id", noteId);
-    setLikesMap(prev => ({ ...prev, [noteId]: data || [] }));
-  };
-
-  const handleComment = async (noteId: string, text: string) => {
-    if (!alumnus) return;
-    await supabase.from("note_comments").insert({ note_id: noteId, author_name: alumnus.full_name, graduation_year: alumnus.graduation_year, content: text, approved: true });
-    const { data } = await supabase.from("note_comments").select("*").eq("note_id", noteId).order("created_at", { ascending: true });
-    setCommentsMap(prev => ({ ...prev, [noteId]: data || [] }));
-  };
-
-  return (
-    <section className="py-16">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">The Pulse</p>
-            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">What your classmates are up to</h2>
-          </div>
-          <Link to="/alumni/directory" className="hidden md:inline-flex items-center gap-1 text-sm font-semibold text-green-800 hover:underline">
-            Directory <span className="text-green-800">→</span>
-          </Link>
-        </div>
-
-        {/* Category tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
-          {CATS.map(c => {
-            const Icon = c.icon;
-            return (
-              <button key={c.key} onClick={() => setCat(c.key)}
-                className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${cat === c.key ? "bg-green-800 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}>
-                <Icon className="h-4 w-4" /> {c.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Decade filter */}
-        <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide">
-          <button onClick={() => setDecade("")} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!decade ? "bg-green-800 text-white" : "bg-stone-100 text-stone-500 hover:bg-stone-200"}`}>All Years</button>
-          {DECADES.map(d => (
-            <button key={d} onClick={() => setDecade(d)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${decade === d ? "bg-green-800 text-white" : "bg-stone-100 text-stone-500 hover:bg-stone-200"}`}>
-              Class of {d}
-            </button>
-          ))}
-        </div>
-
-        {/* Notes feed */}
-        {filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-stone-400 text-lg font-body">No class notes in this category yet.</p>
-            <p className="text-stone-400 text-sm mt-2">Be the first to share an update.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map(note => (
-              <NoteCard
-                key={note.id}
-                note={note}
-                likes={likesMap[note.id] || []}
-                comments={commentsMap[note.id] || []}
-                alumnus={alumnus}
-                onLike={handleLike}
-                onComment={handleComment}
-                onJoin={onJoin}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function EventsSection({ events }: { events: Event[] }) {
-  const upcoming = events.filter(e => e.event_date && new Date(e.event_date) >= new Date());
-  const past = events.filter(e => !e.event_date || new Date(e.event_date) < new Date());
-
-  return (
-    <section id="events" className="py-16 bg-stone-50 scroll-mt-16">
-      <div className="max-w-6xl mx-auto px-6">
-        <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Events</p>
-        <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-8">Come Home to Wairaka</h2>
-
-        {upcoming.length > 0 && (
-          <div className="mb-10">
-            <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Upcoming</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {upcoming.map(evt => (
-                <div key={evt.id} className="rounded-2xl bg-white border border-stone-200 overflow-hidden hover:shadow-md transition-shadow">
-                  {evt.photo_url && <img src={evt.photo_url} alt={evt.title} className="w-full h-40 object-cover" loading="lazy" />}
-                  <div className="p-6">
-                    <span className="inline-block text-xs font-semibold text-green-800 bg-green-100 px-2 py-0.5 rounded-full mb-2">{evt.category}</span>
-                    <h4 className="font-display text-lg font-bold text-stone-900">{evt.title}</h4>
-                    {evt.event_date && <p className="text-sm text-stone-500 mt-1">{new Date(evt.event_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
-                    {evt.location && <p className="text-sm text-stone-500">{evt.location}</p>}
-                    {evt.description && <p className="text-sm text-stone-600 font-body mt-2">{evt.description}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {past.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Past Events</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {past.map(evt => (
-                <div key={evt.id} className="rounded-2xl bg-white border border-stone-200 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-                  {evt.photo_url && <img src={evt.photo_url} alt={evt.title} className="w-full h-40 object-cover" loading="lazy" />}
-                  <div className="p-6">
-                    <h4 className="font-display text-lg font-bold text-stone-900">{evt.title}</h4>
-                    {evt.event_date && <p className="text-sm text-stone-500 mt-1">{new Date(evt.event_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
-                    {evt.location && <p className="text-sm text-stone-500">{evt.location}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {events.length === 0 && (
-          <div className="text-center py-12">
-            <Calendar className="h-10 w-10 text-stone-300 mx-auto mb-3" />
-            <p className="text-stone-400 font-body">No events yet. Check back soon.</p>
-          </div>
-        )}
-      </div>
-    </section>
-  );
+function dateLabel(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 /* ------------------------------------------------------------------ */
-/* Composer — only available to a signed-in alumnus                    */
+/* Registration / profile form (join + edit) — dark glass              */
 /* ------------------------------------------------------------------ */
 
-function Composer({ alumnus, onSubmitted, onJoin }: { alumnus: Alumnus | null; onSubmitted: () => void; onJoin: () => void }) {
-  const [category, setCategory] = useState("update");
-  const [content, setContent] = useState("");
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const uploadPhoto = async (): Promise<string | null> => {
-    if (!photo) return null;
-    const ext = (photo.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `notes/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-    const { error } = await supabase.storage.from("class-notes-photos").upload(path, photo);
-    if (error) throw error;
-    const { data } = supabase.storage.from("class-notes-photos").getPublicUrl(path);
-    return data.publicUrl;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!alumnus) return;
-    setError("");
-    setLoading(true);
-    try {
-      const photoUrl = await uploadPhoto();
-      const { error: insertError } = await supabase.from("class_notes").insert({
-        author_name: alumnus.full_name,
-        graduation_year: alumnus.graduation_year,
-        author_avatar_url: alumnus.avatar_url,
-        category,
-        content,
-        photo_url: photoUrl,
-        approved: true, // Posts go live immediately; admins can unpublish if they break the community rules.
-      });
-      if (insertError) throw insertError;
-      setSuccess(true);
-      setContent(""); setCategory("update"); setPhoto(null); setPhotoPreview(null);
-      onSubmitted();
-    } catch (err: any) {
-      setError(err.message || "Submission failed");
-    }
-    setLoading(false);
-  };
-
-  if (!alumnus) {
-    return (
-      <div className="rounded-2xl bg-white border border-stone-200 p-8 text-center">
-        <UserCircle2 className="h-10 w-10 text-green-800 mx-auto mb-3" />
-        <h3 className="font-display text-xl font-bold text-stone-900 mb-2">Members only</h3>
-        <p className="text-stone-600 font-body mb-4">Register as an alumnus once, then post updates, like and comment — with your real name and photo.</p>
-        <button onClick={onJoin} className="inline-flex items-center gap-2 bg-green-900 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-800 transition-colors">
-          Register as an Alumnus
-        </button>
-      </div>
-    );
-  }
-
-  if (success) {
-    return (
-      <div className="rounded-2xl bg-green-50 border border-green-200 p-8 text-center">
-        <Award className="h-10 w-10 text-green-800 mx-auto mb-3" />
-        <h3 className="font-display text-xl font-bold text-stone-900 mb-2">Published to the Pulse!</h3>
-        <p className="text-stone-600 font-body">Your update is now live for the WACOS community. It appears instantly and can be reviewed by MMCWOSA at any time.</p>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-stone-200 p-8 space-y-5">
-      <div className="flex items-center gap-3">
-        <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-11 h-11" />
-        <div>
-          <p className="font-display font-bold text-stone-900">{alumnus.full_name}</p>
-          <p className="text-xs text-stone-500">Class of {alumnus.graduation_year}</p>
-        </div>
-      </div>
-
-      {error && <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
-
-      <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-2">Category *</label>
-        <select required value={category} onChange={e => setCategory(e.target.value)}
-          className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
-          {CATS.filter(c => c.key !== "all").map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-2">Your Update *</label>
-        <textarea rows={4} required value={content} onChange={e => setContent(e.target.value)}
-          className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-          placeholder="What's happening in your life? Career change, new business, family milestone, memory of WACOS..." />
-      </div>
-
-      {/* Photo upload */}
-      <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-2">Add a photo (optional)</label>
-        <div className="flex items-center gap-3">
-          {photoPreview && <img src={photoPreview} alt="preview" className="w-16 h-16 rounded-xl object-cover" />}
-          <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-stone-300 text-sm font-medium text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors ${photo ? "bg-green-50" : ""}`}>
-            <ImagePlus className="h-4 w-4" />
-            {photo ? "Change photo" : "Upload a photo"}
-            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-          </label>
-          {photo && (
-            <button type="button" onClick={() => { setPhoto(null); setPhotoPreview(null); }} className="text-xs font-semibold text-red-500 hover:underline">Remove</button>
-          )}
-        </div>
-      </div>
-
-      <button type="submit" disabled={loading}
-        className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-        <Send className="h-5 w-5" /> {loading ? "Publishing..." : "Post to the Pulse"}
-      </button>
-    </form>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Registration / profile form (join + edit modes)                     */
-/* ------------------------------------------------------------------ */
+const inputCls = "w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:bg-white/[0.03] disabled:text-white/30";
+const labelCls = "block text-sm font-semibold text-white/75 mb-2";
 
 function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
   alumnus: Alumnus | null;
@@ -636,7 +209,6 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
   };
 
   const submitJoin = async () => {
-    // A member should not register twice with the same email.
     const { data: existing } = await supabase
       .from("alumni_profiles")
       .select("*")
@@ -644,14 +216,12 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
       .maybeSingle();
     if (existing) {
       if (existing.approved) {
-        // Already a member on this email — treat it as signing back in.
         onDone(existing as Alumnus);
         return;
       }
-      throw new Error("This email is already registered but access was suspended. Contact MMCWOSA to restore your profile.");
+      throw new Error("This email is registered but access was suspended. Contact MMCWOSA to restore your profile.");
     }
-
-    const uploadedAvatar = avatarFile ? await uploadAvatar(avatarFile) : null;
+    const uploadedAvatar = avatarFile ? await uploadFileToBucket("class-notes-photos", "avatars", avatarFile) : null;
     const { data, error: insertError } = await supabase.from("alumni_profiles").insert({
       full_name: name.trim(),
       email: email.trim().toLowerCase(),
@@ -667,14 +237,14 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
       twitter_url: null,
       instagram_url: null,
       is_public: true,
-      approved: true, // auto-approved: admins review later and can recall if needed
+      approved: true,
     }).select().single();
     if (insertError) throw insertError;
     onDone(data as Alumnus);
   };
 
   const submitEdit = async () => {
-    const uploadedAvatar = avatarFile ? await uploadAvatar(avatarFile) : alumnus?.avatar_url;
+    const uploadedAvatar = avatarFile ? await uploadFileToBucket("class-notes-photos", "avatars", avatarFile) : alumnus?.avatar_url;
     const { data, error: updateError } = await supabase.from("alumni_profiles").update({
       full_name: name.trim(),
       profession: profession || null,
@@ -703,103 +273,93 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-stone-200 p-8 space-y-5">
-      {error && <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {error && <div className="rounded-xl bg-red-500/10 border border-red-400/30 p-3 text-sm text-red-300">{error}</div>}
 
       {!isEdit && (
-        <p className="text-sm text-stone-500 font-body -mt-2">
+        <p className="text-sm text-white/55 font-body">
           Register once with your real details and photo — you're in instantly. Your profile is added to the directory, and admins can review it later. Then post, like and comment as yourself.
         </p>
       )}
 
-      {/* Avatar upload */}
       <div className="flex items-center gap-4">
         {avatarUrl ? (
           <Avatar name={name} url={avatarUrl} size="w-20 h-20" text="text-2xl" />
         ) : (
-          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-            <UserCircle2 className="h-10 w-10 text-green-700" />
+          <div className="w-20 h-20 rounded-full bg-emerald-400/15 flex items-center justify-center ring-1 ring-white/10">
+            <UserCircle2 className="h-10 w-10 text-emerald-300" />
           </div>
         )}
         <div>
-          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-300 text-sm font-medium text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
+          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-white/[0.05] text-sm font-medium text-white/70 hover:border-emerald-400/60 hover:text-emerald-300 transition-colors">
             <ImagePlus className="h-4 w-4" />
             {isEdit ? "Change photo" : "Upload your photo"}
             <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </label>
-          <p className="text-xs text-stone-400 mt-2">Your photo appears on your posts and in the directory.</p>
+          <p className="text-xs text-white/35 mt-2">Your photo appears on your posts and in the directory.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Full Name *</label>
-          <input type="text" required value={name} onChange={e => setName(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Your full name" />
+          <label className={labelCls}>Full Name *</label>
+          <input type="text" required value={name} onChange={e => setName(e.target.value)} className={inputCls} placeholder="Your full name" />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Email Address *</label>
-          <input type="email" required disabled={isEdit} value={email} onChange={e => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent disabled:bg-stone-100 disabled:text-stone-400" placeholder="you@example.com" />
-          {isEdit && <p className="text-xs text-stone-400 mt-1">Email is your identity and cannot be changed here.</p>}
+          <label className={labelCls}>Email Address *</label>
+          <input type="email" required disabled={isEdit} value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="you@example.com" />
+          {isEdit && <p className="text-xs text-white/35 mt-1">Email is your identity and cannot be changed here.</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Graduation Year *</label>
-          <select required value={year} onChange={e => setYear(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
+          <label className={labelCls}>Graduation Year *</label>
+          <select required value={year} onChange={e => setYear(e.target.value)} className={inputCls}>
             <option value="">Select year</option>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
+            {years.map(y => <option key={y} value={y} className="bg-[#10141d]">{y}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Programme *</label>
-          <select value={programme} onChange={e => setProgramme(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
-            <option value="O-Level">O-Level</option>
-            <option value="A-Level">A-Level</option>
+          <label className={labelCls}>Programme *</label>
+          <select value={programme} onChange={e => setProgramme(e.target.value)} className={inputCls}>
+            <option value="O-Level" className="bg-[#10141d]">O-Level</option>
+            <option value="A-Level" className="bg-[#10141d]">A-Level</option>
           </select>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Profession</label>
-          <input type="text" value={profession} onChange={e => setProfession(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. Engineer, Teacher, Doctor" />
+          <label className={labelCls}>Profession</label>
+          <input type="text" value={profession} onChange={e => setProfession(e.target.value)} className={inputCls} placeholder="e.g. Engineer, Teacher, Doctor" />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Company / Organisation</label>
-          <input type="text" value={company} onChange={e => setCompany(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="Where do you work?" />
+          <label className={labelCls}>Company / Organisation</label>
+          <input type="text" value={company} onChange={e => setCompany(e.target.value)} className={inputCls} placeholder="Where do you work?" />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location</label>
-        <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-          className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" placeholder="e.g. Kampala, Uganda" />
+        <label className={labelCls}>Current Location</label>
+        <input type="text" value={location} onChange={e => setLocation(e.target.value)} className={inputCls} placeholder="e.g. Kampala, Uganda" />
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-stone-700 mb-2">Short Bio</label>
-        <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)}
-          className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-          placeholder="Tell fellow alumni what you've been up to since WACOS..." />
+        <label className={labelCls}>Short Bio</label>
+        <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} className={inputCls} placeholder="Tell fellow alumni what you've been up to since WACOS..." />
       </div>
 
       <button type="submit" disabled={loading || !name.trim() || !email.trim() || !year}
-        className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 rounded-full font-bold text-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
         {loading
           ? (isEdit ? "Saving..." : "Creating your profile...")
-          : (isEdit ? "Save Changes" : "Register & Start Posting")}
+          : (isEdit ? "Save Changes" : "Register & Join the Chat")}
       </button>
 
       {isEdit && onSignOut && (
         <button type="button" onClick={onSignOut}
-          className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-stone-500 hover:text-red-600 transition-colors">
+          className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white/40 hover:text-red-300 transition-colors">
           <LogOut className="h-4 w-4" /> Sign out of this device
         </button>
       )}
@@ -808,74 +368,23 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
 }
 
 /* ------------------------------------------------------------------ */
-/* Side sections                                                       */
+/* Slide panel (dark)                                                  */
 /* ------------------------------------------------------------------ */
 
-function AlumniLinks() {
-  return (
-    <section className="py-16">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link to="/alumni/directory" className="group rounded-2xl bg-white border border-stone-200 p-8 hover:border-green-800 hover:shadow-md transition-all">
-            <Users className="h-8 w-8 text-green-800 mb-4" />
-            <h3 className="font-display text-xl font-bold text-stone-900 group-hover:text-green-800 transition-colors">Alumni Directory</h3>
-            <p className="text-stone-600 mt-2 font-body text-sm">Find fellow old students. Search by name, year, or profession.</p>
-          </Link>
-          <Link to="/alumni/directory/businesses" className="group rounded-2xl bg-white border border-stone-200 p-8 hover:border-green-800 hover:shadow-md transition-all">
-            <Building2 className="h-8 w-8 text-green-800 mb-4" />
-            <h3 className="font-display text-xl font-bold text-stone-900 group-hover:text-green-800 transition-colors">Business Directory</h3>
-            <p className="text-stone-600 mt-2 font-body text-sm">Browse businesses owned by WACOS alumni. No login required.</p>
-          </Link>
-          <Link to="/giving" className="group rounded-2xl bg-green-50 border border-green-200 p-8 hover:border-green-800 hover:shadow-md transition-all">
-            <Heart className="h-8 w-8 text-green-800 mb-4" />
-            <h3 className="font-display text-xl font-bold text-stone-900 group-hover:text-green-800 transition-colors">Support Wairaka</h3>
-            <p className="text-stone-600 mt-2 font-body text-sm">Give to the Trust Fund. Fund bursaries. Rebuild the college.</p>
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function CTASection({ onPost }: { onPost: () => void }) {
-  return (
-    <section className="bg-green-900 py-16">
-      <div className="max-w-4xl mx-auto px-6 text-center">
-        <h2 className="font-display text-3xl md:text-4xl text-white font-bold mb-4">Stay Connected</h2>
-        <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto font-body">The school you attended is being rebuilt by alumni who remember what it gave them. Your story belongs here.</p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <button onClick={onPost} className="inline-flex items-center gap-2 bg-white text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-stone-100 transition-colors">
-            <Send className="h-4 w-4" /> Share Your Story
-          </button>
-          <Link to="/giving" className="inline-flex items-center gap-2 border border-white/40 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-colors">Support Wairaka</Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
-
-function AlumniPage() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isIndex = pathname === "/alumni";
-  return isIndex ? <AlumniPulsePage /> : <Outlet />;
-}
-
-function SlidePanel({ title, subtitle, onClose, showGuidelines = true, children }: { title: string; subtitle: string; onClose: () => void; showGuidelines?: boolean; children: React.ReactNode }) {
+function SlidePanel({ title, subtitle, onClose, children, showGuidelines = false }: {
+  title: string; subtitle: string; onClose: () => void; children: React.ReactNode; showGuidelines?: boolean;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white h-full overflow-y-auto shadow-2xl animate-slide-in-right">
-        <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between z-10">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-[#0C1018] border-l border-white/10 h-full overflow-y-auto shadow-2xl animate-slide-in-right">
+        <div className="sticky top-0 z-10 bg-[#0C1018]/90 backdrop-blur border-b border-white/10 px-6 py-4 flex items-center justify-between">
           <div>
-            <h3 className="font-display text-lg font-bold text-stone-900">{title}</h3>
-            <p className="text-xs text-stone-500">{subtitle}</p>
+            <h3 className="font-display text-lg font-bold text-white">{title}</h3>
+            <p className="text-xs text-white/45">{subtitle}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-lg" aria-label="Close">
-            <span className="text-stone-400 text-xl">&times;</span>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg" aria-label="Close">
+            <X className="h-5 w-5 text-white/50" />
           </button>
         </div>
         <div className="p-6">
@@ -887,37 +396,560 @@ function SlidePanel({ title, subtitle, onClose, showGuidelines = true, children 
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Left rail + channel list                                            */
+/* ------------------------------------------------------------------ */
+
+function RailIcon({ to, icon: Icon, label, active, onClick }: { to?: string; icon: typeof Home; label: string; active?: boolean; onClick?: () => void }) {
+  const cls = `relative flex items-center justify-center w-11 h-11 rounded-2xl transition-colors ${active ? "bg-emerald-400 text-[#06110d]" : "text-white/40 hover:text-white hover:bg-white/10"}`;
+  if (onClick) {
+    return <button onClick={onClick} className={cls} title={label}><Icon className="h-5 w-5" /></button>;
+  }
+  return (
+    <Link to={to as any} className={cls} title={label}>
+      <Icon className="h-5 w-5" />
+      {active && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0A0D14]" />}
+    </Link>
+  );
+}
+
+function RailNav() {
+  return (
+    <aside className="hidden lg:flex flex-col items-center gap-2 w-[76px] py-4 border-r border-white/[0.06] bg-[#0A0D14] shrink-0">
+      <Link to="/" className="mb-3 flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-[#06110d] font-display font-black text-lg shadow-lg shadow-emerald-500/20" title="WACOS Home">
+        W
+      </Link>
+      <RailIcon to="/" icon={Home} label="Home" />
+      <RailIcon to="/alumni" icon={Layers} label="Alumni Pulse" active />
+      <RailIcon to="/alumni/directory" icon={Users} label="Alumni Directory" />
+      <RailIcon to="/alumni/directory/businesses" icon={Building2} label="Business Directory" />
+      <RailIcon to="/giving" icon={Heart} label="Support Wairaka" />
+      <div className="flex-1" />
+      <RailIcon to="/" icon={Bell} label="Notifications" />
+      <RailIcon to="/admin" icon={Settings} label="Admin" />
+    </aside>
+  );
+}
+
+function ChannelList({ channels, active, counts, onSelect, members, onJoin, alumnus, onEditProfile }: {
+  channels: { key: ChannelKey; label: string; icon: typeof Home; badge?: string }[];
+  active: ChannelKey;
+  counts: Record<string, number>;
+  onSelect: (k: ChannelKey) => void;
+  members: Alumnus[];
+  onJoin: () => void;
+  alumnus: Alumnus | null;
+  onEditProfile: () => void;
+}) {
+  const [openGroups, setOpenGroups] = useState({ channels: true, classmates: true });
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-4 pt-5 pb-4">
+        <p className="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">M.M College Wairaka</p>
+        <h2 className="font-display text-xl font-bold text-white mt-1">The Pulse Chat</h2>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 space-y-5 pb-4">
+        {/* Channels */}
+        <div>
+          <button onClick={() => setOpenGroups(g => ({ ...g, channels: !g.channels }))}
+            className="w-full flex items-center justify-between px-2 py-1.5 text-[11px] font-bold uppercase tracking-widest text-white/35 hover:text-white/60">
+            Channels
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openGroups.channels ? "" : "-rotate-90"}`} />
+          </button>
+          {openGroups.channels && (
+            <div className="mt-1 space-y-0.5">
+              {channels.map(ch => {
+                const Icon = ch.icon;
+                const isActive = active === ch.key;
+                return (
+                  <button key={ch.key} onClick={() => onSelect(ch.key)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all ${isActive ? "bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-400/25" : "text-white/55 hover:bg-white/[0.06] hover:text-white"}`}>
+                    <span className={`flex items-center justify-center w-7 h-7 rounded-lg ${isActive ? "bg-emerald-400 text-[#06110d]" : "bg-white/10 text-white/60"}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="font-medium">{ch.label}</span>
+                    {ch.badge && <span className="ml-auto text-[10px] font-bold bg-emerald-400 text-[#06110d] rounded-full px-1.5 py-0.5">{ch.badge}</span>}
+                    {!ch.badge && typeof counts[ch.key] === "number" && counts[ch.key] > 0 && (
+                      <span className="ml-auto text-[11px] text-white/35">{counts[ch.key]}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Classmates */}
+        <div>
+          <button onClick={() => setOpenGroups(g => ({ ...g, classmates: !g.classmates }))}
+            className="w-full flex items-center justify-between px-2 py-1.5 text-[11px] font-bold uppercase tracking-widest text-white/35 hover:text-white/60">
+            Classmates
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openGroups.classmates ? "" : "-rotate-90"}`} />
+          </button>
+          {openGroups.classmates && (
+            <div className="mt-1 space-y-0.5">
+              {members.slice(0, 6).map(m => (
+                <Link key={m.id} to="/alumni/directory" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/[0.06] transition-colors">
+                  <div className="relative">
+                    <Avatar name={m.full_name} url={m.avatar_url} size="w-8 h-8" text="text-xs" />
+                    <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0A0D14]" />
+                  </div>
+                  <span className="text-sm text-white/65 truncate">{m.full_name.split(" ")[0]}</span>
+                  <span className="ml-auto text-[10px] text-white/25">{m.graduation_year}</span>
+                </Link>
+              ))}
+              <Link to="/alumni/directory" className="flex items-center gap-2 px-3 py-1.5 text-xs text-emerald-300/80 hover:text-emerald-300">
+                View full directory <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom: member chip or join CTA */}
+      <div className="p-3 border-t border-white/[0.06]">
+        {alumnus ? (
+          <button onClick={onEditProfile} className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-colors text-left">
+            <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-9 h-9" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{alumnus.full_name}</p>
+              <p className="text-[11px] text-white/40">Class of {alumnus.graduation_year} · edit profile</p>
+            </div>
+          </button>
+        ) : (
+          <button onClick={onJoin} className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-3 py-3 text-sm font-bold hover:brightness-110 transition-all">
+            <Sparkles className="h-4 w-4" /> Join & Start Chatting
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Chat thread                                                         */
+/* ------------------------------------------------------------------ */
+
+function NoteBubble({ note, mine, likes, comments, alumnus, onLike, onComment, onJoin }: {
+  note: ClassNote;
+  mine: boolean;
+  likes: NoteLike[];
+  comments: NoteComment[];
+  alumnus: Alumnus | null;
+  onLike: (noteId: string) => void;
+  onComment: (noteId: string, text: string) => void;
+  onJoin: () => void;
+}) {
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const likedByMe = !!alumnus && likes.some(l => l.user_name === alumnus.full_name);
+
+  const handleComment = async () => {
+    if (!commentText.trim()) return;
+    setSubmitting(true);
+    await onComment(note.id, commentText.trim());
+    setCommentText("");
+    setSubmitting(false);
+  };
+
+  return (
+    <div className={`flex gap-3 ${mine ? "flex-row-reverse" : ""}`}>
+      {!mine && <Avatar name={note.author_name} url={note.author_avatar_url} size="w-9 h-9" text="text-sm" />}
+      <div className={`max-w-[78%] md:max-w-[70%] min-w-0 ${mine ? "text-right" : ""}`}>
+        <div className={`flex items-center gap-2 mb-1 px-1 ${mine ? "flex-row-reverse" : ""}`}>
+          <span className="text-sm font-semibold text-white/85">{mine ? "You" : note.author_name}</span>
+          <span className="text-[11px] text-white/30">Class of {note.graduation_year}</span>
+          <span className="text-[11px] text-white/30">· {timeLabel(note.created_at)}</span>
+        </div>
+        <div className={`rounded-2xl px-4 py-3 ${mine
+          ? "bg-gradient-to-r from-emerald-500/90 to-teal-500/85 text-[#04110c] rounded-tr-sm"
+          : "bg-white/[0.06] border border-white/[0.06] text-white/85 rounded-tl-sm"}`}>
+          <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{note.content}</p>
+          {note.photo_url && (
+            <img src={note.photo_url} alt="" loading="lazy" className="mt-3 rounded-xl max-h-72 object-cover w-auto" />
+          )}
+        </div>
+
+        {/* actions */}
+        <div className={`flex items-center gap-3 mt-1.5 px-1 ${mine ? "flex-row-reverse" : ""}`}>
+          {alumnus ? (
+            <button onClick={() => onLike(note.id)}
+              className={`inline-flex items-center gap-1 text-xs font-medium transition-colors ${likedByMe ? "text-emerald-300" : "text-white/35 hover:text-white/70"}`}>
+              <ThumbsUp className={`h-3.5 w-3.5 ${likedByMe ? "fill-emerald-300" : ""}`} /> {likes.length} Like{likes.length !== 1 ? "s" : ""}
+            </button>
+          ) : (
+            <button onClick={onJoin} className="inline-flex items-center gap-1 text-xs text-white/25 hover:text-white/60" title="Join to like">
+              <ThumbsUp className="h-3.5 w-3.5" /> {likes.length} Like{likes.length !== 1 ? "s" : ""}
+            </button>
+          )}
+          <button onClick={() => setShowComments(!showComments)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-white/35 hover:text-white/70 transition-colors">
+            <MessageCircle className="h-3.5 w-3.5" /> {comments.length} Comment{comments.length !== 1 ? "s" : ""}
+            {showComments ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        </div>
+
+        {showComments && (
+          <div className={`mt-2 space-y-2 ${mine ? "items-end" : ""}`}>
+            {comments.map(c => (
+              <div key={c.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+                <Avatar name={c.author_name} url={null} size="w-6 h-6" text="text-[10px]" />
+                <div className="bg-white/[0.04] border border-white/[0.05] rounded-xl px-3 py-2 text-left">
+                  <p className="text-xs font-semibold text-white/75">{c.author_name} <span className="font-normal text-white/30">· Class of {c.graduation_year}</span></p>
+                  <p className="text-sm text-white/70 mt-0.5">{c.content}</p>
+                </div>
+              </div>
+            ))}
+            {alumnus ? (
+              <div className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+                <input value={commentText} onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleComment()}
+                  placeholder="Reply..." className="flex-1 min-w-0 text-sm px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
+                <button onClick={handleComment} disabled={submitting || !commentText.trim()}
+                  className="px-4 py-2 rounded-full bg-emerald-400 text-[#06110d] text-sm font-bold hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed">
+                  {submitting ? "..." : "Reply"}
+                </button>
+              </div>
+            ) : (
+              <button onClick={onJoin} className="text-xs font-semibold text-emerald-300/90 hover:text-emerald-300">Join the Pulse to reply →</button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EventBubble({ evt, mine }: { evt: Event; mine?: boolean }) {
+  const upcoming = evt.event_date && new Date(evt.event_date) >= new Date();
+  return (
+    <div className={`flex gap-3 ${mine ? "flex-row-reverse" : ""}`}>
+      <div className="flex items-center justify-center w-9 h-9 rounded-full bg-teal-400/15 ring-1 ring-white/10 shrink-0">
+        <Calendar className="h-4 w-4 text-teal-300" />
+      </div>
+      <div className="max-w-[78%] md:max-w-[70%]">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-semibold text-white/85">{evt.title}</span>
+          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${upcoming ? "bg-emerald-400/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>
+            {upcoming ? "Upcoming" : "Past"}
+          </span>
+        </div>
+        <div className="bg-white/[0.06] border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3">
+          {evt.photo_url && <img src={evt.photo_url} alt={evt.title} className="rounded-xl max-h-56 object-cover mb-3 w-auto" loading="lazy" />}
+          {evt.event_date && <p className="text-sm text-white/70 flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-teal-300" /> {dateLabel(evt.event_date)}</p>}
+          {evt.location && <p className="text-sm text-white/55 mt-1 flex items-center gap-2"><Users className="h-3.5 w-3.5 text-teal-300" /> {evt.location}</p>}
+          {evt.description && <p className="text-sm text-white/70 leading-relaxed mt-2">{evt.description}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyThread({ label, hint, onJoin, member }: { label: string; hint: string; onJoin: () => void; member: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-20 px-6">
+      <div className="w-16 h-16 rounded-3xl bg-emerald-400/10 ring-1 ring-emerald-400/25 flex items-center justify-center mb-4">
+        <Layers className="h-7 w-7 text-emerald-300" />
+      </div>
+      <h3 className="font-display text-lg font-bold text-white">{label}</h3>
+      <p className="text-sm text-white/40 max-w-sm mt-2 font-body">{hint}</p>
+      {!member && (
+        <button onClick={onJoin} className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-6 py-3 text-sm font-bold hover:brightness-110 transition-all">
+          <Sparkles className="h-4 w-4" /> Join & Start Posting
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ComposerBar({ alumnus, channelKey, sending, text, setText, onSend, onPickPhoto, photoPreview, onClearPhoto, onJoin, onEditProfile }: {
+  alumnus: Alumnus | null;
+  channelKey: ChannelKey;
+  sending: boolean;
+  text: string;
+  setText: (t: string) => void;
+  onSend: () => void;
+  onPickPhoto: (f: File | null) => void;
+  photoPreview: string | null;
+  onClearPhoto: () => void;
+  onJoin: () => void;
+  onEditProfile: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  if (!alumnus) {
+    return (
+      <div className="border-t border-white/[0.06] p-4">
+        <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-sm text-white/55 font-body text-center sm:text-left">Posting, liking and commenting is reserved for WACOS alumni. Join free — you're in instantly.</p>
+          <button onClick={onJoin} className="shrink-0 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-6 py-2.5 text-sm font-bold hover:brightness-110">
+            <UserCircle2 className="h-4 w-4" /> Join the Pulse
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const label = channelKey === "events" ? "Chat about events" : CATS.find(c => c.key === channelKey)?.label || "Updates";
+
+  return (
+    <div className="border-t border-white/[0.06] p-4">
+      <div className="flex items-center gap-2 px-1 pb-2">
+        <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-7 h-7" text="text-xs" />
+        <p className="text-xs text-white/50">
+          Posting as <span className="font-semibold text-white/80">{alumnus.full_name}</span>
+          <span className="text-white/30"> · Class of {alumnus.graduation_year}</span> in <span className="text-emerald-300">{label}</span>
+        </p>
+        <button onClick={onEditProfile} className="ml-auto text-[11px] text-white/35 hover:text-white/70">edit profile</button>
+      </div>
+      <div className="flex items-end gap-2 bg-white/[0.05] border border-white/10 rounded-2xl p-2 focus-within:border-emerald-400/50 transition-colors">
+        <textarea rows={2} value={text} onChange={e => setText(e.target.value)}
+          placeholder={channelKey === "events" ? "Suggest an event or chat about gatherings..." : "Send something to the Pulse..."}
+          className="flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] text-white placeholder-white/30 focus:outline-none" />
+        {photoPreview && (
+          <div className="relative shrink-0">
+            <img src={photoPreview} alt="" className="h-12 w-14 rounded-lg object-cover" />
+            <button onClick={onClearPhoto} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center" title="Remove photo">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+        <input type="file" accept="image/*" ref={fileRef} className="hidden"
+          onChange={e => onPickPhoto(e.target.files?.[0] || null)} />
+        <button onClick={() => fileRef.current?.click()} className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors shrink-0" title="Attach a photo">
+          <ImagePlus className="h-5 w-5" />
+        </button>
+        <button onClick={onSend} disabled={sending || (!text.trim() && !photoPreview)}
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0">
+          <Send className="h-5 w-5" />
+        </button>
+      </div>
+      <p className="text-[10px] text-white/25 px-1 pt-1.5">Be kind. Stay truthful. Read the community guidelines before you post.</p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Details panel                                                       */
+/* ------------------------------------------------------------------ */
+
+function DetailsPanel({ channel, members, photos, alumnus, onJoin }: {
+  channel: ChannelKey;
+  members: Alumnus[];
+  photos: string[];
+  alumnus: Alumnus | null;
+  onJoin: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const label = channel === "events" ? "Events" : CATS.find(c => c.key === channel)?.label || "All Updates";
+
+  const copyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch { /* noop */ }
+  };
+
+  return (
+    <div className="flex flex-col h-full overflow-y-auto">
+      <div className="px-5 pt-6 pb-4 text-center border-b border-white/[0.06]">
+        <div className="flex -space-x-2 justify-center mb-3">
+          {members.slice(0, 3).map(m => (
+            <div key={m.id} className="ring-2 ring-[#0A0D14] rounded-full">
+              <Avatar name={m.full_name} url={m.avatar_url} size="w-9 h-9" text="text-xs" />
+            </div>
+          ))}
+          {members.length > 3 && (
+            <div className="w-9 h-9 rounded-full bg-emerald-400 text-[#06110d] flex items-center justify-center ring-2 ring-[#0A0D14] text-xs font-bold">
+              +{members.length - 3}
+            </div>
+          )}
+        </div>
+        <h2 className="font-display text-lg font-bold text-white">{label}</h2>
+        <p className="text-xs text-white/40">{members.length} {members.length === 1 ? "member" : "members"} · {CHANNEL_TOPICS[channel]}</p>
+      </div>
+
+      <div className="p-5 space-y-5">
+        {/* actions */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { icon: Bell, label: "Notify" },
+            { icon: Heart, label: "Giving" },
+            { icon: Search, label: "Find" },
+            { icon: Settings, label: "Admin" },
+          ].map(a => {
+            const Icon = a.icon;
+            return (
+              <Link key={a.label} to={a.label === "Giving" ? "/giving" : a.label === "Admin" ? "/admin" : "/alumni"}
+                className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/[0.04] border border-white/[0.06] py-3 hover:bg-white/[0.08] transition-colors">
+                <Icon className="h-4 w-4 text-white/70" />
+                <span className="text-[10px] text-white/40">{a.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* About card */}
+        <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] divide-y divide-white/[0.05]">
+          <Link to="/alumni/directory" className="flex items-center justify-between p-4 hover:bg-white/[0.04] transition-colors">
+            <div className="flex items-center gap-3">
+              <Users className="h-4 w-4 text-emerald-300" />
+              <div>
+                <p className="text-sm font-semibold text-white">{members.length} {members.length === 1 ? "member" : "members"}</p>
+                <p className="text-[11px] text-white/35">{alumnus ? `${alumnus.full_name.split(" ")[0]}, you are a member` : "Open the directory"}</p>
+              </div>
+            </div>
+            <ChevronRightMini />
+          </Link>
+          <Link to="/alumni/directory" className="flex items-center justify-between p-4 hover:bg-white/[0.04] transition-colors">
+            <div className="flex items-center gap-3">
+              <Building2 className="h-4 w-4 text-emerald-300" />
+              <div>
+                <p className="text-sm font-semibold text-white">Alumni network</p>
+                <p className="text-[11px] text-white/35">mmcollegewairaka.sc.ug · est. 1953</p>
+              </div>
+            </div>
+            <ChevronRightMini />
+          </Link>
+          <button onClick={copyInvite} className="w-full flex items-center justify-between p-4 hover:bg-white/[0.04] transition-colors text-left">
+            <div className="flex items-center gap-3">
+              <Gift className="h-4 w-4 text-emerald-300" />
+              <div>
+                <p className="text-sm font-semibold text-white">{copied ? "Link copied!" : "Invite a classmate"}</p>
+                <p className="text-[11px] text-white/35">Share this page with your year group</p>
+              </div>
+            </div>
+            <ChevronRightMini />
+          </button>
+        </div>
+
+        {/* Photos */}
+        {photos.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-white/40">Photos & videos</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {photos.slice(0, 6).map((p, i) => (
+                <a key={i} href={p} target="_blank" rel="noreferrer">
+                  <img src={p} alt="" loading="lazy" className="w-full h-16 object-cover rounded-lg ring-1 ring-white/10 hover:ring-emerald-400/50 transition-all" />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <PulseGuidelines />
+
+        {/* Support card */}
+        <div className="rounded-2xl bg-gradient-to-br from-emerald-400/[0.12] to-teal-500/[0.06] border border-emerald-400/20 p-4">
+          <p className="font-display font-bold text-white text-sm flex items-center gap-2"><Heart className="h-4 w-4 text-emerald-300" /> Rebuild Wairaka</p>
+          <p className="text-xs text-white/55 mt-1.5 font-body leading-relaxed">Your giving funds bursaries for bright students. The next generation deserves the same chance you were given.</p>
+          <Link to="/giving" className="mt-3 inline-flex w-full justify-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-4 py-2 text-xs font-bold hover:brightness-110">
+            Support the Trust Fund
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChevronRightMini() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 text-white/25" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Main page                                                           */
+/* ------------------------------------------------------------------ */
+
+function AlumniPage() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isIndex = pathname === "/alumni";
+  return isIndex ? <AlumniPulsePage /> : <Outlet />;
+}
+
 function AlumniPulsePage() {
+  const [channel, setChannel] = useState<ChannelKey>("all");
   const [notes, setNotes] = useState<ClassNote[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [members, setMembers] = useState<Alumnus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [panel, setPanel] = useState<"none" | "join" | "compose" | "edit">("none");
+  const [decade, setDecade] = useState("");
+  const [search, setSearch] = useState("");
+  const [panel, setPanel] = useState<"none" | "join" | "edit">("none");
+  const [drawer, setDrawer] = useState<"none" | "list" | "info">("none");
   const [notice, setNotice] = useState("");
+  const [likesMap, setLikesMap] = useState<Record<string, NoteLike[]>>({});
+  const [commentsMap, setCommentsMap] = useState<Record<string, NoteComment[]>>({});
+  const [composerText, setComposerText] = useState("");
+  const [composerPhoto, setComposerPhoto] = useState<File | null>(null);
+  const [composerPreview, setComposerPreview] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const { alumnus, ready, signIn, refresh, signOut } = useAlumnusSession();
 
   const fetchData = async () => {
-    const [notesRes, eventsRes] = await Promise.all([
+    setLoading(true);
+    const [notesRes, eventsRes, membersRes] = await Promise.all([
       supabase.from("class_notes").select("*").eq("approved", true).order("created_at", { ascending: false }),
       supabase.from("events").select("*").eq("approved", true).order("event_date", { ascending: false }),
+      supabase.from("alumni_profiles").select("*").eq("approved", true).eq("is_public", true).order("graduation_year", { ascending: false }).limit(20),
     ]);
     setNotes(notesRes.data || []);
     setEvents(eventsRes.data || []);
+    setMembers(membersRes.data || []);
+    fetchEngagement(notesRes.data || []);
     setLoading(false);
+  };
+
+  const fetchEngagement = async (ns: ClassNote[]) => {
+    if (ns.length === 0) return;
+    const ids = ns.map(n => n.id);
+    supabase.from("note_likes").select("*").in("note_id", ids).then(({ data }) => {
+      const map: Record<string, NoteLike[]> = {};
+      (data || []).forEach(l => { (map[l.note_id] = map[l.note_id] || []).push(l); });
+      setLikesMap(map);
+    });
+    supabase.from("note_comments").select("*").in("note_id", ids).order("created_at", { ascending: true }).then(({ data }) => {
+      const map: Record<string, NoteComment[]> = {};
+      (data || []).forEach(c => { (map[c.note_id] = map[c.note_id] || []).push(c); });
+      setCommentsMap(map);
+    });
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const photoCount = notes.filter(n => n.photo_url).length + events.filter(e => e.photo_url).length;
+  const channelNotes = notes.filter(n => {
+    if (channel !== "all" && n.category !== channel) return false;
+    if (decade) {
+      const d = Math.floor(n.graduation_year / 10) * 10;
+      if (d.toString() + "s" !== decade) return false;
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      if (!n.content.toLowerCase().includes(q) && !n.author_name.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
-  const openPost = () => {
-    setPanel(alumnus ? "compose" : "join");
-    setNotice("");
-  };
+  const counts: Record<string, number> = { all: notes.length, update: 0, reunion: 0, memoriam: 0, achievement: 0, business: 0 };
+  notes.forEach(n => { if (counts[n.category] !== undefined) counts[n.category] += 1; });
+
+  const allPhotos = notes.filter(n => n.photo_url).map(n => n.photo_url as string);
+
+  const openJoin = () => { setPanel("join"); setDrawer("none"); };
+  const openEdit = () => { setPanel("edit"); setDrawer("none"); };
+  const closePanel = () => { setPanel("none"); setNotice(""); };
 
   const handleRegistered = (p: Alumnus) => {
     signIn(p);
-    setNotice(`Welcome to the WACOS Pulse, ${p.full_name.split(" ")[0]}! Your profile is live. You can now post your first update.`);
-    setPanel("compose");
+    setNotice(`Welcome to the Pulse, ${p.full_name.split(" ")[0]}! Your profile is live — post your first update below.`);
+    setPanel("none");
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   };
 
   const handleProfileSaved = (p: Alumnus) => {
@@ -927,95 +959,229 @@ function AlumniPulsePage() {
     });
   };
 
-  const closePanel = () => { setPanel("none"); setNotice(""); };
+  const handleLike = async (noteId: string) => {
+    if (!alumnus) return;
+    await supabase.from("note_likes").insert({ note_id: noteId, user_name: alumnus.full_name });
+    const { data } = await supabase.from("note_likes").select("*").eq("note_id", noteId);
+    setLikesMap(prev => ({ ...prev, [noteId]: data || [] }));
+  };
+
+  const handleComment = async (noteId: string, text: string) => {
+    if (!alumnus) return;
+    await supabase.from("note_comments").insert({ note_id: noteId, author_name: alumnus.full_name, graduation_year: alumnus.graduation_year, content: text, approved: true });
+    const { data } = await supabase.from("note_comments").select("*").eq("note_id", noteId).order("created_at", { ascending: true });
+    setCommentsMap(prev => ({ ...prev, [noteId]: data || [] }));
+  };
+
+  const sendMessage = async () => {
+    if (!alumnus) return;
+    const content = composerText.trim();
+    if (!content && !composerPhoto) return;
+    setSending(true);
+    try {
+      let photoUrl: string | null = null;
+      if (composerPhoto) photoUrl = await uploadFileToBucket("class-notes-photos", "notes", composerPhoto);
+      const category = channel === "events" ? "reunion" : channel === "all" ? "update" : channel;
+      const { error } = await supabase.from("class_notes").insert({
+        author_name: alumnus.full_name,
+        graduation_year: alumnus.graduation_year,
+        author_avatar_url: alumnus.avatar_url,
+        category,
+        content,
+        photo_url: photoUrl,
+        approved: true,
+      });
+      if (error) throw error;
+      setComposerText("");
+      setComposerPhoto(null);
+      setComposerPreview(null);
+      await fetchData();
+    } catch (e: any) {
+      setNotice(e.message || "Could not post. Please try again.");
+    }
+    setSending(false);
+  };
+
+  const channels: { key: ChannelKey; label: string; icon: typeof Home; badge?: string }[] = [
+    { key: "all", label: "All Updates", icon: Layers },
+    { key: "update", label: "Updates", icon: BookOpen },
+    { key: "reunion", label: "Reunions", icon: Users },
+    { key: "memoriam", label: "In Memoriam", icon: Heart },
+    { key: "achievement", label: "Achievements", icon: Award },
+    { key: "business", label: "Business", icon: Building2 },
+    ...(events.filter(e => e.event_date && new Date(e.event_date) >= new Date()).length > 0 ? [{ key: "events" as ChannelKey, label: "Events", icon: Calendar, badge: String(events.filter(e => e.event_date && new Date(e.event_date) >= new Date()).length) }] : [{ key: "events" as ChannelKey, label: "Events", icon: Calendar }]),
+  ];
+
+  const channelMeta = CATS.find(c => c.key === channel) || { label: "Events", icon: Calendar };
+  const ChannelIcon = channel === "events" ? Calendar : (channelMeta as any).icon || Layers;
+  const threadTitle = channel === "events" ? "Events" : (channelMeta as any).label;
+  const threadCount = channel === "events" ? events.length : channelNotes.length;
 
   return (
-    <main>
-      <HeroSection onPost={openPost} />
-      <StatsBar notes={notes.length} events={events.length} photos={photoCount} />
+    <main className="h-screen flex bg-[#0A0D14] text-white overflow-hidden relative">
+      {/* Top ambient glow */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.14),transparent_65%)]" />
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
-        </div>
-      ) : (
-        <>
-          <PulseFeed notes={notes} alumnus={alumnus} onJoin={openPost} />
-          <EventsSection events={events} />
-        </>
-      )}
+      <RailNav />
 
-      <AlumniLinks />
-      <CTASection onPost={openPost} />
+      {/* Chat list panel (desktop) */}
+      <aside className="hidden md:flex flex-col w-[290px] border-r border-white/[0.06] bg-[#0C1018] shrink-0 relative">
+        <ChannelList channels={channels} active={channel} counts={counts} onSelect={(k) => { setChannel(k); setDecade(""); setDrawer("none"); }}
+          members={members} onJoin={openJoin} alumnus={alumnus} onEditProfile={openEdit} />
+      </aside>
 
-      {/* Notice toast */}
-      {notice && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-green-900 text-white px-6 py-3 rounded-full shadow-xl text-sm font-medium animate-slide-in-right">
-          {notice}
-        </div>
-      )}
-
-      {/* Floating actions */}
-      {ready && (
-        <div className="fixed right-6 top-1/4 z-40 flex flex-col items-end gap-3">
-          <button onClick={openPost}
-            className="group flex items-center gap-2 bg-green-800 text-white pl-4 pr-5 py-3 rounded-full shadow-lg hover:bg-green-900 hover:shadow-xl transition-all">
-            <Send className="h-5 w-5" />
-            <span className="text-sm font-semibold">{alumnus ? "Post to the Pulse" : "Join & Post"}</span>
+      {/* Main column */}
+      <section className="flex-1 flex flex-col min-w-0 relative">
+        {/* Top bar */}
+        <header className="flex items-center gap-3 px-4 md:px-6 py-3 border-b border-white/[0.06] bg-[#0A0D14]/70 backdrop-blur relative z-10">
+          <button className="md:hidden p-2 rounded-xl hover:bg-white/10 text-white/60" onClick={() => setDrawer(drawer === "list" ? "none" : "list")} aria-label="Channels">
+            <Menu className="h-5 w-5" />
           </button>
-          {alumnus ? (
-            <button onClick={() => { setPanel(panel === "edit" ? "none" : "edit"); setNotice(""); }}
-              className="group flex items-center gap-2 bg-white text-green-800 border border-green-200 pl-4 pr-5 py-3 rounded-full shadow-lg hover:bg-green-50 hover:shadow-xl transition-all">
-              <UserCircle2 className="h-5 w-5" />
-              <span className="text-sm font-semibold">Edit your profile</span>
+          <div className="min-w-0">
+            <p className="text-[11px] text-white/35 hidden sm:block">Chat room <span className="mx-1 text-white/20">/</span> <span className="text-emerald-300/80">{threadTitle}</span></p>
+            <h1 className="font-display text-lg font-bold text-white truncate flex items-center gap-2">
+              <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-400/15 ring-1 ring-emerald-400/25">
+                <ChannelIcon className="h-4 w-4 text-emerald-300" />
+              </span>
+              {threadTitle}
+            </h1>
+          </div>
+          <div className="hidden md:flex items-center gap-2 bg-white/[0.05] border border-white/10 rounded-full px-4 py-2 flex-1 max-w-sm ml-auto focus-within:border-emerald-400/50">
+            <Search className="h-4 w-4 text-white/30" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search the Pulse" className="bg-transparent text-sm text-white placeholder-white/25 focus:outline-none w-full" />
+          </div>
+          <button className="md:hidden p-2 rounded-xl hover:bg-white/10 text-white/60" onClick={() => setDrawer(drawer === "info" ? "none" : "info")} aria-label="Channel info">
+            <Info className="h-5 w-5" />
+          </button>
+          <div className="hidden md:flex items-center gap-2">
+            <button className="relative p-2 rounded-full bg-white/[0.05] border border-white/10 text-white/50 hover:text-white" aria-label="Notifications">
+              <Bell className="h-5 w-5" />
+              {!alumnus && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400" />}
             </button>
-          ) : (
-            <p className="text-xs text-stone-400 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full shadow-sm">Members post, like &amp; comment as themselves</p>
-          )}
+            {alumnus ? (
+              <button onClick={openEdit} className="flex items-center gap-2 rounded-full bg-white/[0.05] border border-white/10 py-1 pl-1 pr-3 hover:bg-white/[0.1]">
+                <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-8 h-8" text="text-xs" />
+                <div className="text-left hidden sm:block">
+                  <p className="text-xs font-semibold text-white leading-tight">{alumnus.full_name}</p>
+                  <p className="text-[10px] text-white/35 leading-tight">{alumnus.profession || `Class of ${alumnus.graduation_year}`}</p>
+                </div>
+              </button>
+            ) : (
+              <button onClick={openJoin} className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-5 py-2.5 text-sm font-bold hover:brightness-110">
+                Join & Chat
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Thread */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 relative">
+          <div className="max-w-3xl mx-auto">
+            {channel === "events" ? (
+              <>
+                {events.filter(e => e.event_date && new Date(e.event_date) >= new Date()).map(evt => <EventBubble key={evt.id} evt={evt} mine={false} />)}
+                <div className="flex items-center gap-3 my-6">
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <span className="text-[11px] uppercase tracking-widest text-white/25 font-bold">Earlier events</span>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                </div>
+                {events.filter(e => !e.event_date || new Date(e.event_date) < new Date()).map(evt => <EventBubble key={evt.id} evt={evt} mine={false} />)}
+                {events.length === 0 && (
+                  <EmptyThread label="No events yet" hint="Reunions and gatherings will appear here. Watch this channel for the next chance to come home." onJoin={openJoin} member={!!alumnus} />
+                )}
+              </>
+            ) : loading ? (
+              <div className="flex justify-center py-24">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+              </div>
+            ) : channelNotes.length === 0 ? (
+              <EmptyThread
+                label={search || decade ? "Nothing matches" : `No posts in ${threadTitle} yet`}
+                hint={search || decade ? "Try a different search or clear the filters." : "Be the first to share an update with this channel — a career move, a memory, a win."}
+                onJoin={openJoin} member={!!alumnus} />
+            ) : (
+              <>
+                {/* Decade filter */}
+                {!search && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-4 mb-1 scrollbar-hide">
+                    <button onClick={() => setDecade("")} className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${!decade ? "bg-emerald-400 text-[#06110d]" : "bg-white/[0.05] text-white/45 hover:text-white"}`}>All years</button>
+                    {DECADES.map(d => (
+                      <button key={d} onClick={() => setDecade(decade === d ? "" : d)}
+                        className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${decade === d ? "bg-emerald-400 text-[#06110d]" : "bg-white/[0.05] text-white/45 hover:text-white"}`}>Class of {d}</button>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-6">
+                  {channelNotes.map(note => (
+                    <NoteBubble key={note.id} note={note} mine={alumnus?.full_name === note.author_name}
+                      likes={likesMap[note.id] || []} comments={commentsMap[note.id] || []}
+                      alumnus={alumnus} onLike={handleLike} onComment={handleComment} onJoin={openJoin} />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Composer */}
+        <ComposerBar alumnus={alumnus} channelKey={channel} sending={sending} text={composerText}
+          setText={setComposerText} onSend={sendMessage}
+          onPickPhoto={(f) => { setComposerPhoto(f); setComposerPreview(f ? URL.createObjectURL(f) : null); }}
+          photoPreview={composerPreview} onClearPhoto={() => { setComposerPhoto(null); setComposerPreview(null); }}
+          onJoin={openJoin} onEditProfile={openEdit} />
+      </section>
+
+      {/* Details panel (desktop) */}
+      <aside className="hidden xl:flex flex-col w-[330px] border-l border-white/[0.06] bg-[#0C1018] shrink-0">
+        <DetailsPanel channel={channel} members={members} photos={allPhotos} alumnus={alumnus} onJoin={openJoin} />
+      </aside>
+
+      {/* Mobile drawers */}
+      {drawer === "list" && (
+        <div className="fixed inset-0 z-40 flex md:hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawer("none")} />
+          <div className="relative w-[300px] bg-[#0C1018] border-r border-white/10 h-full animate-slide-in-left">
+            <div className="flex justify-end p-2">
+              <button onClick={() => setDrawer("none")} className="p-2 text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <ChannelList channels={channels} active={channel} counts={counts} onSelect={(k) => { setChannel(k); setDecade(""); setDrawer("none"); }}
+              members={members} onJoin={() => { setDrawer("none"); openJoin(); }} alumnus={alumnus} onEditProfile={() => { setDrawer("none"); openEdit(); }} />
+          </div>
+        </div>
+      )}
+      {drawer === "info" && (
+        <div className="fixed inset-0 z-40 flex justify-end xl:hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawer("none")} />
+          <div className="relative w-[330px] bg-[#0C1018] border-l border-white/10 h-full animate-slide-in-right">
+            <div className="flex justify-end p-2">
+              <button onClick={() => setDrawer("none")} className="p-2 text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <DetailsPanel channel={channel} members={members} photos={allPhotos} alumnus={alumnus} onJoin={openJoin} />
+          </div>
         </div>
       )}
 
-      {/* Join panel */}
+      {/* Join / Edit slide panels */}
       {panel === "join" && (
-        <SlidePanel
-          title={alumnus ? "Edit your alumni profile" : "Join the WACOS Pulse"}
-          subtitle={alumnus ? "Update your directory profile and photo" : "Register once — you're in instantly"}
-          onClose={closePanel}>
-          <RegistrationForm
-            alumnus={null}
-            mode="join"
-            onDone={handleRegistered}
-          />
-          <p className="text-center text-xs text-stone-400 mt-4 font-body">
+        <SlidePanel title="Join the WACOS Pulse" subtitle="Register once — you're in instantly" showGuidelines onClose={closePanel}>
+          <RegistrationForm alumnus={null} mode="join" onDone={handleRegistered} />
+          <p className="text-center text-xs text-white/30 mt-4 font-body">
             Already registered on this email? Submitting again simply signs you back in.
           </p>
         </SlidePanel>
       )}
-
-      {/* Compose panel */}
-      {panel === "compose" && (
-        <SlidePanel
-          title="Post to the Pulse"
-          subtitle="Share an update with your fellow alumni"
-          onClose={closePanel}>
-          <Composer alumnus={alumnus} onSubmitted={() => fetchData()} onJoin={() => setPanel("join")} />
+      {panel === "edit" && alumnus && (
+        <SlidePanel title="Edit your alumni profile" subtitle="Your photo appears on your posts and in the directory" onClose={closePanel}>
+          <RegistrationForm alumnus={alumnus} mode="edit" onDone={handleProfileSaved} onSignOut={() => { signOut(); closePanel(); }} />
         </SlidePanel>
       )}
 
-      {/* Edit profile panel */}
-      {panel === "edit" && alumnus && (
-        <SlidePanel
-          title="Edit your alumni profile"
-          subtitle="Your photo appears on your posts and in the directory"
-          showGuidelines={false}
-          onClose={closePanel}>
-          <RegistrationForm
-            alumnus={alumnus}
-            mode="edit"
-            onDone={handleProfileSaved}
-            onSignOut={() => { signOut(); closePanel(); }}
-          />
-        </SlidePanel>
+      {/* Notice toast */}
+      {notice && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-xl border border-emerald-400/30 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-medium animate-slide-in-right">
+          {notice}
+        </div>
       )}
     </main>
   );

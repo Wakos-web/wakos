@@ -113,8 +113,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function AdminCheck({ children }: { children: React.ReactNode }) {
   const location = useRouterState({ select: (s) => s.location });
-  const isAdmin = location.pathname.startsWith("/admin");
-  if (isAdmin) return <>{children}</>;
+  // /admin and the /alumni chat room are full-screen app experiences and render
+  // without the site header/footer. Nested alumni routes (directory, register,
+  // etc.) keep the normal chrome.
+  const isBare = location.pathname.startsWith("/admin") || location.pathname === "/alumni";
+  if (isBare) return <>{children}</>;
   return (
     <>
       <SiteHeader />
