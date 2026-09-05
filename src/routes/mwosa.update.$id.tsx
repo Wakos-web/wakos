@@ -67,14 +67,14 @@ function MediaCard({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
   if (item.media_type === "video") {
     return (
       <figure className="group mb-8 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
-        <div className="relative overflow-hidden">
+        <div className="relative aspect-[4/3] overflow-hidden">
           <video
             src={item.media_url}
             poster={item.poster_url || undefined}
             controls
             playsInline
             preload="metadata"
-            className="w-full aspect-video object-cover bg-black"
+            className="absolute inset-0 h-full w-full object-cover bg-black"
           />
           {/* Glossy bubble highlight */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent" />
@@ -83,7 +83,7 @@ function MediaCard({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
           </span>
         </div>
         {item.caption && (
-          <figcaption className="px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">{item.caption}</figcaption>
+          <figcaption className="line-clamp-2 px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">{item.caption}</figcaption>
         )}
       </figure>
     );
@@ -101,19 +101,19 @@ function MediaCard({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
         }
       }}
       className="group mb-8 break-inside-avoid cursor-zoom-in overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700">
-      <div className="relative overflow-hidden">
+      <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={item.media_url}
           alt={item.caption || ""}
           loading="lazy"
-          className="kenburns w-full object-cover"
+          className="kenburns absolute inset-0 h-full w-full object-cover"
         />
         {/* Glossy bubble highlight */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-transparent" />
         <LightboxHint />
       </div>
       {item.caption && (
-        <figcaption className="px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">
+        <figcaption className="line-clamp-2 px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">
           {item.caption}
         </figcaption>
       )}
