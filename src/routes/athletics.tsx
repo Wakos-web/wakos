@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { IMAGES } from "@/lib/content";
+import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
 
 export const Route = createFileRoute("/athletics")({
@@ -166,6 +168,131 @@ function AthleteSection() {
     </section>
   );
 }
+function SportsScholarshipSection() {
+  const [showForm, setShowForm] = useState(false);
+  const [studentName, setStudentName] = useState("");
+  const [parentName, setParentName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [sport, setSport] = useState("");
+  const [achievement, setAchievement] = useState("");
+  const [currentSchool, setCurrentSchool] = useState("");
+  const [classLevel, setClassLevel] = useState("");
+  const [coach, setCoach] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentName.trim() || !parentName.trim() || !phone.trim() || !sport.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("sports_scholarships").insert({
+      student_name: studentName.trim(),
+      parent_name: parentName.trim(),
+      phone: phone.trim(),
+      email: email.trim() || null,
+      sport: sport.trim(),
+      achievement: achievement.trim() || null,
+      current_school: currentSchool.trim() || null,
+      class_level: classLevel.trim() || null,
+      coach_recommendation: coach.trim() || null,
+      status: "pending"
+    });
+    setSaving(false);
+    if (!error) {
+      setSubmitted(true);
+      setStudentName(""); setParentName(""); setPhone(""); setEmail(""); setSport(""); setAchievement(""); setCurrentSchool(""); setClassLevel(""); setCoach("");
+    }
+  };
+
+  const inputCls = "w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+
+  return (
+    <section className="py-20 bg-stone-50">
+      <div className="max-w-4xl mx-auto px-6">
+        {!showForm && !submitted && (
+          <div className="text-center">
+            <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Sports Scholarship</p>
+            <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold mb-4">Exceptional talent deserves a chance</h2>
+            <p className="text-stone-600 text-lg font-body max-w-2xl mx-auto mb-8">Joshua Cheptegei came to Wairaka on a sports scholarship. Your child could be next. Talented athletes are assessed on merit, with fees covered for the brightest prospects each term.</p>
+            <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors">Apply for a Sports Scholarship</button>
+          </div>
+        )}
+        {submitted && (
+          <div className="text-center">
+            <p className="font-display text-3xl font-bold text-green-900 mb-4">Application submitted!</p>
+            <p className="text-stone-600 text-lg font-body max-w-xl mx-auto mb-6">Thank you. The sports department will review the application and contact you about trials.</p>
+            <button onClick={() => { setSubmitted(false); setShowForm(false); }} className="text-sm font-semibold text-green-800 hover:underline">Submit another application</button>
+          </div>
+        )}
+        {showForm && !submitted && (
+          <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-stone-200 p-8 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-xl font-bold text-stone-900">Sports Scholarship Application</h3>
+                <p className="text-sm text-stone-500 mt-1">Assessed on merit, awarded competitively each term</p>
+              </div>
+              <button type="button" onClick={() => setShowForm(false)} className="text-stone-400 hover:text-stone-600" aria-label="Close">✕</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Student Name *</label>
+                <input value={studentName} onChange={e => setStudentName(e.target.value)} required className={inputCls} placeholder="e.g. Aisha Namukose" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Parent / Guardian Name *</label>
+                <input value={parentName} onChange={e => setParentName(e.target.value)} required className={inputCls} placeholder="e.g. Peter Namukose" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Phone *</label>
+                <input value={phone} onChange={e => setPhone(e.target.value)} required className={inputCls} placeholder="+256 700 000000" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Email (optional)</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="parent@example.com" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Sport *</label>
+                <select value={sport} onChange={e => setSport(e.target.value)} required className={inputCls}>
+                  <option value="">Select sport</option>
+                  <option>Football</option><option>Athletics</option><option>Netball</option><option>Volleyball</option><option>Basketball</option><option>Cricket</option><option>Swimming</option><option>Rugby</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Class Level (optional)</label>
+                <select value={classLevel} onChange={e => setClassLevel(e.target.value)} className={inputCls}>
+                  <option value="">Select class</option>
+                  <option>S1</option><option>S2</option><option>S3</option><option>S4</option><option>S5</option><option>S6</option><option>Primary</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Current School (optional)</label>
+              <input value={currentSchool} onChange={e => setCurrentSchool(e.target.value)} className={inputCls} placeholder="e.g. Wairaka Primary School" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Achievements (optional)</label>
+              <textarea value={achievement} onChange={e => setAchievement(e.target.value)} rows={2} className={inputCls} placeholder="e.g. District 100m champion, school team captain" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Coach Recommendation (optional)</label>
+              <input value={coach} onChange={e => setCoach(e.target.value)} className={inputCls} placeholder="Coach name and contact, if available" />
+            </div>
+            <div className="flex gap-3">
+              <button type="submit" disabled={saving} className="px-6 py-3 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Submitting..." : "Submit Application"}</button>
+              <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function CTASection() {
   return (
     <section className="bg-green-900 py-20">
@@ -198,6 +325,7 @@ function AthleticsPage() {
       <SportsGrid sports={sports} />
       <HighlightsSection highlights={highlights} />
       <AthleteSection />
+      <SportsScholarshipSection />
       <CTASection />
     </div>
   );

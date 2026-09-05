@@ -93,6 +93,100 @@ function ClubApplicationForm({ club, slug }: { club: any; slug: string }) {
   );
 }
 
+function MentorshipForm({ club, open, onClose }: { club: any; open: boolean; onClose: () => void }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gradYear, setGradYear] = useState('');
+  const [expertise, setExpertise] = useState('');
+  const [availability, setAvailability] = useState('');
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from('mentorship_requests').insert({
+      mentor_name: name.trim(),
+      mentor_email: email.trim(),
+      mentor_phone: phone.trim() || null,
+      club_interest: club?.name || '',
+      graduation_year: gradYear.trim() || null,
+      expertise: expertise.trim() || null,
+      availability: availability.trim() || null,
+      message: message.trim() || null,
+      status: 'pending'
+    });
+    setSaving(false);
+    if (!error) {
+      setSubmitted(true);
+      setName(''); setEmail(''); setPhone(''); setGradYear(''); setExpertise(''); setAvailability(''); setMessage('');
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className='mt-6 max-w-2xl mx-auto'>
+      {submitted ? (
+        <div className='rounded-2xl bg-green-50 border border-green-200 p-8 text-center'>
+          <p className='font-display text-xl font-bold text-green-900'>Mentor application submitted!</p>
+          <p className='text-sm text-green-700 mt-2'>Thank you for offering to mentor. The {club?.name} patron and MMCWOSA will be in touch.</p>
+          <button onClick={() => { setSubmitted(false); onClose(); }} className='mt-4 text-sm font-semibold text-green-800 hover:underline'>Submit another</button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className='rounded-2xl bg-white border border-stone-200 p-8 space-y-5'>
+          <div className='flex items-center justify-between'>
+            <div>
+              <h3 className='font-display text-xl font-bold text-stone-900'>Become a mentor</h3>
+              <p className='text-sm text-stone-500 mt-1'>Mentoring {club?.name} students</p>
+            </div>
+            <button type='button' onClick={onClose} className='text-stone-400 hover:text-stone-600' aria-label='Close'>✕</button>
+          </div>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div>
+              <label className='block text-sm font-medium text-stone-700 mb-1'>Full Name *</label>
+              <input value={name} onChange={e => setName(e.target.value)} required className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='e.g. John Mukasa' />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-stone-700 mb-1'>Email *</label>
+              <input type='email' value={email} onChange={e => setEmail(e.target.value)} required className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='john@example.com' />
+            </div>
+          </div>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div>
+              <label className='block text-sm font-medium text-stone-700 mb-1'>Phone (optional)</label>
+              <input value={phone} onChange={e => setPhone(e.target.value)} className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='+256 700 000000' />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-stone-700 mb-1'>Graduation Year (optional)</label>
+              <input value={gradYear} onChange={e => setGradYear(e.target.value)} className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='e.g. 2015' />
+            </div>
+          </div>
+          <div>
+            <label className='block text-sm font-medium text-stone-700 mb-1'>Your expertise (optional)</label>
+            <input value={expertise} onChange={e => setExpertise(e.target.value)} className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='e.g. Law, Engineering, Business, Coaching' />
+          </div>
+          <div>
+            <label className='block text-sm font-medium text-stone-700 mb-1'>Availability (optional)</label>
+            <input value={availability} onChange={e => setAvailability(e.target.value)} className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='e.g. One Saturday per term, or online' />
+          </div>
+          <div>
+            <label className='block text-sm font-medium text-stone-700 mb-1'>Message to the club (optional)</label>
+            <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className='w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500' placeholder='What would you love to share with the students?' />
+          </div>
+          <div className='flex gap-3'>
+            <button type='submit' disabled={saving} className='px-6 py-3 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors'>{saving ? 'Submitting...' : 'Submit Mentor Application'}</button>
+            <button type='button' onClick={onClose} className='px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors'>Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 const AVATARS = [campusImg, athleticsImg, studentLifeImg, academicsImg, newsServiceImg, givingImg, newsRoboticsImg, newsBasketballImg, newsGraduationImg, heroImg];
 
 type Person = { name: string; role: string; year?: string; joined?: string; img?: string };
@@ -435,6 +529,7 @@ function ClubDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showAllMembers, setShowAllMembers] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [mentorOpen, setMentorOpen] = useState(false);
 
   useEffect(() => {
     var onScroll = function() { setShowBackToTop(window.scrollY > 600); };
@@ -662,17 +757,18 @@ function ClubDetailPage() {
               <p className='font-display text-lg font-bold text-white mt-2 group-hover:underline'>Want to lead? Apply Now</p>
               <span className='inline-flex items-center gap-1 mt-3 text-sm text-white/70 group-hover:text-white transition-colors'>Apply <span>&rarr;</span></span>
             </a>
-            <a href='/contact' className='group rounded-2xl bg-white border border-green-800 p-6 text-left hover:shadow-lg transition-shadow'>
+            <button onClick={() => setMentorOpen(true)} className='group rounded-2xl bg-white border border-green-800 p-6 text-left hover:shadow-lg transition-shadow'>
               <span className='text-xs font-semibold uppercase tracking-wider text-green-800'>For Alumni</span>
               <p className='font-display text-lg font-bold text-stone-900 mt-2 group-hover:underline'>Come back as a mentor</p>
               <span className='inline-flex items-center gap-1 mt-3 text-sm text-green-800/70 group-hover:text-green-800 transition-colors'>Get involved <span>&rarr;</span></span>
-            </a>
+            </button>
             <a href='/giving' className='group rounded-2xl bg-amber-50 border border-amber-200 p-6 text-left hover:shadow-lg transition-shadow'>
               <span className='text-xs font-semibold uppercase tracking-wider text-amber-700'>Sponsorship</span>
               <p className='font-display text-lg font-bold text-stone-900 mt-2 group-hover:underline'>Fund this club</p>
               <span className='inline-flex items-center gap-1 mt-3 text-sm text-amber-700/70 group-hover:text-amber-700 transition-colors'>Support <span>&rarr;</span></span>
             </a>
           </div>
+          <MentorshipForm club={club} open={mentorOpen} onClose={() => setMentorOpen(false)} />
         </div>
       </section>
 
