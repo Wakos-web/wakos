@@ -440,6 +440,21 @@ function RailNav() {
   );
 }
 
+function BellButton({ count, onClick }: { count: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="relative p-2 rounded-full bg-white/[0.05] border border-white/10 text-white/50 hover:text-white transition-colors"
+      aria-label={count > 0 ? `${count} unread update${count === 1 ? "" : "s"} — mark all as read` : "No unread updates"}
+      title={count > 0 ? "Mark all channels as read" : "You're all caught up"}>
+      <Bell className="h-5 w-5" />
+      {count > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-400 text-[#06110d] text-[10px] font-black flex items-center justify-center ring-2 ring-[#0A0D14]">
+          {count > 9 ? "9+" : count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function ChannelList({ channels, active, counts, unread, onSelect, members, onJoin, alumnus, onEditProfile }: {
   channels: { key: ChannelKey; label: string; icon: typeof Home; badge?: string }[];
   active: ChannelKey;
@@ -1146,6 +1161,20 @@ function AlumniPulsePage() {
     setDrawer("none");
     setUnread(prev => (prev[k] ? { ...prev, [k]: 0 } : prev));
   };
+
+  const totalUnread = Object.keys(unread).reduce((sum, k) => sum + (unread[k] || 0), 0);
+  const handleBellClick = () => {
+    if (totalUnread > 0) {
+      setUnread({});
+      setNotice("Marked all channels as read. New posts will badge the ones you're not reading.");
+      window.setTimeout(() => setNotice(""), 3500);
+    } else if (!alumnus) {
+      openJoin();
+    } else {
+      setNotice("You're all caught up — no unread updates.");
+      window.setTimeout(() => setNotice(""), 2500);
+    }
+  };
   const closePanel = () => { setPanel("none"); setNotice(""); };
 
   const handleRegistered = (p: Alumnus) => {
@@ -1276,14 +1305,14 @@ function AlumniPulsePage() {
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search the Pulse" className="bg-transparent text-sm text-white placeholder-white/25 focus:outline-none w-full" />
           </div>
+          <div className="md:hidden ml-auto">
+            <BellButton count={totalUnread} onClick={handleBellClick} />
+          </div>
           <button className="xl:hidden p-2 rounded-xl hover:bg-white/10 text-white/60" onClick={() => setDrawer(drawer === "info" ? "none" : "info")} aria-label="Channel info">
             <Info className="h-5 w-5" />
           </button>
           <div className="hidden md:flex items-center gap-2">
-            <button className="relative p-2 rounded-full bg-white/[0.05] border border-white/10 text-white/50 hover:text-white" aria-label="Notifications">
-              <Bell className="h-5 w-5" />
-              {!alumnus && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400" />}
-            </button>
+            <BellButton count={totalUnread} onClick={handleBellClick} />
             {alumnus ? (
               <button onClick={openEdit} className="flex items-center gap-2 rounded-full bg-white/[0.05] border border-white/10 py-1 pl-1 pr-3 hover:bg-white/[0.1]">
                 <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-8 h-8" text="text-xs" />
