@@ -198,9 +198,9 @@ function PostDetailPage() {
           src="/hero-poster.png"
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.22]"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.4]"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/75 to-stone-50/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/75 via-white/65 to-stone-50/85" />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-10">
           <Link to={`/clubs/${slug}` as any} className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-green-800 mb-5 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to {clubName}
@@ -227,8 +227,14 @@ function PostDetailPage() {
 
       {/* Masonry gallery of animated, captioned media */}
       {media.length > 0 && (
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-14">
-          <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 [column-fill:_balance]">
+        <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14">
+          <img
+            src="/hero-poster.png"
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.12]"
+          />
+          <div className="relative columns-1 sm:columns-2 lg:columns-3 gap-8 [column-fill:_balance]">
             {media.map((item, i) => (
               <Reveal key={item.id} delay={(i % 3) * 90}>
                 <MediaCard item={item} onOpen={() => setLightboxIndex(i)} />

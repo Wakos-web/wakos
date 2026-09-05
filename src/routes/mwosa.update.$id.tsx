@@ -169,9 +169,9 @@ function UpdateStoryPage() {
           src="/hero-poster.png"
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.22]"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.4]"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/75 to-stone-50/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/75 via-white/65 to-stone-50/85" />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-10">
           <Link to="/mwosa" className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-green-800 mb-5 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to MWOSA
@@ -188,7 +188,14 @@ function UpdateStoryPage() {
       </section>
 
       {/* Masonry gallery of animated, captioned media */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
+      <section className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14">
+        <img
+          src="/hero-poster.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.12]"
+        />
+        <div className="relative">
         {media.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-14 text-center">
             <ImageIcon className="mx-auto h-10 w-10 text-stone-300 mb-3" />
@@ -203,6 +210,7 @@ function UpdateStoryPage() {
             ))}
           </div>
         )}
+        </div>
       </section>
 
       {lightboxIndex !== null && media.length > 0 && (
