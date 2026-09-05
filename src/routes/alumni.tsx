@@ -388,17 +388,17 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className={labelCls}>Profession</label>
+          <label className={labelCls}>Profession (optional)</label>
           <input type="text" value={profession} onChange={e => setProfession(e.target.value)} className={inputCls} placeholder="e.g. Engineer, Teacher, Doctor" />
         </div>
         <div>
-          <label className={labelCls}>Company / Organisation</label>
+          <label className={labelCls}>Company / Organisation (optional)</label>
           <input type="text" value={company} onChange={e => setCompany(e.target.value)} className={inputCls} placeholder="Where do you work?" />
         </div>
       </div>
 
       <div>
-        <label className={labelCls}>Current Location</label>
+        <label className={labelCls}>Current Location (optional)</label>
         <input type="text" value={location} onChange={e => setLocation(e.target.value)} className={inputCls} placeholder="e.g. Kampala, Uganda" />
       </div>
 

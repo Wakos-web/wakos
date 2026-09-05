@@ -133,19 +133,19 @@ function RegisterPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location</label>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location (optional)</label>
               <input type="text" value={location} onChange={e => setLocation(e.target.value)}
                 className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                 placeholder="e.g. Kampala, Uganda" />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-2">Profession</label>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Profession (optional)</label>
               <input type="text" value={profession} onChange={e => setProfession(e.target.value)}
                 className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                 placeholder="e.g. Engineer, Teacher, Farmer" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-stone-700 mb-2">Company / Organisation</label>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Company / Organisation (optional)</label>
               <input type="text" value={company} onChange={e => setCompany(e.target.value)}
                 className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                 placeholder="Where you work" />
