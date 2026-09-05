@@ -72,6 +72,14 @@ const DECADES = ["2020s", "2010s", "2000s", "1990s", "1980s", "1970s"];
 
 const CAT_ICONS: Record<string, typeof Users> = { update: BookOpen, reunion: Users, memoriam: Heart, achievement: Award, business: Building2 };
 const SESSION_KEY = "wacos_alumnus_session";
+const UNREAD_KEY = "wacos_pulse_unread";
+const readUnread = (): Record<string, number> => {
+  try {
+    const raw = localStorage.getItem(UNREAD_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* noop */ }
+  return {};
+};
 
 async function uploadFileToBucket(bucket: string, folder: string, file: File): Promise<string> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
@@ -432,10 +440,11 @@ function RailNav() {
   );
 }
 
-function ChannelList({ channels, active, counts, onSelect, members, onJoin, alumnus, onEditProfile }: {
+function ChannelList({ channels, active, counts, unread, onSelect, members, onJoin, alumnus, onEditProfile }: {
   channels: { key: ChannelKey; label: string; icon: typeof Home; badge?: string }[];
   active: ChannelKey;
   counts: Record<string, number>;
+  unread: Record<string, number>;
   onSelect: (k: ChannelKey) => void;
   members: Alumnus[];
   onJoin: () => void;
@@ -463,15 +472,20 @@ function ChannelList({ channels, active, counts, onSelect, members, onJoin, alum
               {channels.map(ch => {
                 const Icon = ch.icon;
                 const isActive = active === ch.key;
+                const un = unread[ch.key] || 0;
+                const hasUnread = un > 0 && !isActive;
                 return (
                   <button key={ch.key} onClick={() => onSelect(ch.key)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all ${isActive ? "bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-400/25" : "text-white/55 hover:bg-white/[0.06] hover:text-white"}`}>
-                    <span className={`flex items-center justify-center w-7 h-7 rounded-lg ${isActive ? "bg-emerald-400 text-[#06110d]" : "bg-white/10 text-white/60"}`}>
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all ${isActive ? "bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-400/25" : hasUnread ? "text-white bg-white/[0.07] font-bold" : "text-white/55 hover:bg-white/[0.06] hover:text-white"}`}>
+                    <span className={`relative flex items-center justify-center w-7 h-7 rounded-lg ${isActive ? "bg-emerald-400 text-[#06110d]" : hasUnread ? "bg-white text-[#0A0D14]" : "bg-white/10 text-white/60"}`}>
                       <Icon className="h-3.5 w-3.5" />
+                      {hasUnread && (
+                        <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-emerald-400 text-[#06110d] text-[9px] font-black flex items-center justify-center ring-2 ring-[#0A0D14]">{un > 9 ? "9+" : un}</span>
+                      )}
                     </span>
-                    <span className="font-medium">{ch.label}</span>
-                    {ch.badge && <span className="ml-auto text-[10px] font-bold bg-emerald-400 text-[#06110d] rounded-full px-1.5 py-0.5">{ch.badge}</span>}
-                    {!ch.badge && typeof counts[ch.key] === "number" && counts[ch.key] > 0 && (
+                    <span className="truncate">{ch.label}</span>
+                    {!hasUnread && ch.badge && <span className="ml-auto text-[10px] font-bold bg-emerald-400/20 text-emerald-300 rounded-full px-1.5 py-0.5">{ch.badge}</span>}
+                    {!hasUnread && !ch.badge && typeof counts[ch.key] === "number" && counts[ch.key] > 0 && (
                       <span className="ml-auto text-[11px] text-white/35">{counts[ch.key]}</span>
                     )}
                   </button>
@@ -926,7 +940,15 @@ function AlumniPulsePage() {
   const [live, setLive] = useState(false);
   const [eventsFilter, setEventsFilter] = useState<"upcoming" | "past">("upcoming");
   const [rsvpsMap, setRsvpsMap] = useState<Record<string, string[]>>({});
+  const [unread, setUnread] = useState<Record<string, number>>(readUnread);
   const { alumnus, ready, signIn, refresh, signOut } = useAlumnusSession();
+  const channelRef = useRef<ChannelKey>(channel);
+  const alumnusRef = useRef(alumnus);
+  useEffect(() => { channelRef.current = channel; }, [channel]);
+  useEffect(() => { alumnusRef.current = alumnus; }, [alumnus]);
+  useEffect(() => {
+    try { localStorage.setItem(UNREAD_KEY, JSON.stringify(unread)); } catch { /* noop */ }
+  }, [unread]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -984,6 +1006,10 @@ function AlumniPulsePage() {
   }, [channel, loading]);
   useEffect(() => { stickToLatest(); }, [notes.length, events.length]);
 
+  // Unread badge helpers, consumed by the realtime handlers below.
+  const markUnread = (k: string) => setUnread(prev => ({ ...prev, [k]: (prev[k] || 0) + 1 }));
+  const dropUnread = (k: string) => setUnread(prev => (prev[k] ? { ...prev, [k]: prev[k] - 1 } : prev));
+
   // Live updates: new posts, replies, likes and members stream in without a refresh.
   useEffect(() => {
     const ch = supabase
@@ -992,6 +1018,11 @@ function AlumniPulsePage() {
         const n = p.new as ClassNote;
         if (!n.approved) return;
         setNotes(prev => (prev.some(x => x.id === n.id) ? prev : [n, ...prev]));
+        // Badge only posts landing in a channel we are not currently reading.
+        const active = channelRef.current;
+        const me = alumnusRef.current;
+        const mine = !!me && n.author_name === me.full_name;
+        if (!mine && n.category !== active && active !== "all") markUnread(n.category);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "class_notes" }, (p) => {
         const n = p.new as ClassNote;
@@ -1002,10 +1033,12 @@ function AlumniPulsePage() {
               : [n, ...prev]
             : prev.filter(x => x.id !== n.id)
         );
+        if (!n.approved) dropUnread(n.category);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "class_notes" }, (p) => {
         const old = p.old as ClassNote;
         setNotes(prev => prev.filter(x => x.id !== old.id));
+        if (old.category) dropUnread(old.category);
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "note_comments" }, (p) => {
         const c = p.new as NoteComment;
@@ -1027,6 +1060,7 @@ function AlumniPulsePage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "events" }, (p) => {
         const evt = p.new as Event;
         setEvents(prev => (prev.some(x => x.id === evt.id) ? prev : [evt, ...prev]));
+        if (evt.approved && channelRef.current !== "events") markUnread("events");
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "events" }, (p) => {
         const evt = p.new as Event;
@@ -1081,6 +1115,12 @@ function AlumniPulsePage() {
 
   const openJoin = () => { setPanel("join"); setDrawer("none"); };
   const openEdit = () => { setPanel("edit"); setDrawer("none"); };
+  const selectChannel = (k: ChannelKey) => {
+    setChannel(k);
+    setDecade("");
+    setDrawer("none");
+    setUnread(prev => (prev[k] ? { ...prev, [k]: 0 } : prev));
+  };
   const closePanel = () => { setPanel("none"); setNotice(""); };
 
   const handleRegistered = (p: Alumnus) => {
@@ -1177,7 +1217,7 @@ function AlumniPulsePage() {
 
       {/* Chat list panel (desktop) */}
       <aside className="hidden md:flex flex-col w-[290px] border-r border-white/[0.06] bg-[#0C1018] shrink-0 relative">
-        <ChannelList channels={channels} active={channel} counts={counts} onSelect={(k) => { setChannel(k); setDecade(""); setDrawer("none"); }}
+        <ChannelList channels={channels} active={channel} counts={counts} unread={unread} onSelect={selectChannel}
           members={members} onJoin={openJoin} alumnus={alumnus} onEditProfile={openEdit} />
       </aside>
 
@@ -1337,7 +1377,7 @@ function AlumniPulsePage() {
             <div className="flex justify-end p-2">
               <button onClick={() => setDrawer("none")} className="p-2 text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
-            <ChannelList channels={channels} active={channel} counts={counts} onSelect={(k) => { setChannel(k); setDecade(""); setDrawer("none"); }}
+            <ChannelList channels={channels} active={channel} counts={counts} unread={unread} onSelect={selectChannel}
               members={members} onJoin={() => { setDrawer("none"); openJoin(); }} alumnus={alumnus} onEditProfile={() => { setDrawer("none"); openEdit(); }} />
           </div>
         </div>
