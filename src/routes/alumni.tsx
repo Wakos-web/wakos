@@ -25,6 +25,7 @@ type ClassNote = { id: string; author_name: string; graduation_year: number; con
 type Event = { id: string; title: string; description: string | null; event_date: string | null; location: string | null; photo_url: string | null; category: string; created_at: string; };
 type NoteLike = { id: string; note_id: string; user_name: string; created_at: string; };
 type NoteComment = { id: string; note_id: string; author_name: string; graduation_year: number; content: string; created_at: string; };
+type EventRsvp = { id: string; event_id: string; alumnus_id: string; created_at: string; };
 
 type Alumnus = {
   id: string;
@@ -622,18 +623,28 @@ function NoteBubble({ note, mine, likes, comments, alumnus, onLike, onComment, o
   );
 }
 
-function EventBubble({ evt, mine }: { evt: Event; mine?: boolean }) {
-  const upcoming = evt.event_date && new Date(evt.event_date) >= new Date();
+function EventBubble({ evt, isUpcoming, rsvpCount, meGoing, onRsvp, onJoin }: {
+  evt: Event;
+  isUpcoming: boolean;
+  rsvpCount: number;
+  meGoing: boolean;
+  onRsvp: (going: boolean) => void;
+  onJoin: () => void;
+}) {
+  const isReunion = (evt.category || "").toLowerCase().includes("reun");
+  // Every upcoming gathering is RSVP-able so organisers can plan numbers.
+  const showRsvp = isUpcoming;
   return (
-    <div className={`flex gap-3 ${mine ? "flex-row-reverse" : ""}`}>
+    <div className={`flex gap-3 ${isUpcoming ? "" : "opacity-60 hover:opacity-90 transition-opacity"}`}>
       <div className="flex items-center justify-center w-9 h-9 rounded-full bg-teal-400/15 ring-1 ring-white/10 shrink-0">
         <Calendar className="h-4 w-4 text-teal-300" />
       </div>
-      <div className="max-w-[78%] md:max-w-[70%]">
-        <div className="flex items-center gap-2 mb-1">
+      <div className="max-w-[80%] md:max-w-[72%] min-w-0">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           <span className="text-sm font-semibold text-white/85">{evt.title}</span>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${upcoming ? "bg-emerald-400/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>
-            {upcoming ? "Upcoming" : "Past"}
+          {isReunion && <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-purple-400/15 text-purple-300 ring-1 ring-purple-400/25">Reunion</span>}
+          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${isUpcoming ? "bg-emerald-400/20 text-emerald-300" : "bg-white/10 text-white/40"}`}>
+            {isUpcoming ? "Upcoming" : "Past"}
           </span>
         </div>
         <div className="bg-white/[0.06] border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3">
@@ -641,6 +652,27 @@ function EventBubble({ evt, mine }: { evt: Event; mine?: boolean }) {
           {evt.event_date && <p className="text-sm text-white/70 flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-teal-300" /> {dateLabel(evt.event_date)}</p>}
           {evt.location && <p className="text-sm text-white/55 mt-1 flex items-center gap-2"><Users className="h-3.5 w-3.5 text-teal-300" /> {evt.location}</p>}
           {evt.description && <p className="text-sm text-white/70 leading-relaxed mt-2">{evt.description}</p>}
+
+          {/* RSVP row for upcoming reunions */}
+          {showRsvp && (
+            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.06]">
+              <span className="text-xs text-white/45 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-teal-300" />
+                {rsvpCount > 0 ? `${rsvpCount} ${rsvpCount === 1 ? "alumnus is" : "alumni are"} going` : "No RSVPs yet"}
+              </span>
+              {meGoing ? (
+                <button onClick={() => onRsvp(false)}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-400 text-[#06110d] px-4 py-2 text-xs font-bold hover:brightness-110 transition-all">
+                  ✓ You're going
+                </button>
+              ) : (
+                <button onClick={() => onRsvp(true)}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-emerald-400/50 text-emerald-300 px-4 py-2 text-xs font-bold hover:bg-emerald-400/10 transition-all">
+                  RSVP — I'll be there
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -891,6 +923,8 @@ function AlumniPulsePage() {
   const [composerPreview, setComposerPreview] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [live, setLive] = useState(false);
+  const [eventsFilter, setEventsFilter] = useState<"upcoming" | "past">("upcoming");
+  const [rsvpsMap, setRsvpsMap] = useState<Record<string, string[]>>({});
   const { alumnus, ready, signIn, refresh, signOut } = useAlumnusSession();
 
   const fetchData = async () => {
@@ -901,9 +935,11 @@ function AlumniPulsePage() {
       supabase.from("alumni_profiles").select("*").eq("approved", true).eq("is_public", true).order("graduation_year", { ascending: false }).limit(20),
     ]);
     setNotes(notesRes.data || []);
-    setEvents(eventsRes.data || []);
+    const evts = eventsRes.data || [];
+    setEvents(evts);
     setMembers(membersRes.data || []);
     fetchEngagement(notesRes.data || []);
+    fetchRsvps(evts.map(e => e.id));
     setLoading(false);
   };
 
@@ -920,6 +956,14 @@ function AlumniPulsePage() {
       (data || []).forEach(c => { (map[c.note_id] = map[c.note_id] || []).push(c); });
       setCommentsMap(map);
     });
+  };
+
+  const fetchRsvps = async (eventIds: string[]) => {
+    if (eventIds.length === 0) return;
+    const { data } = await supabase.from("event_rsvps").select("event_id, alumnus_id").in("event_id", eventIds);
+    const map: Record<string, string[]> = {};
+    (data || []).forEach(r => { (map[r.event_id] = map[r.event_id] || []).push(r.alumnus_id); });
+    setRsvpsMap(map);
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -976,6 +1020,17 @@ function AlumniPulsePage() {
         const old = p.old as Event;
         setEvents(prev => prev.filter(x => x.id !== old.id));
       })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "event_rsvps" }, (p) => {
+        const r = p.new as EventRsvp;
+        setRsvpsMap(prev => {
+          const ids = prev[r.event_id] || [];
+          return { ...prev, [r.event_id]: ids.includes(r.alumnus_id) ? ids : [...ids, r.alumnus_id] };
+        });
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "event_rsvps" }, (p) => {
+        const r = p.old as EventRsvp;
+        setRsvpsMap(prev => ({ ...prev, [r.event_id]: (prev[r.event_id] || []).filter(id => id !== r.alumnus_id) }));
+      })
       .subscribe((status) => {
         setLive(status === "SUBSCRIBED");
         if (status !== "SUBSCRIBED") console.warn("Pulse realtime status:", status);
@@ -1000,6 +1055,13 @@ function AlumniPulsePage() {
   notes.forEach(n => { if (counts[n.category] !== undefined) counts[n.category] += 1; });
 
   const allPhotos = notes.filter(n => n.photo_url).map(n => n.photo_url as string);
+
+  const upcomingEvents = events
+    .filter(e => e.event_date && new Date(e.event_date) >= new Date())
+    .sort((a, b) => new Date(a.event_date as string).getTime() - new Date(b.event_date as string).getTime());
+  const pastEvents = events
+    .filter(e => !e.event_date || new Date(e.event_date) < new Date())
+    .sort((a, b) => new Date(b.event_date as string).getTime() - new Date(a.event_date as string).getTime());
 
   const openJoin = () => { setPanel("join"); setDrawer("none"); };
   const openEdit = () => { setPanel("edit"); setDrawer("none"); };
@@ -1031,6 +1093,19 @@ function AlumniPulsePage() {
     await supabase.from("note_comments").insert({ note_id: noteId, author_name: alumnus.full_name, graduation_year: alumnus.graduation_year, content: text, approved: true });
     const { data } = await supabase.from("note_comments").select("*").eq("note_id", noteId).order("created_at", { ascending: true });
     setCommentsMap(prev => ({ ...prev, [noteId]: data || [] }));
+  };
+
+  const toggleRsvp = async (eventId: string, going: boolean) => {
+    if (!alumnus) { openJoin(); return; }
+    const current = rsvpsMap[eventId] || [];
+    const isGoing = current.includes(alumnus.id);
+    if (going && !isGoing) {
+      setRsvpsMap(prev => ({ ...prev, [eventId]: [...(prev[eventId] || []), alumnus.id] }));
+      await supabase.from("event_rsvps").insert({ event_id: eventId, alumnus_id: alumnus.id });
+    } else if (!going && isGoing) {
+      setRsvpsMap(prev => ({ ...prev, [eventId]: (prev[eventId] || []).filter(id => id !== alumnus.id) }));
+      await supabase.from("event_rsvps").delete().eq("event_id", eventId).eq("alumnus_id", alumnus.id);
+    }
   };
 
   const sendMessage = async () => {
@@ -1149,15 +1224,46 @@ function AlumniPulsePage() {
           <div className="max-w-3xl mx-auto">
             {channel === "events" ? (
               <>
-                {events.filter(e => e.event_date && new Date(e.event_date) >= new Date()).map(evt => <EventBubble key={evt.id} evt={evt} mine={false} />)}
-                <div className="flex items-center gap-3 my-6">
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                  <span className="text-[11px] uppercase tracking-widest text-white/25 font-bold">Earlier events</span>
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                </div>
-                {events.filter(e => !e.event_date || new Date(e.event_date) < new Date()).map(evt => <EventBubble key={evt.id} evt={evt} mine={false} />)}
-                {events.length === 0 && (
+                {/* Upcoming / Past filter */}
+                {events.length > 0 && (
+                  <div className="flex gap-1.5 pb-5">
+                    {(["upcoming", "past"] as const).map(f => (
+                      <button key={f} onClick={() => setEventsFilter(f)}
+                        className={`px-4 py-2 rounded-full text-sm font-semibold capitalize transition-colors ${eventsFilter === f ? "bg-emerald-400 text-[#06110d]" : "bg-white/[0.05] text-white/50 hover:text-white"}`}>
+                        {f}
+                        <span className={`ml-2 text-[11px] font-bold ${eventsFilter === f ? "text-[#06110d]/70" : "text-white/30"}`}>
+                          {f === "upcoming" ? upcomingEvents.length : pastEvents.length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {loading ? (
+                  <div className="flex justify-center py-24">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                  </div>
+                ) : events.length === 0 ? (
                   <EmptyThread label="No events yet" hint="Reunions and gatherings will appear here. Watch this channel for the next chance to come home." onJoin={openJoin} member={!!alumnus} />
+                ) : (eventsFilter === "upcoming" ? upcomingEvents : pastEvents).length === 0 ? (
+                  <EmptyThread label={`No ${eventsFilter} events`} hint={eventsFilter === "upcoming" ? "When MMCWOSA plans the next reunion it will show here." : "Past reunions and gatherings will be listed here once they happen."} onJoin={openJoin} member={!!alumnus} />
+                ) : (
+                  <div className="space-y-7">
+                    {(eventsFilter === "upcoming" ? upcomingEvents : pastEvents).map(evt => {
+                      const ids = rsvpsMap[evt.id] || [];
+                      return (
+                        <EventBubble
+                          key={evt.id}
+                          evt={evt}
+                          isUpcoming={eventsFilter === "upcoming"}
+                          rsvpCount={ids.length}
+                          meGoing={!!alumnus && ids.includes(alumnus.id)}
+                          onRsvp={(going) => toggleRsvp(evt.id, going)}
+                          onJoin={openJoin}
+                        />
+                      );
+                    })}
+                  </div>
                 )}
               </>
             ) : loading ? (
