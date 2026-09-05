@@ -10,6 +10,8 @@ import {
   adminAcceptInvite,
   adminResendInviteCode,
   adminRevokeStaff,
+  adminSendLoginCode,
+  adminVerifyLoginCode,
 } from "@/lib/admin-server";
 
 /**
@@ -106,4 +108,5 @@ export const adminSupabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: adminFetch as typeof fetch },
 });
 
-export { adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminAcceptInvite, adminResendInviteCode, adminRevokeStaff };
+export { adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminAcceptInvite, adminResendInviteCode, adminRevokeStaff, adminSendLoginCode, adminVerifyLoginCode };
+

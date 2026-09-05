@@ -23,4 +23,6 @@ export {
   adminAcceptInvite,
   adminResendInviteCode,
   adminRevokeStaff,
+  adminSendLoginCode,
+  adminVerifyLoginCode,
 } from "@/lib/admin-client";

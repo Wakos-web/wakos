@@ -12,11 +12,12 @@ export const Route = createFileRoute("/admin/accept-invite")({
 
 function AcceptInvitePage() {
   const navigate = useNavigate();
-  const params = Route.useSearch() as { email?: string };
+  const params = Route.useSearch() as { email?: string; code?: string };
   const prefilledEmail = typeof params.email === "string" ? params.email : "";
+  const prefilledCode = typeof params.code === "string" ? params.code : "";
 
   const [email, setEmail] = useState(prefilledEmail);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(prefilledCode);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);

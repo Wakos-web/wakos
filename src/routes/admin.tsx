@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff } from "@/lib/supabase";
+import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff, adminSendLoginCode, adminVerifyLoginCode } from "@/lib/supabase";
 import { notifyClubEditor } from "@/lib/club-notify";
 import { notifyAlumniApplicant } from "@/lib/alumni-notify";
 import { LOGO_URL } from "@/lib/content";
@@ -2873,6 +2873,7 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
   const [passcode, setPasscode] = useState("");
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState("");
+  const [newUser, setNewUser] = useState(false);
 
   const passwordLogin = async () => {
     setError("");
@@ -2931,12 +2932,14 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
     if (!resend.allowSend()) { setError(resend.hint()); return; }
     setBusy(true);
     try {
-      await supabase.auth.signInWithOtp({
-        email: em,
-        options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/admin` },
-      });
+      const res = await adminSendLoginCode({ data: { email: em } });
+      if (!res.ok) {
+        setError(res.reason || "Could not send the code.");
+        return;
+      }
       resend.onSent();
       setSent(true);
+      setNewUser(!!res.isNew);
     } catch (e: any) {
       setError(e?.message || "Could not send the code. Try again.");
     } finally {
@@ -2950,15 +2953,14 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
     if (!code.trim()) { setError("Enter the code you received by email."); return; }
     setBusy(true);
     try {
-      const { data, error: verifyErr } = await supabase.auth.verifyOtp({ email: em, token: code.trim(), type: "email" });
-      if (verifyErr) throw verifyErr;
-      const token = data.session?.access_token || (await supabase.auth.getSession()).data.session?.access_token;
-      if (!token) throw new Error("Sign-in did not complete.");
-      const res = await adminLogin({ data: { accessToken: token } });
+      const res = await adminVerifyLoginCode({ data: { email: em, code: code.trim() } });
       if (!res.ok) {
-        // The OTP worked but this email has no staff role — clear the browser auth session.
-        await supabase.auth.signOut();
-        setError(res.reason || "This email is not an invited staff member.");
+        setError(res.reason || "That code did not work. Check it and try again.");
+        return;
+      }
+      if (res.needsPassword) {
+        // First-time staff: the code is verified — now create your password.
+        window.location.href = `/admin/accept-invite?email=${encodeURIComponent(em)}&code=${encodeURIComponent(code.trim())}`;
         return;
       }
       setEmail(""); setCode(""); setSent(false);
@@ -3085,11 +3087,11 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
                   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return;
                   if (!resend.allowSend()) return;
                   try {
-                    await supabase.auth.signInWithOtp({
-                      email: em,
-                      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/admin` },
-                    });
-                    resend.onSent();
+                    const res = await adminSendLoginCode({ data: { email: em } });
+                    if (res.ok) {
+                      resend.onSent();
+                      setNewUser(!!res.isNew);
+                    }
                   } catch {
                     // silent — the user can press "Email me a code" again
                   }

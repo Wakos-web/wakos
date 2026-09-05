@@ -139,6 +139,118 @@ export const adminLogin = createServerFn({ method: "POST" })
 });
 
 /**
+ * Send a one-time login code to a staff email. Unlike Supabase's OTP email
+ * (whose magic link is built from the configured site_url and is broken),
+ * the code is emailed via Resend with the production portal URL and never
+ * expires. Works for any invited staff email — pending (must create a
+ * password next) or already active (straight sign-in).
+ */
+export const adminSendLoginCode = createServerFn({ method: "POST" })
+  .validator((d: unknown) => (d ?? {}) as { email?: unknown })
+  .handler(async ({ data }) => {
+  const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false as const, reason: "Enter a valid email address." };
+  }
+
+  const supabase = getServiceClient();
+  const { data: invite } = await supabase
+    .from("staff_invites")
+    .select("*")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (!invite || invite.status === "removed") {
+    return {
+      ok: false as const,
+      reason: "This email is not an invited staff member yet. Ask a super admin to add you.",
+    };
+  }
+
+  await ensureAuthUser(supabase, email);
+  const code = generateOtpCode();
+  // No expiry — the code stays valid until used or revoked.
+  const farFuture = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString();
+  await supabase
+    .from("staff_invites")
+    .update({ otp_code_hash: hashOtpCode(code, email), otp_expires_at: farFuture, otp_attempts: 0 })
+    .eq("id", invite.id);
+
+  const isNew = invite.status === "pending";
+  try {
+    await sendStaffLoginEmail(email, invite.name || email, code, isNew);
+  } catch (e: any) {
+    console.error("adminSendLoginCode email:", e?.message || e);
+    return { ok: false as const, reason: "The code was generated but the email could not be sent. Try again." };
+  }
+
+  return { ok: true as const, isNew };
+});
+
+/**
+ * Verify a login code emailed by adminSendLoginCode and issue the staff
+ * session cookie. No expiry. A pending invite is activated the same way the
+ * OTP login did, so the new staff member goes straight in after setting
+ * their password (accept-invite) or simply signs in.
+ */
+export const adminVerifyLoginCode = createServerFn({ method: "POST" })
+  .validator((d: unknown) => (d ?? {}) as { email?: unknown; code?: unknown })
+  .handler(async ({ data }) => {
+  const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+  const code = typeof data.code === "string" ? data.code.trim() : "";
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false as const, reason: "Enter a valid email address." };
+  }
+  if (!/^\d{6}$/.test(code)) {
+    return { ok: false as const, reason: "Enter the 6-digit code from your email." };
+  }
+
+  const supabase = getServiceClient();
+  const { data: invite } = await supabase
+    .from("staff_invites")
+    .select("*")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (!invite || invite.status === "removed") {
+    return { ok: false as const, reason: "This email is not an invited staff member yet." };
+  }
+  if (!invite.otp_code_hash) {
+    return { ok: false as const, reason: "No code was sent to this email yet. Press 'Email me a code' first." };
+  }
+  if ((invite.otp_attempts || 0) >= 5) {
+    return { ok: false as const, reason: "Too many wrong attempts. Press 'Start over' to get a fresh code." };
+  }
+  if (hashOtpCode(code, email) !== invite.otp_code_hash) {
+    await supabase.from("staff_invites").update({ otp_attempts: (invite.otp_attempts || 0) + 1 }).eq("id", invite.id);
+    return { ok: false as const, reason: "That code is incorrect." };
+  }
+
+  // First-time staff: the code proves the invite; send them to create a
+  // password (accept-invite keeps the code valid for that step). Do NOT
+  // activate the role or issue a session yet — that happens on accept.
+  if (invite.status === "pending") {
+    return { ok: true as const, needsPassword: true as const, email };
+  }
+
+  const uid = await ensureAuthUser(supabase, email);
+  if (!uid) return { ok: false as const, reason: "Could not find the account for that email." };
+
+  const roles = await rolesForUid(uid);
+  if (roles.length === 0) {
+    return { ok: false as const, reason: "This email is not an invited staff member yet." };
+  }
+
+  await supabase
+    .from("staff_invites")
+    .update({ otp_code_hash: null, otp_expires_at: null, otp_attempts: 0, updated_at: new Date().toISOString() })
+    .eq("id", invite.id);
+
+  issueStaffSession(uid, email);
+  return { ok: true as const, user: { id: uid, email }, roles };
+});
+
+/**
  * Fallback login for the super admin only: verifies the shared passcode
  * (ADMIN_SECRET env) against a fixed email. Identity still comes from the
  * real auth user for that email — the passcode never replaces per-account
@@ -617,6 +729,55 @@ async function sendStaffInviteEmail(email: string, name: string, roleLabel: stri
       from: "WACOS Staff <wacos@alerotek.co.ke>",
       to: [email],
       subject: `Your M.M College Wairaka staff invite code: ${code}`,
+      html,
+    }),
+  });
+  if (!res.ok) throw new Error(`Resend replied ${res.status}: ${(await res.text()).slice(0, 200)}`);
+}
+
+/** Login-code email (Resend, production URL, no expiry). */
+async function sendStaffLoginEmail(email: string, name: string, code: string, isNew: boolean): Promise<void> {
+  const apiKey = envVal(process.env.RESEND_API_KEY);
+  if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
+  const portalBase = (process.env.PORTAL_URL || "https://wacos.alerotek.co.ke").replace(/\/$/, "");
+  const portal = portalBase + "/admin";
+  const nextStep = isNew
+    ? "You'll then create your own password, and from then on sign in with your email and password."
+    : "You're already set up — after the code you're signed straight in.";
+  const html = `
+    <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #1c1917;">
+      <p style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #166534; margin-bottom: 4px;">
+        M.M College Wairaka · Staff Portal
+      </p>
+      <h1 style="font-size: 24px; margin: 0 0 12px;">Your staff sign-in code</h1>
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">Hi ${name}, here is your one-time code:</p>
+      <p style="margin: 0 0 20px;">
+        <span style="display: inline-block; background: #f0fdf4; border: 2px solid #166534; color: #14532d;
+                     padding: 14px 28px; border-radius: 12px; font-size: 30px; font-weight: 700; letter-spacing: 0.35em;">${code}</span>
+      </p>
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">
+        Open the staff portal, enter your email and this code to sign in:
+      </p>
+      <p style="margin: 0 0 20px;">
+        <a href="${portal}" style="display: inline-block; background: #166534; color: #ffffff; text-decoration: none;
+                   padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 15px;">Open the staff portal</a>
+      </p>
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px;">${nextStep}</p>
+      <p style="font-size: 13px; color: #57534e; line-height: 1.6; margin: 0 0 8px;">
+        This code does not expire. If it stops working, press "Start over" on the sign-in screen for a fresh one.
+      </p>
+      <p style="font-size: 12px; color: #a8a29e; margin-top: 24px;">
+        This email is for ${email}. If you weren't expecting it, you can ignore it.
+      </p>
+    </div>
+  `;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "WACOS Staff <wacos@alerotek.co.ke>",
+      to: [email],
+      subject: `Your M.M College Wairaka sign-in code: ${code}`,
       html,
     }),
   });
