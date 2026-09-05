@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
-  RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText
+  RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
+  CalendarCheck, ChevronDown, Mail
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "clubs" | "alumni" | "events" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "applications" | "mentorship" | "donations" | "scholarships" | "comments" | "settings";
+type Tab = "overview" | "clubs" | "alumni" | "events" | "rsvps" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "applications" | "mentorship" | "donations" | "scholarships" | "comments" | "settings";
 
 function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
@@ -481,6 +482,141 @@ function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RsvpsTab({ rsvps, events, onRefresh, setToast }: { rsvps: any[]; events: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [filter, setFilter] = useState<"all" | "upcoming" | "past">("all");
+  const [search, setSearch] = useState("");
+  const [openEvts, setOpenEvts] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+
+  // Group RSVPs by event
+  const byEvent = new Map<string, any[]>();
+  rsvps.forEach(r => {
+    const list = byEvent.get(r.event_id) || [];
+    list.push(r);
+    byEvent.set(r.event_id, list);
+  });
+
+  const attendeesOf = (e: any) => (byEvent.get(e.id) || []).sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+  const upcoming = (e: any) => e.event_date && new Date(e.event_date) >= new Date();
+
+  const now = new Date();
+  const visible = events
+    .filter(e => e.approved !== false)
+    .filter(e => (filter === "all" ? true : filter === "upcoming" ? upcoming(e) : !upcoming(e)))
+    .filter(e => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      const atts = attendeesOf(e);
+      return e.title.toLowerCase().includes(q) || atts.some(r => (r.alumni_profiles?.full_name || "").toLowerCase().includes(q));
+    })
+    .sort((a, b) => {
+      const da = a.event_date || "0000";
+      const db = b.event_date || "0000";
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+
+  const totalAttending = rsvps.length;
+  const eventsWithRsvps = byEvent.size;
+
+  const removeRsvp = async (rsvpId: string, attendeeName: string) => {
+    if (!confirm(`Remove ${attendeeName}'s RSVP?`)) return;
+    setBusy(rsvpId);
+    await supabase.from("event_rsvps").delete().eq("id", rsvpId);
+    setBusy(null);
+    setToast({ message: `${attendeeName}'s RSVP removed`, type: "success" });
+    onRefresh();
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <h3 className="font-display text-xl font-bold text-stone-900">RSVPs <span className="text-stone-400 text-base font-normal">({totalAttending} attending · {eventsWithRsvps} events)</span></h3>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-xl bg-stone-100 p-1">
+            {([["all", "All"], ["upcoming", "Upcoming"], ["past", "Past"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setFilter(k)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${filter === k ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}>{l}</button>
+            ))}
+          </div>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search event or attendee..." className="px-3 py-2 border border-stone-300 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="text-center py-12 text-stone-400">
+          <CalendarCheck className="h-10 w-10 mx-auto mb-3" />
+          <p>{totalAttending === 0 ? "No RSVPs yet. When alumni RSVP on the Pulse Events channel, they will appear here." : "Nothing matches your filters."}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {visible.map((evt) => {
+            const atts = attendeesOf(evt);
+            const open = !!openEvts[evt.id];
+            const isUpcoming = upcoming(evt);
+            return (
+              <div key={evt.id} className="rounded-xl bg-white border border-stone-200 overflow-hidden">
+                <button onClick={() => setOpenEvts(p => ({ ...p, [evt.id]: !open }))} className="w-full flex items-center justify-between gap-4 p-5 text-left hover:bg-stone-50 transition-colors">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isUpcoming ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-500"}`}>{isUpcoming ? "Upcoming" : "Past"}</span>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 capitalize">{evt.category || "event"}</span>
+                      <span className="text-xs text-stone-400">{evt.event_date ? new Date(evt.event_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "No date"}</span>
+                    </div>
+                    <p className="font-display text-lg font-bold text-stone-900 truncate">{evt.title}</p>
+                    <p className="text-sm text-stone-500">{evt.location ? `📍 ${evt.location} · ` : ""}{atts.length} going</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-sm font-bold ${atts.length ? "text-green-700" : "text-stone-300"}`}>{atts.length}</span>
+                    <ChevronDown className={`h-4 w-4 text-stone-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                {open && (
+                  <div className="border-t border-stone-100 px-5 py-4 bg-stone-50/50">
+                    {atts.length === 0 ? (
+                      <p className="text-sm text-stone-400">No one has RSVP'd yet. Share this event so alumni can say they're coming.</p>
+                    ) : (
+                      <ul className="divide-y divide-stone-100">
+                        {atts.map((r) => {
+                          const a = r.alumni_profiles || {};
+                          const initials = (a.full_name || "?").split(" ").map((s: string) => s[0]).slice(0, 2).join("");
+                          return (
+                            <li key={r.id} className="py-2.5 flex items-center gap-3">
+                              {a.avatar_url ? (
+                                <img src={a.avatar_url} alt={a.full_name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0"><span className="text-xs font-bold text-green-800">{initials}</span></div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-stone-900 truncate">{a.full_name || "Unknown alumnus"}
+                                  <span className="font-normal text-stone-400"> · Class of {a.graduation_year || "?"}</span>
+                                </p>
+                                <p className="text-xs text-stone-500 truncate">{[a.profession, a.current_location].filter(Boolean).join(" · ") || "RSVP'd " + (r.created_at ? new Date(r.created_at).toLocaleDateString() : "")}</p>
+                              </div>
+                              <span className="hidden sm:block text-xs text-stone-400 shrink-0">RSVP {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}</span>
+                              {a.email && (
+                                <a href={`mailto:${a.email}`} title="Email this alumnus" className="p-2 rounded-lg text-stone-400 hover:text-green-700 hover:bg-green-50 transition-colors shrink-0">
+                                  <Mail className="h-4 w-4" />
+                                </a>
+                              )}
+                              <button onClick={() => removeRsvp(r.id, a.full_name || "this alumnus")} disabled={busy === r.id} className="p-2 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0" title="Remove RSVP">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1389,13 +1525,14 @@ function AdminPage() {
   const [scholarships, setScholarships] = useState<any[]>([]);
   const [pageContent, setPageContent] = useState<any[]>([]);
   const [noteComments, setNoteComments] = useState<any[]>([]);
+  const [rsvps, setRsvps] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes, commentsRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes, commentsRes, rsvpsRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
@@ -1410,6 +1547,7 @@ function AdminPage() {
       supabase.from("donations").select("*").order("created_at", { ascending: false }),
       supabase.from("sports_scholarships").select("*").order("created_at", { ascending: false }),
       supabase.from("note_comments").select("*").order("created_at", { ascending: false }),
+      supabase.from("event_rsvps").select("*, alumni_profiles(id, full_name, graduation_year, profession, current_location, avatar_url, email), events(id, title, event_date, location, category, approved)"),
     ]);
 
     const c = clubsRes.data || [];
@@ -1435,6 +1573,7 @@ function AdminPage() {
     setDonations(donRes.data || []);
     setScholarships(schRes.data || []);
     setNoteComments(commentsRes.data || []);
+    setRsvps(rsvpsRes.data || []);
     const { count: postCount } = await supabase.from("club_posts").select("*", { count: "exact", head: true });
     setStats({
       clubs: c.length,
@@ -1457,6 +1596,7 @@ function AdminPage() {
     { key: "clubs", label: "Clubs", icon: Users, count: stats.clubs },
     { key: "alumni", label: "Alumni", icon: GraduationCap, count: stats.alumni },
     { key: "events", label: "Events", icon: Calendar, count: stats.events },
+    { key: "rsvps", label: "RSVPs", icon: CalendarCheck, count: rsvps.length },
     { key: "notes", label: "Class Notes", icon: BookOpen, count: stats.notes },
     { key: "articles", label: "Campus News", icon: Megaphone, count: stats.articles },
     { key: "pages", label: "Page Content", icon: FileText, count: pageContent.length },
@@ -1529,8 +1669,8 @@ function AdminPage() {
             {tab === "clubs" && <ClubsTab clubs={clubs} members={members} onRefresh={fetchData} />}
             {tab === "alumni" && (
               <AlumniTab alumni={alumni} onRefresh={fetchData} setToast={setToast} />
-            )}
-            {tab === "events" && <EventsTab events={events} onRefresh={fetchData} />}
+            )}            { tab === "events" && <EventsTab events={events} onRefresh={fetchData} /> }
+            { tab === "rsvps" && <RsvpsTab rsvps={rsvps} events={events} onRefresh={fetchData} setToast={setToast} /> }
             {tab === "notes" && <NotesTab notes={notes} onRefresh={fetchData} setToast={setToast} />}
             {tab === "inquiries" && <InquiriesTab inquiries={inquiries} onRefresh={fetchData} />}
             {tab === "articles" && <ArticlesTab articles={articles} onRefresh={fetchData} setToast={setToast} />}
