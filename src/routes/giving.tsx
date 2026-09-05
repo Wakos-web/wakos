@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { IMAGES, SCHOOL_NAME } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
+import { usePageContent } from "@/hooks/usePageContent";
 
 export const Route = createFileRoute("/giving")({
   head: () => ({
@@ -27,7 +28,7 @@ const FAQ = [
   { q: "How do I set up a scholarship?", a: "Contact the college administration to discuss scholarship criteria, naming, and funding levels. Scholarships can be need-based, sports-based, or academic." },
   { q: "Can I give in-kind instead of cash?", a: "Yes. The college accepts books, laboratory equipment, furniture, and other materials. Contact the college to discuss what is currently needed." },
 
-];function HeroSection() {
+];function HeroSection({ desc }: { desc: string }) {
   return (
     <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
@@ -36,11 +37,11 @@ const FAQ = [
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4">Giving</h1>
-        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">Last year, alumni funded bursaries for 211 students. This year, more are waiting. Your gift changes a life.</p>
+        <p className="text-lg md:text-xl text-white/80 max-w-2xl font-body">{desc}</p>
       </div>
     </section>
   );
-}function WaysOfGiving() {
+}function WaysOfGiving({ ways }: { ways: typeof WAYS }) {
   return (
     <section className="py-20">
       <div className="max-w-6xl mx-auto px-6">
@@ -50,7 +51,7 @@ const FAQ = [
           <p className="mt-4 text-stone-600 text-lg font-body max-w-2xl mx-auto">Every shilling goes directly to students and infrastructure. No middlemen. No overhead. Choose the way that works for you.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {WAYS.map((way) => (
+          {ways.map((way) => (
             <div key={way.title} className="rounded-2xl bg-stone-50 border border-stone-200 p-8 hover:border-green-800 hover:shadow-md transition-all">
               <span className="inline-block text-xs font-semibold uppercase tracking-wider text-green-800 bg-green-100 px-3 py-1 rounded-full mb-4">{way.tag}</span>
               <h3 className="font-display text-xl font-bold text-stone-900 mb-3">{way.title}</h3>
@@ -61,7 +62,7 @@ const FAQ = [
       </div>
     </section>
   );
-}function FAQSection() {
+}function FAQSection({ faqs }: { faqs: typeof FAQ }) {
   return (
     <section className="py-20 bg-stone-50">
       <div className="max-w-3xl mx-auto px-6">
@@ -70,7 +71,7 @@ const FAQ = [
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Frequently asked questions</h2>
         </div>
         <div className="space-y-4">
-          {FAQ.map((item, i) => (
+          {faqs.map((item, i) => (
             <details key={i} className="group rounded-2xl bg-white border border-stone-200 overflow-hidden">
               <summary className="flex items-center justify-between gap-4 p-6 cursor-pointer font-display text-lg font-bold text-stone-900 list-none">
                 {item.q}
@@ -87,7 +88,7 @@ const FAQ = [
       </div>
     </section>
   );
-}function ImpactSection() {
+}function ImpactSection({ stats }: { stats: { value: string; label: string }[] }) {
   return (
     <section className="py-20">
       <div className="max-w-6xl mx-auto px-6">
@@ -96,22 +97,12 @@ const FAQ = [
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">What gifts have achieved</h2>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="rounded-2xl bg-green-900 p-6 text-center">
-            <p className="font-display text-3xl font-bold text-white">211</p>
-            <p className="text-sm text-white/70 mt-1 font-body">Students on bursary last year</p>
-          </div>
-          <div className="rounded-2xl bg-green-900 p-6 text-center">
-            <p className="font-display text-3xl font-bold text-white">2</p>
-            <p className="text-sm text-white/70 mt-1 font-body">Labs renovated by Trust Fund</p>
-          </div>
-          <div className="rounded-2xl bg-green-900 p-6 text-center">
-            <p className="font-display text-3xl font-bold text-white">4,000</p>
-            <p className="text-sm text-white/70 mt-1 font-body">Seedlings planted by students</p>
-          </div>
-          <div className="rounded-2xl bg-green-900 p-6 text-center">
-            <p className="font-display text-3xl font-bold text-white">73</p>
-            <p className="text-sm text-white/70 mt-1 font-body">Years of continuous service</p>
-          </div>
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-2xl bg-green-900 p-6 text-center">
+              <p className="font-display text-3xl font-bold text-white">{s.value}</p>
+              <p className="text-sm text-white/70 mt-1 font-body">{s.label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -222,13 +213,29 @@ function DonationForm() {
   );
 }
 
+const IMPACT = [
+  { value: "211", label: "Students on bursary last year" },
+  { value: "2", label: "Labs renovated by Trust Fund" },
+  { value: "4,000", label: "Seedlings planted by students" },
+  { value: "73", label: "Years of continuous service" },
+];
+
 function GivingPage() {
+  const { content } = usePageContent("giving");
+  const heroDesc = content.hero?.description || "Last year, alumni funded bursaries for 211 students. This year, more are waiting. Your gift changes a life.";
+  const ways = content.ways?.ways?.length
+    ? content.ways.ways.map((w: any) => ({ title: w.name, desc: w.description, tag: w.impact || "Gift" }))
+    : WAYS;
+  const faqs = content.faq?.faqs?.length
+    ? content.faq.faqs.map((f: any) => ({ q: f.question, a: f.answer }))
+    : FAQ;
+  const stats = content.impact?.stats?.length ? content.impact.stats : IMPACT;
   return (
     <div>
-      <HeroSection />
-      <WaysOfGiving />
-      <ImpactSection />
-      <FAQSection />
+      <HeroSection desc={heroDesc} />
+      <WaysOfGiving ways={ways} />
+      <ImpactSection stats={stats} />
+      <FAQSection faqs={faqs} />
       <DonationForm />
     </div>
   );

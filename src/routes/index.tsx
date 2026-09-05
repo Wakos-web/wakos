@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS, DEFAULT_STATS, getSettings } from "@/lib/content";
+import { supabase } from "@/lib/supabase";
 import newsRobotics from "@/assets/news-robotics.jpg";
 import newsBasketball from "@/assets/news-basketball.jpg";
 import newsService from "@/assets/news-service.jpg";
@@ -237,7 +238,28 @@ function StatsSection() {
   );
 }
 
+type NewsArticle = { slug: string; title: string; date: string; category: string; image: string; excerpt: string };
+
 function NewsSection() {
+  const [articles, setArticles] = useState<NewsArticle[]>(ARTICLES);
+
+  useEffect(() => {
+    let dead = false;
+    supabase
+      .from("articles")
+      .select("slug, title, date, category, image, excerpt")
+      .eq("published", true)
+      .order("created_at", { ascending: false })
+      .limit(4)
+      .then(({ data }) => {
+        if (dead) return;
+        if (data && data.length) setArticles(data as NewsArticle[]);
+      });
+    return () => {
+      dead = true;
+    };
+  }, []);
+
   return (
     <section className="mx-auto max-w-6xl px-6 py-20">
       <div className="flex items-end justify-between">
@@ -252,7 +274,7 @@ function NewsSection() {
         </Link>
       </div>
       <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-        {ARTICLES.map((article) => (
+        {articles.map((article) => (
           <Link
             key={article.slug}
             to="/campus-news/$slug"
