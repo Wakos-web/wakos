@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { adminSupabase as supabase } from "@/lib/supabase";
+import { adminSupabase as supabase, adminLogin, adminLogout, adminSession } from "@/lib/supabase";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
-  CalendarCheck, ChevronDown, Mail
+  CalendarCheck, ChevronDown, Mail, Lock, LogOut
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -1508,7 +1508,59 @@ function CommentsTab({ comments, onRefresh, setToast }: { comments: any[]; onRef
   );
 }
 
+function AdminLoginScreen({ onAuthed }: { onAuthed: () => void }) {
+  const [secret, setSecret] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!secret.trim() || busy) return;
+    setBusy(true);
+    setError(false);
+    const res = await adminLogin({ data: { secret: secret.trim() } });
+    setBusy(false);
+    if (res.ok) {
+      setSecret("");
+      onAuthed();
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center px-6">
+      <div className="w-full max-w-md">
+        <div className="rounded-2xl bg-white border border-stone-200 p-8 shadow-sm">
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-green-900 text-white mb-5 mx-auto">
+            <Lock className="h-5 w-5" />
+          </div>
+          <p className="text-center text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Admin Dashboard</p>
+          <h1 className="text-center font-display text-2xl font-bold text-stone-900 mb-2">M.M College Wairaka</h1>
+          <p className="text-center text-sm text-stone-500 mb-6">Enter the admin passcode to manage content.</p>
+          <form onSubmit={submit} className="space-y-4">
+            <input
+              type="password"
+              value={secret}
+              onChange={(e) => { setSecret(e.target.value); setError(false); }}
+              placeholder="Admin passcode"
+              autoFocus
+              className={`w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${error ? "border-red-400" : "border-stone-300"}`}
+            />
+            {error && <p className="text-sm text-red-600">Incorrect passcode. Try again.</p>}
+            <button type="submit" disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
+              {busy ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+          <Link to="/" className="block text-center mt-5 text-sm font-medium text-stone-400 hover:text-stone-600">← Back to site</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminPage() {
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
   const [clubs, setClubs] = useState<any[]>([]);
@@ -1589,7 +1641,14 @@ function AdminPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  const boot = async () => {
+    const session = await adminSession();
+    const authedNow = session.authed;
+    setAuthed(authedNow);
+    if (authedNow) fetchData();
+  };
+
+  useEffect(() => { boot(); }, []);
 
   const tabs: { key: Tab; label: string; icon: any; count?: number }[] = [
     { key: "overview", label: "Overview", icon: LayoutDashboard },
@@ -1610,6 +1669,17 @@ function AdminPage() {
     { key: "settings", label: "Site Settings", icon: Settings },
   ];
 
+  if (authed === null) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
+      </div>
+    );
+  }
+  if (!authed) {
+    return <AdminLoginScreen onAuthed={() => { setAuthed(true); fetchData(); }} />;
+  }
+
   return (
     <div className="min-h-screen bg-stone-50">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -1622,9 +1692,17 @@ function AdminPage() {
               <h1 className="font-display text-3xl font-bold text-stone-900">M.M College Wairaka</h1>
               <p className="text-sm text-stone-500 mt-1">Manage all content, members, and inquiries from one place.</p>
             </div>
-            <Link to="/" className="rounded-xl bg-stone-100 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 transition-colors">
-              ← Back to Site
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={async () => { await adminLogout({ data: {} }); setAuthed(false); }}
+                className="rounded-xl bg-stone-100 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 transition-colors inline-flex items-center gap-2"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign out
+              </button>
+              <Link to="/" className="rounded-xl bg-stone-100 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 transition-colors">
+                ← Back to Site
+              </Link>
+            </div>
           </div>
         </div>
       </div>
