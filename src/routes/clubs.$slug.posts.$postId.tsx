@@ -192,9 +192,16 @@ function PostDetailPage() {
 
   return (
     <div className="bg-stone-50 min-h-screen">
-      {/* Story header — text only, no hero image */}
-      <section className="bg-white border-b border-stone-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-10">
+      {/* Story header — pillar image as background, text over light overlay */}
+      <section className="relative overflow-hidden bg-white border-b border-stone-200">
+        <img
+          src="/hero-poster.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.22]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/75 to-stone-50/90" />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-10">
           <Link to={`/clubs/${slug}` as any} className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-green-800 mb-5 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to {clubName}
           </Link>
