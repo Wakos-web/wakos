@@ -713,7 +713,7 @@ function ComposerBar({ alumnus, channelKey, sending, text, setText, onSend, onPi
 
   if (!alumnus) {
     return (
-      <div className="border-t border-white/[0.06] p-4">
+      <div className="shrink-0 border-t border-white/[0.06] px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-sm text-white/55 font-body text-center sm:text-left">Posting, liking and commenting is reserved for WACOS alumni. Join free — you're in instantly.</p>
           <button onClick={onJoin} className="shrink-0 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-6 py-2.5 text-sm font-bold hover:brightness-110">
@@ -727,7 +727,7 @@ function ComposerBar({ alumnus, channelKey, sending, text, setText, onSend, onPi
   const label = channelKey === "events" ? "Chat about events" : CATS.find(c => c.key === channelKey)?.label || "Updates";
 
   return (
-    <div className="border-t border-white/[0.06] p-4">
+    <div className="shrink-0 border-t border-white/[0.06] px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 px-1 pb-2">
         <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-7 h-7" text="text-xs" />
         <p className="text-xs text-white/50">
@@ -737,7 +737,8 @@ function ComposerBar({ alumnus, channelKey, sending, text, setText, onSend, onPi
         <button onClick={onEditProfile} className="ml-auto text-[11px] text-white/35 hover:text-white/70">edit profile</button>
       </div>
       <div className="flex items-end gap-2 bg-white/[0.05] border border-white/10 rounded-2xl p-2 focus-within:border-emerald-400/50 transition-colors">
-        <textarea rows={2} value={text} onChange={e => setText(e.target.value)}
+        <textarea rows={2} enterKeyHint="send" value={text} onChange={e => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
           placeholder={channelKey === "events" ? "Suggest an event or chat about gatherings..." : "Send something to the Pulse..."}
           className="flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] text-white placeholder-white/30 focus:outline-none" />
         {photoPreview && (
@@ -968,6 +969,21 @@ function AlumniPulsePage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Keep the newest messages in view: jump to the latest on channel/load changes,
+  // and follow new posts only when the reader is already near the bottom.
+  const threadRef = useRef<HTMLDivElement>(null);
+  const stickToLatest = () => {
+    const el = threadRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
+  };
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [channel, loading]);
+  useEffect(() => { stickToLatest(); }, [notes.length, events.length]);
+
   // Live updates: new posts, replies, likes and members stream in without a refresh.
   useEffect(() => {
     const ch = supabase
@@ -1153,7 +1169,7 @@ function AlumniPulsePage() {
   const threadCount = channel === "events" ? events.length : channelNotes.length;
 
   return (
-    <main className="h-screen flex bg-[#0A0D14] text-white overflow-hidden relative">
+    <main className="h-screen supports-[height:100dvh]:h-[100dvh] flex bg-[#0A0D14] text-white overflow-hidden relative">
       {/* Top ambient glow */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.14),transparent_65%)]" />
 
@@ -1166,7 +1182,7 @@ function AlumniPulsePage() {
       </aside>
 
       {/* Main column */}
-      <section className="flex-1 flex flex-col min-w-0 relative">
+      <section className="flex-1 flex flex-col min-w-0 min-h-0 relative">
         {/* Top bar */}
         <header className="flex items-center gap-3 px-4 md:px-6 py-3 border-b border-white/[0.06] bg-[#0A0D14]/70 backdrop-blur relative z-10">
           <button className="md:hidden p-2 rounded-xl hover:bg-white/10 text-white/60" onClick={() => setDrawer(drawer === "list" ? "none" : "list")} aria-label="Channels">
@@ -1195,7 +1211,7 @@ function AlumniPulsePage() {
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search the Pulse" className="bg-transparent text-sm text-white placeholder-white/25 focus:outline-none w-full" />
           </div>
-          <button className="md:hidden p-2 rounded-xl hover:bg-white/10 text-white/60" onClick={() => setDrawer(drawer === "info" ? "none" : "info")} aria-label="Channel info">
+          <button className="xl:hidden p-2 rounded-xl hover:bg-white/10 text-white/60" onClick={() => setDrawer(drawer === "info" ? "none" : "info")} aria-label="Channel info">
             <Info className="h-5 w-5" />
           </button>
           <div className="hidden md:flex items-center gap-2">
@@ -1220,7 +1236,7 @@ function AlumniPulsePage() {
         </header>
 
         {/* Thread */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 relative">
+        <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 md:px-8 pt-6 pb-10 relative">
           <div className="max-w-3xl mx-auto">
             {channel === "events" ? (
               <>
@@ -1288,7 +1304,8 @@ function AlumniPulsePage() {
                   </div>
                 )}
                 <div className="space-y-6">
-                  {channelNotes.map(note => (
+                  {/* Chat order: oldest at the top, newest at the bottom above the composer */}
+                  {[...channelNotes].reverse().map(note => (
                     <NoteBubble key={note.id} note={note} mine={alumnus?.full_name === note.author_name}
                       likes={likesMap[note.id] || []} comments={commentsMap[note.id] || []}
                       alumnus={alumnus} onLike={handleLike} onComment={handleComment} onJoin={openJoin} />
