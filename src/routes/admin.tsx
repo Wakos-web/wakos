@@ -14,6 +14,7 @@ import {
   Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
   Image as ImageIcon, Video as VideoIcon, Upload, GripVertical
 } from "lucide-react";
+import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -463,6 +464,86 @@ function OverviewView({
   );
 }
 
+function SocialLinksEditor({ entityType, entityId, compact = false }: { entityType: "school" | "mwosa" | "club"; entityId?: string; compact?: boolean }) {
+  const [links, setLinks] = useState<any[]>([]);
+  const [platform, setPlatform] = useState("facebook");
+  const [url, setUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+
+  const load = async () => {
+    let q: any = supabase.from("social_links").select("*").eq("entity_type", entityType).order("sort_order", { ascending: true });
+    if (entityId) q = q.eq("entity_id", entityId);
+    const { data } = await q;
+    if (data) setLinks(data);
+  };
+  useEffect(() => { load(); }, [entityType, entityId]);
+
+  const add = async () => {
+    const trimmed = url.trim();
+    if (!trimmed) { setMsg({ text: "Paste a URL first", kind: "err" }); return; }
+    setSaving(true);
+    await supabase.from("social_links").insert({ entity_type: entityType, entity_id: entityId || null, platform, url: trimmed, sort_order: links.length + 1 });
+    setSaving(false);
+    setUrl("");
+    setMsg({ text: "Added. Only active links show on the public page.", kind: "ok" });
+    load();
+  };
+
+  const toggleActive = async (id: string, active: boolean) => {
+    await supabase.from("social_links").update({ active: !active }).eq("id", id);
+    load();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Remove this social link?")) return;
+    await supabase.from("social_links").delete().eq("id", id);
+    load();
+  };
+
+  return (
+    <div className={compact ? "" : "rounded-xl bg-white border border-stone-200 p-5"}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Social links {links.length > 0 && `(${links.length})`}</p>
+        <p className="text-[10px] text-stone-400">Only active ones appear on the public page</p>
+      </div>
+      <div className="space-y-2 mb-3">
+        {links.length === 0 && (
+          <p className="text-xs text-stone-400">None yet. Add the platforms below and they will show on the site.</p>
+        )}
+        {links.map((l) => (
+          <div key={l.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${l.active === false ? "bg-stone-200 text-stone-500" : "bg-green-100 text-green-800"}`}>
+                {platformLabel(l.platform)}
+              </span>
+              <p className="text-xs text-stone-500 truncate mt-1">{l.url}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => toggleActive(l.id, l.active)} title={l.active === false ? "Show on site" : "Hide from site"} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500">
+                {l.active === false ? <Eye className="h-3.5 w-3.5" /> : <ListChecks className="h-3.5 w-3.5" />}
+              </button>
+              <button onClick={() => remove(l.id)} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <select value={platform} onChange={(e) => setPlatform(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-2 text-sm bg-white">
+          {SOCIAL_PLATFORMS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://tiktok.com/@handle" className="flex-1 min-w-[200px] rounded-lg border border-stone-300 px-3 py-2 text-sm" />
+        <button onClick={add} disabled={saving} className="px-4 py-2 rounded-lg bg-green-800 text-white text-sm font-semibold hover:bg-green-900 disabled:opacity-50">
+          {saving ? "..." : "Add"}
+        </button>
+      </div>
+      {msg && <p className={`text-xs mt-2 ${msg.kind === "ok" ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
+    </div>
+  );
+}
+
 function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs: any[]; members: any[]; onRefresh: () => void; reviewerName: string; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [showAddClub, setShowAddClub] = useState(false);
   const [editClub, setEditClub] = useState<any>(null);
@@ -565,6 +646,11 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
               </div>
 
               <ClubEditorTools club={club} reviewerName={reviewerName} />
+
+              {/* Social links for this club */}
+              <div className="mt-4">
+                <SocialLinksEditor entityType="club" entityId={club.slug} compact />
+              </div>
 
               {/* Members */}
               <div className="ml-13">
@@ -2162,7 +2248,7 @@ function DonationsTab({ data, onRefresh, setToast }: { data: any[]; onRefresh: (
 /* MWOSA: alumni association page (stats, links, updates)               */
 /* ------------------------------------------------------------------ */
 function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
-  const [section, setSection] = useState<"stats" | "links" | "updates">("links");
+  const [section, setSection] = useState<"stats" | "links" | "updates" | "socials">("links");
   const [stats, setStats] = useState<any[]>([]);
   const [links, setLinks] = useState<any[]>([]);
   const [updates, setUpdates] = useState<any[]>([]);
@@ -2198,7 +2284,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
   const tableFor = (sec: string) =>
     sec === "stats" ? "mwosa_stats" : sec === "links" ? "mwosa_links" : "mwosa_updates";
 
-  type MwosaSection = "stats" | "links" | "updates";
+  type MwosaSection = "stats" | "links" | "updates" | "socials";
   const fieldDefs: Record<MwosaSection, { label: string; type?: string }[]> = {
     stats: [
       { label: "value" }, { label: "label" }, { label: "sort_order", type: "number" },
@@ -2210,6 +2296,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
     updates: [
       { label: "title" }, { label: "body" }, { label: "update_date" }, { label: "sort_order", type: "number" },
     ],
+    socials: [],
   };
 
   const save = async () => {
@@ -2249,11 +2336,12 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
 
   const sectionTabs = [
     { key: "links", label: "Links (Pulse, Directory, Channels)" },
+    { key: "socials", label: "Social Links" },
     { key: "stats", label: "Milestone Stats" },
     { key: "updates", label: "Project Updates" },
   ] as const;
 
-  const rows = section === "stats" ? stats : section === "links" ? links : updates;
+  const rows = section === "stats" ? stats : section === "links" ? links : section === "updates" ? updates : [];
 
   return (
     <div>
@@ -2274,6 +2362,10 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
         is edited under <strong>Page Content</strong> for the <strong>mwosa</strong> page.
       </p>
 
+      {section === "socials" ? (
+        <SocialLinksEditor entityType="mwosa" />
+      ) : (
+      <>
       {edit && (
         <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -2298,7 +2390,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
           {section === "links" && (
             <p className="text-xs text-stone-500">
               <strong>category:</strong> "quick" shows the big Get Involved cards (Pulse, Directory, Business);
-              "channel" shows the Whats Up class channels by decade.
+              "channel" shows the WhatsApp class channels by decade.
             </p>
           )}
           {section === "updates" && (
@@ -2373,6 +2465,8 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
           );
         })}
       </div>
+      </>
+      )}
     </div>
   );
 }

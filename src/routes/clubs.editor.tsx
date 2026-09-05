@@ -3,9 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyClubPatron } from "@/lib/club-notify";
 import { useOtpResend } from "@/hooks/useOtpResend";
+import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 import {
   LogOut, Send, ImagePlus, Trash2, PenLine, X, ArrowLeft, Mail, Clock, Eye,
-  Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical,
+  Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, ListChecks,
 } from "lucide-react";
 
 export const Route = createFileRoute("/clubs/editor")({
@@ -534,11 +535,30 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
       .eq("status", "active");
     if (err) { setError(err.message || "Could not load your clubs."); setState("none"); return; }
     const rows = (data || []) as EditorRow[];
-    setEditors(rows);
-    if (rows.length > 0) {
-      const first = rows[0];
+    // Club patrons are linked via clubs.patron_user_id (not club_editors) —
+    // include their clubs so patrons can manage social links in the studio.
+    const { data: patronClubs } = await supabase
+      .from("clubs")
+      .select("id, slug, name")
+      .eq("patron_user_id", u.id);
+    const patronRows: EditorRow[] = (patronClubs || []).map((c: any) => ({
+      id: "patron-" + c.id,
+      club_id: c.id,
+      user_id: u.id,
+      name: c.name,
+      role_title: "Patron",
+      email: u.email || "",
+      status: "active",
+      clubs: { id: c.id, name: c.name, slug: c.slug },
+    }));
+    const merged = [...rows, ...patronRows].filter(
+      (r, idx, arr) => arr.findIndex((x) => x.club_id === r.club_id) === idx
+    );
+    setEditors(merged);
+    if (merged.length > 0) {
+      const first = merged[0];
       if (first) {
-        setClubId((prev) => (prev && rows.some((r) => r.club_id === prev) ? prev : first.club_id));
+        setClubId((prev) => (prev && merged.some((r) => r.club_id === prev) ? prev : first.club_id));
         setState("ready");
         return;
       }
@@ -707,8 +727,109 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
               })}
             </div>
           )}
+          {/* Social links — managed here by the patron / co-editor. Only active
+              ones show on the public club page. */}
+          <div className="mt-10">
+            <StudioSocialPanel clubId={clubId!} />
+          </div>
         </>
       )}
+    </div>
+  );
+}
+
+function StudioSocialPanel({ clubId }: { clubId: string }) {
+  const [links, setLinks] = useState<any[]>([]);
+  const [platform, setPlatform] = useState("tiktok");
+  const [url, setUrl] = useState("");
+  const [msg, setMsg] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+
+  const load = async () => {
+    const { data: club } = await supabase.from("clubs").select("slug").eq("id", clubId).single();
+    if (!club) return;
+    const { data } = await supabase
+      .from("social_links")
+      .select("*")
+      .eq("entity_type", "club")
+      .eq("entity_id", club.slug)
+      .order("sort_order", { ascending: true });
+    if (data) setLinks(data);
+  };
+
+  useEffect(() => { load(); }, [clubId]);
+
+  const add = async () => {
+    const trimmed = url.trim();
+    if (!trimmed) { setMsg({ text: "Paste a URL first", kind: "err" }); return; }
+    const { data: club } = await supabase.from("clubs").select("slug").eq("id", clubId).single();
+    if (!club) { setMsg({ text: "Could not find this club", kind: "err" }); return; }
+    const { error } = await supabase.from("social_links").insert({
+      entity_type: "club",
+      entity_id: club.slug,
+      platform,
+      url: trimmed,
+      sort_order: links.length + 1,
+    });
+    if (error) { setMsg({ text: error.message, kind: "err" }); return; }
+    setUrl("");
+    setMsg({ text: "Added — it now shows on the club page", kind: "ok" });
+    load();
+  };
+
+  const toggleActive = async (id: string, active: boolean) => {
+    const { error } = await supabase.from("social_links").update({ active: !active }).eq("id", id);
+    if (error) { setMsg({ text: error.message, kind: "err" }); return; }
+    load();
+  };
+
+  const remove = async (id: string) => {
+    if (!window.confirm("Remove this social link?")) return;
+    const { error } = await supabase.from("social_links").delete().eq("id", id);
+    if (error) { setMsg({ text: error.message, kind: "err" }); return; }
+    load();
+  };
+
+  return (
+    <div className="rounded-2xl bg-white border border-stone-200 p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <h3 className="font-display text-lg font-bold text-stone-900">Social links</h3>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Shown on your club page. Only active links appear publicly — hidden ones stay for your use.
+          </p>
+        </div>
+      </div>
+      <div className="space-y-2 mb-4">
+        {links.length === 0 && (
+          <p className="text-xs text-stone-400">No social links yet. Add TikTok, Facebook, X or any platform below.</p>
+        )}
+        {links.map((l) => (
+          <div key={l.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${l.active === false ? "bg-stone-200 text-stone-500" : "bg-green-100 text-green-800"}`}>
+                {platformLabel(l.platform)}
+              </span>
+              <p className="text-xs text-stone-500 truncate mt-1">{l.url}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => toggleActive(l.id, l.active)} title={l.active === false ? "Show on site" : "Hide from site"} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500">
+                {l.active === false ? <Eye className="h-3.5 w-3.5" /> : <ListChecks className="h-3.5 w-3.5" />}
+              </button>
+              <button onClick={() => remove(l.id)} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <select value={platform} onChange={(e) => setPlatform(e.target.value)} className="rounded-xl border border-stone-300 px-3 py-2 text-sm bg-white">
+          {SOCIAL_PLATFORMS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://tiktok.com/@handle" className="flex-1 min-w-[200px] rounded-xl border border-stone-300 px-3 py-2 text-sm" />
+        <button onClick={add} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900">Add</button>
+      </div>
+      {msg && <p className={`text-xs mt-2 ${msg.kind === "ok" ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
     </div>
   );
 }

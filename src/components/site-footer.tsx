@@ -1,7 +1,24 @@
 import { Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { SCHOOL_NAME, SCHOOL_MOTTO } from "@/lib/content";
+import { supabase } from "@/lib/supabase";
+import { SocialLinksRow } from "@/components/social-links";
 
 export function SiteFooter() {
+  const [socials, setSocials] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("social_links")
+      .select("*")
+      .eq("entity_type", "school")
+      .eq("active", true)
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => {
+        if (data?.length) setSocials(data);
+      });
+  }, []);
+
   return (
     <footer className="bg-[#153816] text-[#FBF6E5]">
       <div className="mx-auto max-w-6xl px-6 py-8">
@@ -40,6 +57,12 @@ export function SiteFooter() {
             </address>
           </div>
         </div>
+        {socials.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-[#FBF6E5]/10 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#97C600]">Follow the school</p>
+            <SocialLinksRow links={socials} tone="dark" />
+          </div>
+        )}
         <div className="mt-6 pt-4 border-t border-[#FBF6E5]/10 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
           <p className="text-[10px] text-[#FBF6E5]/50">Copyright 2026 {SCHOOL_NAME}. All rights reserved.</p>
           <p className="text-[10px] text-[#FBF6E5]/50">{SCHOOL_MOTTO}</p>

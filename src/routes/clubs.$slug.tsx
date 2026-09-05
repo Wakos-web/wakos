@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect, useRef } from 'react';
 import { IMAGES } from '@/lib/content';
+import { SocialLinksRow } from '@/components/social-links';
 import { Video, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import campusImg from '@/assets/campus.jpg';
@@ -527,6 +528,7 @@ function ClubDetailPage() {
   const [dbClub, setDbClub] = useState<any>(null);
   const [dbMembers, setDbMembers] = useState<any[]>([]);
   const [dbPosts, setDbPosts] = useState<any[]>([]);
+  const [socials, setSocials] = useState<any[]>([]);
   const [postMedia, setPostMedia] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [showAllMembers, setShowAllMembers] = useState(false);
@@ -548,6 +550,9 @@ function ClubDetailPage() {
           supabase.from('club_posts').select('*').eq('club_id', clubData.id).eq('published', true).order('created_at', { ascending: false }),
         ]).then(async ([membersRes, postsRes]) => {
           if (membersRes.data) setDbMembers(membersRes.data);
+          supabase.from('social_links').select('*').eq('entity_type', 'club').eq('entity_id', slug).eq('active', true).order('sort_order', { ascending: true }).then(({ data }) => {
+            if (data?.length) setSocials(data);
+          });
           if (postsRes.data) {
             setDbPosts(postsRes.data);
             // Pull each post's story media so cards can show the cover image
@@ -588,7 +593,9 @@ function ClubDetailPage() {
     members: dbMembers.filter((m: any) => m.role === 'Member'),
     activities: dbClub.activities && dbClub.activities.length > 0 ? dbClub.activities : (localClub?.activities || []),
   } : localClub;
-  const posts = dbPosts.length > 0 ? dbPosts : (CLUB_POSTS[slug] || []);
+  // Only render real DB posts. Sample fallback cards (numeric ids like posts/1)
+  // used to render during SSR/hydration and linked to dead pages — never show them.
+  const posts = dbPosts;
 
   if (!club) return <div className='py-20 text-center text-stone-500'>Club not found.</div>;
 
@@ -609,6 +616,11 @@ function ClubDetailPage() {
         <div className='relative z-10 w-full max-w-6xl mx-auto px-6 pb-12'>
           <p className='text-xs font-semibold uppercase tracking-wider text-white/60 mb-2'>{club.tagline}</p>
           <h1 className='font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4'>{club.name}</h1>
+          {socials.length > 0 && (
+            <div className='mb-4'>
+              <SocialLinksRow links={socials} tone='dark' className='justify-start' />
+            </div>
+          )}
           <div className='flex flex-wrap gap-3'>
             <span className='inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-sm font-medium px-3 py-1.5 rounded-full'>
               <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' strokeWidth={2} stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' d='M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' /></svg>
@@ -719,6 +731,25 @@ function ClubDetailPage() {
             <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold'>What we have been up to</h2>
           </div>
           <div className='grid sm:grid-cols-2 gap-6'>
+            {loading && posts.length === 0 && (
+              <div className='col-span-full grid sm:grid-cols-2 gap-6'>
+                {[0, 1].map((n) => (
+                  <div key={n} className='rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden animate-pulse'>
+                    <div className='aspect-[4/3] bg-stone-200' />
+                    <div className='p-5 space-y-3'>
+                      <div className='h-4 bg-stone-200 rounded w-3/4' />
+                      <div className='h-3 bg-stone-200 rounded w-full' />
+                      <div className='h-3 bg-stone-200 rounded w-2/3' />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && posts.length === 0 && (
+              <p className='col-span-full text-center text-stone-500 py-8 font-body'>
+                No updates yet — check back soon.
+              </p>
+            )}
             {posts.map((post) => {
               const postDate = post.date || (post.created_at ? new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
               const media = postMedia[post.id] || [];

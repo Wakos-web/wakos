@@ -369,6 +369,7 @@ const SUPER_TABLES = new Set<string>([
   "articles", "page_content", "donations", "giving_ways", "giving_stats",
   "donation_accounts", "mobile_donations", "giving_contact", "site_settings",
   "mwosa_stats", "mwosa_links", "mwosa_updates", "mwosa_update_media",
+  "social_links",
   "user_roles", "role_scopes", "role_permissions", "staff_invites",
 ]);
 
