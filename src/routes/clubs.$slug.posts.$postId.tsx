@@ -254,9 +254,15 @@ function PostDetailPage() {
       )}
 
       {/* Story text */}
-      <section className="max-w-3xl mx-auto px-6 py-14">
+      <section className="relative max-w-3xl mx-auto px-6 py-14">
+        <img
+          src="/hero-poster.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.12]"
+        />
         {paragraphs.length > 0 && (
-          <div className="rounded-2xl bg-white border border-stone-200 p-8 shadow-sm">
+          <div className="relative rounded-2xl bg-white border border-stone-200 p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold text-stone-900 mb-5">The story</h2>
             {paragraphs.map((p, i) => (
               <p key={i} className="text-stone-700 font-body leading-relaxed mb-4 last:mb-0">{p}</p>
@@ -264,7 +270,7 @@ function PostDetailPage() {
           </div>
         )}
         {paragraphs.length === 0 && media.length === 0 && (
-          <p className="text-stone-500 font-body text-lg">Full content coming soon.</p>
+          <p className="relative text-stone-500 font-body text-lg">Full content coming soon.</p>
         )}
       </section>
 
