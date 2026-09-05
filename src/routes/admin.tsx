@@ -495,6 +495,14 @@ function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () 
     setToast({ message: "Class note deleted", type: "success" });
     onRefresh();
   };
+  // Posts go live automatically; admins moderate by unpublishing anything that breaks the community rules.
+  const toggleApproved = async (id: string, approved: boolean) => {
+    const patch: any = { approved };
+    if (approved) patch.rejected_notes = null;
+    await supabase.from("class_notes").update(patch).eq("id", id);
+    setToast({ message: approved ? "Note published back to the Pulse" : "Note unpublished from the Pulse", type: "success" });
+    onRefresh();
+  };
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -517,8 +525,8 @@ function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () 
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${note.approved ? "bg-green-100 text-green-800" : note.rejected_notes ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
-                        {note.approved ? "Approved" : note.rejected_notes ? "Rejected" : "Pending"}
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${note.approved ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                        {note.approved ? "Live on Pulse" : "Unpublished"}
                       </span>
                       <span className="text-xs text-stone-400">Class of {note.graduation_year}</span>
                     </div>
@@ -530,6 +538,11 @@ function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () 
                   <button onClick={() => setReviewItem({ id: note.id, author: note.author_name, content: note.content, details: { graduation_year: note.graduation_year }, approved: note.approved, rejected_notes: note.rejected_notes, table: "class_notes" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
                     <Eye className="h-4 w-4 text-blue-600" />
                   </button>
+                  {note.approved ? (
+                    <button onClick={() => toggleApproved(note.id, false)} className="px-3 py-2 rounded-lg text-xs font-bold border border-amber-300 text-amber-700 hover:bg-amber-50 transition-colors" title="Hide this note from the public Pulse">Unpublish</button>
+                  ) : (
+                    <button onClick={() => toggleApproved(note.id, true)} className="px-3 py-2 rounded-lg text-xs font-bold border border-green-300 text-green-700 hover:bg-green-50 transition-colors" title="Publish this note to the Pulse">Publish</button>
+                  )}
                   <button onClick={() => remove(note.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
                     <Trash2 className="h-4 w-4 text-red-400" />
                   </button>

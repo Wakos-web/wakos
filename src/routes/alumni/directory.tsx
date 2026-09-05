@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -245,7 +245,9 @@ function DirectoryContent() {
 }
 
 function DirectoryPage() {
-  return (
-    <DirectoryContent />
-  );
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isIndex = pathname === "/alumni/directory";
+  // Index shows the browse content; child routes (register, login, businesses,
+  // claim, admin, profile detail) must render through <Outlet />.
+  return isIndex ? <DirectoryContent /> : <Outlet />;
 }

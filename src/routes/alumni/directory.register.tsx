@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useAlumniAuth } from "@/hooks/useAlumniAuth";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/alumni/directory/register")({
@@ -10,20 +9,15 @@ export const Route = createFileRoute("/alumni/directory/register")({
   component: RegisterPage,
 });
 
+const SESSION_KEY = "wacos_alumnus_session";
+
 function RegisterPage() {
-  const { signUp } = useAlumniAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState<"account" | "profile">("account");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Account fields
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  // Profile fields
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [gradYear, setGradYear] = useState("");
   const [programme, setProgramme] = useState("O-Level");
   const [location, setLocation] = useState("");
@@ -31,38 +25,27 @@ function RegisterPage() {
   const [company, setCompany] = useState("");
   const [bio, setBio] = useState("");
 
-  const handleAccountSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-    setLoading(true);
-    try {
-      await signUp(email, password);
-      setStep("profile");
-    } catch (err: any) {
-      setError(err.message || "Registration failed");
-    }
-    setLoading(false);
-  };
-
-  const handleProfileSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // One profile per email — registering again simply signs that alumnus back in.
+      const { data: existing } = await supabase
+        .from("alumni_profiles")
+        .select("*")
+        .ilike("email", email.trim())
+        .maybeSingle();
+      if (existing) {
+        if (!existing.approved) throw new Error("This email is registered but access was suspended. Contact MMCWOSA to restore your profile.");
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify({ id: existing.id })); } catch { /* noop */ }
+        navigate({ to: "/alumni" });
+        return;
+      }
 
-      const { error: insertError } = await supabase.from("alumni_profiles").insert({
-        user_id: user.id,
-        full_name: fullName,
+      const { data: created, error: insertError } = await supabase.from("alumni_profiles").insert({
+        full_name: fullName.trim(),
+        email: email.trim().toLowerCase(),
         graduation_year: parseInt(gradYear),
         programme,
         current_location: location || null,
@@ -70,13 +53,16 @@ function RegisterPage() {
         company: company || null,
         bio: bio || null,
         is_public: true,
-        approved: false,
-      });
+        approved: true, // Auto-approved. Admins review later and can recall if needed.
+      }).select().single();
 
       if (insertError) throw insertError;
-      navigate({ to: "/alumni/directory" });
+      if (created) {
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify({ id: created.id })); } catch { /* noop */ }
+      }
+      navigate({ to: "/alumni" });
     } catch (err: any) {
-      setError(err.message || "Profile creation failed");
+      setError(err.message || "Registration failed");
     }
     setLoading(false);
   };
@@ -94,23 +80,16 @@ function RegisterPage() {
             Join the Directory
           </h1>
           <p className="text-lg text-white/70 mt-2 font-body">
-            Create your account and claim your WACOS profile
+            Register once — your profile is live instantly
           </p>
         </div>
       </section>
 
       <div className="max-w-xl mx-auto px-6 py-16">
-        {/* Progress */}
-        <div className="flex items-center gap-4 mb-10">
-          <div className={`flex items-center gap-2 ${step === "account" ? "text-green-800 font-bold" : "text-green-800"}`}>
-            <span className="w-8 h-8 rounded-full bg-green-800 text-white flex items-center justify-center text-sm">1</span>
-            <span className="text-sm">Account</span>
-          </div>
-          <div className="flex-1 h-px bg-stone-200" />
-          <div className={`flex items-center gap-2 ${step === "profile" ? "text-green-800 font-bold" : "text-stone-400"}`}>
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${step === "profile" ? "bg-green-800 text-white" : "bg-stone-200 text-stone-500"}`}>2</span>
-            <span className="text-sm">Profile</span>
-          </div>
+        <div className="rounded-xl bg-green-50 border border-green-200 p-4 mb-8">
+          <p className="text-sm text-green-900 font-body">
+            Your profile appears in the directory and on the Pulse right away. MMCWOSA may review it later and contact you if anything needs correcting. You can add a profile photo from the <Link to="/alumni" className="font-bold underline">Pulse</Link> afterwards.
+          </p>
         </div>
 
         {error && (
@@ -119,94 +98,74 @@ function RegisterPage() {
           </div>
         )}
 
-        {step === "account" ? (
-          <form onSubmit={handleAccountSubmit} className="space-y-5">
-            <h2 className="font-display text-2xl font-bold text-stone-900">Create your account</h2>
+        <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-stone-200 p-8 space-y-5">
+          <h2 className="font-display text-2xl font-bold text-stone-900">Your WACOS profile</h2>
+
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-2">Full Name *</label>
+            <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)}
+              className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+              placeholder="Your full name" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-2">Email Address *</label>
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+              placeholder="your@email.com" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-2">Email *</label>
-              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                placeholder="your@email.com" />
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Graduation Year *</label>
+              <select required value={gradYear} onChange={e => setGradYear(e.target.value)}
+                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
+                <option value="">Select year</option>
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-2">Password *</label>
-              <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                placeholder="At least 6 characters" />
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Programme *</label>
+              <select required value={programme} onChange={e => setProgramme(e.target.value)}
+                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
+                <option value="O-Level">O-Level (S1-S4)</option>
+                <option value="A-Level">A-Level (S5-S6)</option>
+                <option value="Both">Both O-Level and A-Level</option>
+              </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-2">Confirm Password *</label>
-              <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location</label>
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)}
                 className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                placeholder="Repeat password" />
+                placeholder="e.g. Kampala, Uganda" />
             </div>
-            <button type="submit" disabled={loading}
-              className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50">
-              {loading ? "Creating account..." : "Continue to Profile"}
-            </button>
-            <p className="text-center text-sm text-stone-500">
-              Already have an account? <Link to="/alumni/directory/login" className="text-green-800 font-semibold hover:underline">Sign in</Link>
-            </p>
-          </form>
-        ) : (
-          <form onSubmit={handleProfileSubmit} className="space-y-5">
-            <h2 className="font-display text-2xl font-bold text-stone-900">Your WACOS profile</h2>
-            <p className="text-stone-600 font-body">Your profile will be reviewed by MMCWOSA before appearing in the directory.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Full Name *</label>
-                <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                  placeholder="Your full name" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Graduation Year *</label>
-                <select required value={gradYear} onChange={e => setGradYear(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
-                  <option value="">Select year</option>
-                  {years.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Programme *</label>
-                <select required value={programme} onChange={e => setProgramme(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent">
-                  <option value="O-Level">O-Level (S1-S4)</option>
-                  <option value="A-Level">A-Level (S5-S6)</option>
-                  <option value="Both">Both O-Level and A-Level</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Current Location</label>
-                <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                  placeholder="e.g. Kampala, Uganda" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Profession</label>
-                <input type="text" value={profession} onChange={e => setProfession(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                  placeholder="e.g. Engineer, Teacher, Farmer" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Company / Organisation</label>
-                <input type="text" value={company} onChange={e => setCompany(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                  placeholder="Where you work" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Bio</label>
-                <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                  placeholder="Tell fellow alumni about yourself" />
-              </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Profession</label>
+              <input type="text" value={profession} onChange={e => setProfession(e.target.value)}
+                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                placeholder="e.g. Engineer, Teacher, Farmer" />
             </div>
-            <button type="submit" disabled={loading}
-              className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50">
-              {loading ? "Submitting..." : "Submit Profile for Review"}
-            </button>
-          </form>
-        )}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Company / Organisation</label>
+              <input type="text" value={company} onChange={e => setCompany(e.target.value)}
+                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                placeholder="Where you work" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Bio</label>
+              <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)}
+                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                placeholder="Tell fellow alumni about yourself" />
+            </div>
+          </div>
+
+          <button type="submit" disabled={loading}
+            className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50">
+            {loading ? "Creating your profile..." : "Register & Take Me to the Pulse"}
+          </button>
+          <p className="text-center text-sm text-stone-500">
+            Already registered? <Link to="/alumni" className="text-green-800 font-semibold hover:underline">Open the Pulse</Link>
+          </p>
+        </form>
       </div>
     </div>
   );
