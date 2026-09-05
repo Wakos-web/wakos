@@ -19,6 +19,7 @@ export function SiteFooter() {
             <p className="text-xs font-semibold uppercase tracking-widest text-[#97C600] mb-3">Community</p>
             <ul className="space-y-1.5">
               <li><Link to="/clubs" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">Clubs</Link></li>
+              <li><Link to="/mwosa" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">MWOSA</Link></li>
               <li><Link to="/alumni" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">Alumni</Link></li>
               <li><Link to="/giving" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">Giving</Link></li>
               <li><Link to="/campus-news" className="text-xs text-[#FBF6E5]/80 hover:text-[#97C600] transition-colors">Campus News</Link></li>

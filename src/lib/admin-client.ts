@@ -1,5 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
-import { adminLogin, adminLogout, adminProxy, adminSession } from "@/lib/admin-server";
+import {
+  adminLogin,
+  adminLogout,
+  adminPasscodeLogin,
+  adminProxy,
+  adminSession,
+  adminListStaff,
+  adminInviteStaff,
+  adminAcceptInvite,
+  adminResendInviteCode,
+  adminRevokeStaff,
+} from "@/lib/admin-server";
 
 /**
  * Admin-only Supabase client. Every request is replayed server-side by
@@ -20,7 +31,7 @@ const supabaseAnonKey =
 type ProxyResult = {
   status: number;
   statusText: string;
-  headers: Record<string, string>;
+  headers?: Record<string, string>;
   bodyText: string;
 };
 
@@ -30,7 +41,7 @@ function toResponse(r: ProxyResult): Response {
   return new Response(body, {
     status: r.status,
     statusText: r.statusText,
-    headers: r.headers,
+    headers: r.headers ?? {},
   });
 }
 
@@ -95,4 +106,4 @@ export const adminSupabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: adminFetch as typeof fetch },
 });
 
-export { adminLogin, adminLogout, adminSession };
+export { adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminAcceptInvite, adminResendInviteCode, adminRevokeStaff };

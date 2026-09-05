@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
+import { useOtpResend } from "@/hooks/useOtpResend";
 
 export const Route = createFileRoute("/alumni/directory/login")({
   head: () => ({
@@ -10,22 +11,39 @@ export const Route = createFileRoute("/alumni/directory/login")({
 });
 
 function LoginPage() {
-  const { signIn } = useAlumniAuth();
+  const { requestOtp, verifyOtp } = useAlumniAuth();
+  const resend = useOtpResend();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!resend.allowSend()) { setError(resend.hint()); return; }
+    setLoading(true);
+    try {
+      await requestOtp(email.trim());
+      resend.onSent();
+      setSent(true);
+    } catch (err: any) {
+      setError(err.message || "Could not send the code");
+    }
+    setLoading(false);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await signIn(email, password);
+      await verifyOtp(email.trim(), code.trim());
       navigate({ to: "/alumni/directory" });
     } catch (err: any) {
-      setError(err.message || "Sign in failed");
+      setError(err.message || "Invalid code. Try again.");
     }
     setLoading(false);
   };
@@ -52,28 +70,53 @@ function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <h2 className="font-display text-2xl font-bold text-stone-900">Welcome back</h2>
-          <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-2">Email</label>
-            <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-              placeholder="your@email.com" />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-2">Password</label>
-            <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-              placeholder="Your password" />
-          </div>
-          <button type="submit" disabled={loading}
-            className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50">
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-          <p className="text-center text-sm text-stone-500">
-            New to the directory? <Link to="/alumni/directory/register" className="text-green-800 font-semibold hover:underline">Register here</Link>
-          </p>
-        </form>
+        {!sent ? (
+          <form onSubmit={handleSendCode} className="space-y-5">
+            <h2 className="font-display text-2xl font-bold text-stone-900">Welcome back</h2>
+            <p className="text-sm text-stone-500 font-body">
+              Enter your email and we'll send you a one-time sign-in code.
+            </p>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Email</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                placeholder="your@email.com" />
+            </div>
+            <button type="submit" disabled={loading || !email.trim()}
+              className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50">
+              {loading ? "Sending code..." : "Send sign-in code"}
+            </button>
+            <p className="text-center text-sm text-stone-500">
+              New to the directory? <Link to="/alumni/directory/register" className="text-green-800 font-semibold hover:underline">Register here</Link>
+            </p>
+          </form>
+        ) : (
+          <form onSubmit={handleVerify} className="space-y-5">
+            <h2 className="font-display text-2xl font-bold text-stone-900">Check your email</h2>
+            <p className="text-sm text-stone-500 font-body">
+              We sent a one-time code to <span className="font-semibold text-stone-800">{email.trim()}</span>. Enter it below to sign in.
+            </p>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">One-time code</label>
+              <input type="text" inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={e => setCode(e.target.value)}
+                className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 text-center text-2xl tracking-[0.4em] focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                placeholder="••••••" />
+            </div>
+            <button type="submit" disabled={loading || code.trim().length < 6}
+              className="w-full bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors disabled:opacity-50">
+              {loading ? "Verifying..." : "Verify & Sign In"}
+            </button>
+            <button type="button" onClick={handleSendCode} disabled={loading || !resend.allowSend()}
+              className="w-full text-center text-sm text-stone-500 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed">
+              {resend.label()}
+            </button>
+            <p className="text-center text-[11px] text-stone-400">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
+            <button type="button" onClick={() => { setSent(false); setCode(""); }}
+              className="w-full text-center text-sm text-stone-500 hover:text-stone-700">
+              Use a different email
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

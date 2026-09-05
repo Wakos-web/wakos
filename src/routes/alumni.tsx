@@ -1,6 +1,9 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { notifyAlumniApprover } from "@/lib/alumni-notify";
+import { useOtpResend } from "@/hooks/useOtpResend";
+import { useAlumniAuth } from "@/hooks/useAlumniAuth";
 import {
   Send, Calendar, BookOpen, Users, Heart, Award, Building2, Clock, ThumbsUp,
   MessageCircle, ChevronDown, ChevronUp, LogOut, UserCircle2, ImagePlus, Home,
@@ -73,7 +76,6 @@ const DECADES = ["2020s", "2010s", "2000s", "1990s", "1980s", "1970s"];
 
 const CAT_ICONS: Record<string, typeof Users> = { update: BookOpen, reunion: Users, memoriam: Heart, achievement: Award, business: Building2 };
 const CHANNEL_KEYS: ChannelKey[] = ["update", "reunion", "memoriam", "achievement", "business", "events"];
-const SESSION_KEY = "wacos_alumnus_session";
 const UNREAD_KEY = "wacos_pulse_unread";
 const readUnread = (): Record<string, number> => {
   try {
@@ -128,53 +130,110 @@ async function uploadFileToBucket(bucket: string, folder: string, file: File): P
 }
 
 /* ------------------------------------------------------------------ */
-/* Lightweight alumni session (device-level, no passwords)             */
+/* Alumni auth: OTP sign-in via Supabase Auth (Resend email)           */
 /* ------------------------------------------------------------------ */
 
-function useAlumnusSession() {
-  const [alumnus, setAlumnus] = useState<Alumnus | null>(null);
-  const [ready, setReady] = useState(false);
+function OtpJoinFlow({ onDone, onClose }: { onDone: (p: Alumnus) => void; onClose: () => void }) {
+  const { user, requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
+  const resend = useOtpResend();
+  const [step, setStep] = useState<"email" | "code" | "profile">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    let raw: string | null = null;
-    try { raw = localStorage.getItem(SESSION_KEY); } catch { /* noop */ }
-    if (!raw) { setReady(true); return; }
+  const sendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || busy) return;
+    setError("");
+    if (!resend.allowSend()) { setError(resend.hint()); return; }
+    setBusy(true);
     try {
-      const { id } = JSON.parse(raw);
-      if (!id) { setReady(true); return; }
-      supabase.from("alumni_profiles").select("*").eq("id", id).maybeSingle().then(({ data }) => {
-        if (data) {
-          if (data.approved) setAlumnus(data as Alumnus);
-          try { localStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
-        } else {
-          try { localStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
-        }
-        setReady(true);
-      });
-    } catch {
-      try { localStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
-      setReady(true);
+      await requestOtp(email.trim());
+      resend.onSent();
+      setStep("code");
+    } catch (err: any) {
+      setError(err.message || "Could not send the code. Try again.");
     }
-  }, []);
-
-  const signIn = (p: Alumnus) => {
-    setAlumnus(p);
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ id: p.id })); } catch { /* noop */ }
+    setBusy(false);
   };
 
-  const refresh = async (id?: string) => {
-    const pid = id || alumnus?.id;
-    if (!pid) return;
-    const { data } = await supabase.from("alumni_profiles").select("*").eq("id", pid).maybeSingle();
-    if (data) setAlumnus(data as Alumnus);
+  const verify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.trim().length < 6 || busy) return;
+    setError("");
+    setBusy(true);
+    try {
+      await verifyOtp(email.trim(), code.trim());
+      const p = await refreshProfile();
+      if (p) onDone(p as Alumnus);
+      else setStep("profile");
+    } catch (err: any) {
+      setError(err.message || "That code didn't work. Try again.");
+    }
+    setBusy(false);
   };
 
-  const signOut = () => {
-    setAlumnus(null);
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
-  };
+  return (
+    <div className="space-y-5">
+      {error && <div className="rounded-xl bg-red-500/10 border border-red-400/30 p-3 text-sm text-red-300">{error}</div>}
 
-  return { alumnus, ready, signIn, refresh, signOut };
+      {step === "email" && (
+        <form onSubmit={sendCode} className="space-y-4">
+          <p className="text-sm text-white/55 font-body">
+            Sign in with your alumni email — we'll send a one-time code. First time? You'll set up your profile right after.
+          </p>
+          <div>
+            <label className={labelCls}>Email Address *</label>
+            <input type="email" required autoFocus value={email} onChange={e => setEmail(e.target.value)}
+              className={inputCls} placeholder="you@example.com" />
+          </div>
+          <button type="submit" disabled={busy || !email.trim()}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 rounded-full font-bold text-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            {busy ? "Sending..." : "Send sign-in code"}
+          </button>
+        </form>
+      )}
+
+      {step === "code" && (
+        <form onSubmit={verify} className="space-y-4">
+          <p className="text-sm text-white/55 font-body">
+            We emailed a one-time code to <span className="font-semibold text-white/85">{email.trim()}</span>. Enter it below.
+          </p>
+          <div>
+            <label className={labelCls}>One-time code *</label>
+            <input type="text" inputMode="numeric" autoComplete="one-time-code" required autoFocus value={code}
+              onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+              className={`${inputCls} text-center text-2xl tracking-[0.4em]`} placeholder="••••••" />
+          </div>
+          <button type="submit" disabled={busy || code.trim().length < 6}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 rounded-full font-bold text-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            {busy ? "Verifying..." : "Verify & Continue"}
+          </button>
+          <button type="button" onClick={sendCode} disabled={busy || !resend.allowSend()}
+            className="w-full text-center text-sm text-white/40 hover:text-white/70 disabled:opacity-40 disabled:cursor-not-allowed">
+            {resend.label()}
+          </button>
+          <p className="text-center text-[11px] text-white/30">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
+          <button type="button" onClick={() => { setStep("email"); setCode(""); setError(""); }}
+            className="w-full text-center text-sm text-white/40 hover:text-white/70">Use a different email</button>
+        </form>
+      )}
+
+      {step === "profile" && user && (
+        <RegistrationForm
+          alumnus={null}
+          mode="join"
+          lockedEmail={email.trim()}
+          userId={user.id}
+          onDone={async (p) => {
+            const fresh = await refreshProfile();
+            onDone((fresh || p) as Alumnus);
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -222,16 +281,18 @@ function dateLabel(iso: string) {
 const inputCls = "w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:bg-white/[0.03] disabled:text-white/30";
 const labelCls = "block text-sm font-semibold text-white/75 mb-2";
 
-function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
+function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userId }: {
   alumnus: Alumnus | null;
   mode: "join" | "edit";
   onDone: (p: Alumnus) => void;
   onSignOut?: () => void;
+  lockedEmail?: string;
+  userId?: string;
 }) {
   const isEdit = mode === "edit";
   const [name, setName] = useState(alumnus?.full_name || "");
   const [nickname, setNickname] = useState(alumnus?.nickname || "");
-  const [email, setEmail] = useState(alumnus?.email || "");
+  const [email, setEmail] = useState(alumnus?.email || lockedEmail || "");
   const [year, setYear] = useState(alumnus ? String(alumnus.graduation_year) : "");
   const [programme, setProgramme] = useState(alumnus?.programme || "O-Level");
   const [profession, setProfession] = useState(alumnus?.profession || "");
@@ -270,6 +331,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
     }
     const uploadedAvatar = avatarFile ? await uploadFileToBucket("class-notes-photos", "avatars", avatarFile) : null;
     const { data, error: insertError } = await supabase.from("alumni_profiles").insert({
+      user_id: userId || null,
       full_name: name.trim(),
       nickname: nickname.trim() || null,
       email: email.trim().toLowerCase(),
@@ -285,9 +347,21 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
       twitter_url: null,
       instagram_url: null,
       is_public: true,
-      approved: true,
+      approved: false, // every new alumnus is reviewed by the alumni admin before access
     }).select().single();
     if (insertError) throw insertError;
+    // Email alert: the alumni admin(s) get pinged about every sign-up request.
+    if (data?.id) {
+      try {
+        const { data: s } = await supabase.auth.getSession();
+        if (s.session?.access_token) {
+          notifyAlumniApprover({ data: { kind: "registration", submissionId: data.id, accessToken: s.session.access_token } })
+            .then(() => {}).catch(() => {});
+        }
+      } catch {
+        // never block the sign-up on the notification
+      }
+    }
     onDone(data as Alumnus);
   };
 
@@ -302,7 +376,6 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
       bio: bio || null,
       avatar_url: uploadedAvatar,
       programme,
-      approved: true,
     }).eq("id", alumnus!.id).select().single();
     if (updateError) throw updateError;
     onDone(data as Alumnus);
@@ -327,7 +400,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
 
       {!isEdit && (
         <p className="text-sm text-white/55 font-body">
-          Register once with your real details and photo — you're in instantly. Your profile is added to the directory, and admins can review it later. Then post, like and comment as yourself.
+          Register once with your real details and a photo. Your request goes to the alumni admin for review — you'll get an email the moment you're approved, then you can post, like and comment as yourself.
         </p>
       )}
 
@@ -364,8 +437,8 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Email Address *</label>
-          <input type="email" required disabled={isEdit} value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="you@example.com" />
-          {isEdit && <p className="text-xs text-white/35 mt-1">Email is your identity and cannot be changed here.</p>}
+          <input type="email" required disabled={isEdit || !!lockedEmail} value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="you@example.com" />
+          {(isEdit || !!lockedEmail) && <p className="text-xs text-white/35 mt-1">Email is your identity and cannot be changed here.</p>}
         </div>
         <div>
           <label className={labelCls}>Graduation Year *</label>
@@ -410,8 +483,8 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
       <button type="submit" disabled={loading || !name.trim() || !email.trim() || !year}
         className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 rounded-full font-bold text-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
         {loading
-          ? (isEdit ? "Saving..." : "Creating your profile...")
-          : (isEdit ? "Save Changes" : "Register & Join the Chat")}
+          ? (isEdit ? "Saving..." : "Submitting...")
+          : (isEdit ? "Save Changes" : "Submit for approval")}
       </button>
 
       {isEdit && onSignOut && (
@@ -548,7 +621,7 @@ function ChannelList({ channels, active, counts, unread, onSelect, members, onJo
                     </span>
                     <span className="truncate">{ch.label}</span>
                     {!hasUnread && ch.badge && <span className="ml-auto text-[10px] font-bold bg-emerald-400/20 text-emerald-300 rounded-full px-1.5 py-0.5">{ch.badge}</span>}
-                    {!hasUnread && !ch.badge && typeof counts[ch.key] === "number" && counts[ch.key] > 0 && (
+                    {!hasUnread && !ch.badge && typeof counts[ch.key] === "number" && (counts[ch.key] ?? 0) > 0 && (
                       <span className="ml-auto text-[11px] text-white/35">{counts[ch.key]}</span>
                     )}
                   </button>
@@ -986,7 +1059,7 @@ function AlumniPage() {
 function AlumniPulsePage() {
   const [channel, setChannel] = useState<ChannelKey>("all");
   const [notes, setNotes] = useState<ClassNote[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [members, setMembers] = useState<Alumnus[]>([]);
   const [loading, setLoading] = useState(true);
   const [decade, setDecade] = useState("");
@@ -1008,7 +1081,8 @@ function AlumniPulsePage() {
   const [baselineAt, setBaselineAt] = useState<string | null>(null);
   const [readsReady, setReadsReady] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
-  const { alumnus, ready, signIn, refresh, signOut } = useAlumnusSession();
+  const { profile, signOut, refreshProfile, loading: authLoading } = useAlumniAuth();
+  const alumnus = (profile as Alumnus | null) ?? null;
   const channelRef = useRef<ChannelKey>(channel);
   const alumnusRef = useRef(alumnus);
   useEffect(() => { channelRef.current = channel; }, [channel]);
@@ -1026,7 +1100,7 @@ function AlumniPulsePage() {
     notes.forEach(n => {
       if (out[n.category] === undefined || n.author_name === alumnus.full_name) return;
       const base = baseOf(n.category);
-      if (!base || new Date(n.created_at) > new Date(base)) out[n.category] += 1;
+      if (!base || new Date(n.created_at) > new Date(base)) out[n.category] = (out[n.category] ?? 0) + 1;
     });
     const eBase = baseOf("events");
     if (eBase) out.events = events.filter(e => e.approved && new Date(e.created_at) > new Date(eBase)).length;
@@ -1264,16 +1338,16 @@ function AlumniPulsePage() {
         setMembers(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m].slice(0, 20)));
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "events" }, (p) => {
-        const evt = p.new as Event;
+        const evt = p.new as any;
         setEvents(prev => (prev.some(x => x.id === evt.id) ? prev : [evt, ...prev]));
         if (evt.approved && !alumnusRef.current && channelRef.current !== "events") markUnread("events");
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "events" }, (p) => {
-        const evt = p.new as Event;
+        const evt = p.new as any;
         setEvents(prev => (prev.some(x => x.id === evt.id) ? prev.map(x => (x.id === evt.id ? evt : x)) : prev));
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "events" }, (p) => {
-        const old = p.old as Event;
+        const old = p.old as any;
         setEvents(prev => prev.filter(x => x.id !== old.id));
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "event_rsvps" }, (p) => {
@@ -1308,7 +1382,7 @@ function AlumniPulsePage() {
   });
 
   const counts: Record<string, number> = { all: notes.length, update: 0, reunion: 0, memoriam: 0, achievement: 0, business: 0 };
-  notes.forEach(n => { if (counts[n.category] !== undefined) counts[n.category] += 1; });
+  notes.forEach(n => { if (counts[n.category] !== undefined) counts[n.category] = (counts[n.category] ?? 0) + 1; });
 
   const allPhotos = notes.filter(n => n.photo_url).map(n => n.photo_url as string);
 
@@ -1349,14 +1423,20 @@ function AlumniPulsePage() {
   const closePanel = () => { setPanel("none"); setNotice(""); };
 
   const handleRegistered = (p: Alumnus) => {
-    signIn(p);
-    setNotice(`Welcome to the Pulse, ${p.full_name.split(" ")[0]}! Your profile is live — post your first update below.`);
     setPanel("none");
-    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    refreshProfile().then((fresh) => {
+      const approved = !!(fresh || p).approved;
+      if (approved) {
+        setNotice(`Welcome to the Pulse, ${p.full_name.split(" ")[0]}! Post your first update below.`);
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      } else {
+        setNotice("Request received! The alumni admin will review your registration — you'll get an email the moment you're approved.");
+      }
+    });
   };
 
   const handleProfileSaved = (p: Alumnus) => {
-    refresh(p.id).then(() => {
+    refreshProfile().then(() => {
       setNotice("Your profile has been updated.");
       setPanel("none");
     });
@@ -1398,7 +1478,7 @@ function AlumniPulsePage() {
       let photoUrl: string | null = null;
       if (composerPhoto) photoUrl = await uploadFileToBucket("class-notes-photos", "notes", composerPhoto);
       const category = channel === "events" ? "reunion" : channel === "all" ? "update" : channel;
-      const { error } = await supabase.from("class_notes").insert({
+      const { data: insertedNote, error } = await supabase.from("class_notes").insert({
         author_name: alumnus.full_name,
         graduation_year: alumnus.graduation_year,
         author_avatar_url: alumnus.avatar_url,
@@ -1406,8 +1486,16 @@ function AlumniPulsePage() {
         content,
         photo_url: photoUrl,
         approved: true,
-      });
+      }).select("id").single();
       if (error) throw error;
+      // Let the alumni approvers know a new Pulse post landed (moderation).
+      if (insertedNote?.id) {
+        const { data: s } = await supabase.auth.getSession();
+        if (s.session?.access_token) {
+          notifyAlumniApprover({ data: { kind: "class_note", submissionId: insertedNote.id, accessToken: s.session.access_token } })
+            .then(() => {}).catch(() => {});
+        }
+      }
       setComposerText("");
       setComposerPhoto(null);
       setComposerPreview(null);
@@ -1432,6 +1520,94 @@ function AlumniPulsePage() {
   const ChannelIcon = channel === "events" ? Calendar : (channelMeta as any).icon || Layers;
   const threadTitle = channel === "events" ? "Events" : (channelMeta as any).label;
   const threadCount = channel === "events" ? events.length : channelNotes.length;
+
+  const noticeToast = notice && (
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] bg-white/[0.08] backdrop-blur-xl border border-emerald-400/30 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-medium animate-slide-in-right">
+      {notice}
+    </div>
+  );
+
+  // Alumni wall: the Pulse is members-only. Guests see a sign-in gate; new
+  // registrations stay behind it until the alumni admin approves them.
+  if (authLoading) {
+    return (
+      <div className="h-screen supports-[height:100dvh]:h-[100dvh] flex items-center justify-center bg-[#0A0D14]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!alumnus) {
+    return (
+      <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden bg-[#0A0D14] text-white flex flex-col items-center justify-center px-6">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.14),transparent_65%)]" />
+        <div className="relative w-full max-w-lg text-center">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-400/15 ring-1 ring-emerald-400/30 flex items-center justify-center mb-6">
+            <Users className="h-7 w-7 text-emerald-300" />
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-300/90 mb-3">Alumni only</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-white leading-tight">The WACOS Pulse is for alumni</h1>
+          <p className="mt-4 text-white/55 font-body leading-relaxed">
+            Sign in with the email you registered with, or register as a WACOS alumnus — catch up with old classmates, share updates, and hear about reunions first.
+          </p>
+          <ul className="mt-6 space-y-2 text-left text-sm text-white/60 font-body mx-auto max-w-sm">
+            <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Chat with classmates from every decade</li>
+            <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Post career news, memories and achievements</li>
+            <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Hear about and RSVP to reunions</li>
+          </ul>
+          <button onClick={() => setPanel("join")} className="mt-8 w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 font-bold text-lg hover:brightness-110 transition-all">
+            Sign in or register as an alumnus
+          </button>
+          <p className="mt-4 text-xs text-white/35 font-body">
+            New registrations are reviewed by the alumni admin — you'll get an email once you're approved.
+          </p>
+          <Link to="/" className="mt-8 inline-block text-sm text-white/40 hover:text-white">← Back to the M.M College Wairaka site</Link>
+        </div>
+        {panel === "join" && (
+          <SlidePanel title="Join the WACOS Pulse" subtitle="Sign in with a one-time code — then a quick review by the alumni office" showGuidelines onClose={closePanel}>
+            <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} />
+            <p className="text-center text-xs text-white/30 mt-4 font-body">
+              Already registered on this email? Entering the same email signs you straight back in.
+            </p>
+          </SlidePanel>
+        )}
+        {noticeToast}
+      </div>
+    );
+  }
+
+  if (!alumnus.approved) {
+    return (
+      <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden bg-[#0A0D14] text-white flex flex-col items-center justify-center px-6">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(251,191,36,0.12),transparent_65%)]" />
+        <div className="relative w-full max-w-lg text-center">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-400/15 ring-1 ring-amber-400/30 flex items-center justify-center mb-6">
+            <Clock className="h-7 w-7 text-amber-300" />
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300/90 mb-3">Under review</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-white leading-tight">Thanks{alumnus.full_name ? `, ${alumnus.full_name.split(" ")[0]}` : ""} — your request is with the alumni admin</h1>
+          <p className="mt-4 text-white/55 font-body leading-relaxed">
+            New WACOS alumni registrations are verified by MMCWOSA before the Pulse opens up. You'll get an email alert the moment your profile is approved.
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <button onClick={() => setPanel("edit")} className="flex-1 rounded-full border border-white/20 bg-white/[0.05] px-6 py-3.5 font-bold text-white hover:bg-white/[0.1] transition-all">
+              Edit my profile
+            </button>
+            <button onClick={() => { signOut(); closePanel(); }} className="flex-1 rounded-full border border-white/10 text-white/50 px-6 py-3.5 font-semibold hover:text-red-300 hover:border-red-300/30 transition-all">
+              Sign out
+            </button>
+          </div>
+          <p className="mt-5 text-xs text-white/30 font-body">Approval usually happens within a day or two. Questions? Email info@mmcollegewairaka.sc.ug</p>
+        </div>
+        {panel === "edit" && (
+          <SlidePanel title="Edit your alumni profile" subtitle="Your photo appears on your posts once you're approved" onClose={closePanel}>
+            <RegistrationForm alumnus={alumnus} mode="edit" onDone={handleProfileSaved} onSignOut={() => { signOut(); closePanel(); }} />
+          </SlidePanel>
+        )}
+        {noticeToast}
+      </div>
+    );
+  }
 
   return (
     <main ref={mainRef} className="h-screen supports-[height:100dvh]:h-[100dvh] flex bg-[#0A0D14] text-white overflow-hidden relative">
@@ -1672,10 +1848,10 @@ function AlumniPulsePage() {
 
       {/* Join / Edit slide panels */}
       {panel === "join" && (
-        <SlidePanel title="Join the WACOS Pulse" subtitle="Register once — you're in instantly" showGuidelines onClose={closePanel}>
-          <RegistrationForm alumnus={null} mode="join" onDone={handleRegistered} />
+        <SlidePanel title="Join the WACOS Pulse" subtitle="Sign in with a one-time code — then a quick review by the alumni office" showGuidelines onClose={closePanel}>
+          <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} />
           <p className="text-center text-xs text-white/30 mt-4 font-body">
-            Already registered on this email? Submitting again simply signs you back in.
+            Already registered on this email? Entering the same email signs you straight back in.
           </p>
         </SlidePanel>
       )}

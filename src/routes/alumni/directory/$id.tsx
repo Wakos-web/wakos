@@ -3,8 +3,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
-import type { AlumniBusiness } from "./businesses";
 import { MapPin, Briefcase, GraduationCap, Building2, ArrowLeft } from "lucide-react";
+
+type AlumniBusiness = {
+  id: string;
+  name: string;
+  category?: string;
+  description?: string;
+  location?: string;
+};
 
 export const Route = createFileRoute("/alumni/directory/$id")({
   head: () => ({

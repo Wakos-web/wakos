@@ -119,7 +119,7 @@ function HeroSection() {
           loop
           playsInline
           preload="auto"
-          fetchPriority="high"
+          {...({ fetchPriority: "high" } as any)}
           className="absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%]"
         />
 
@@ -205,12 +205,12 @@ function StatsSection() {
     getSettings().then(s => {
       if (s.stat_1_value) {
         setStats([
-          { icon: 'map-pin', value: s.stat_1_value, label: s.stat_1_label || STATS[0].label },
-          { icon: 'globe', value: s.stat_2_value, label: s.stat_2_label || STATS[1].label },
-          { icon: 'award', value: s.stat_3_value, label: s.stat_3_label || STATS[2].label },
-          { icon: 'heart-handshake', value: s.stat_4_value, label: s.stat_4_label || STATS[3].label },
-          { icon: 'graduation-cap', value: s.stat_5_value, label: s.stat_5_label || STATS[4].label },
-          { icon: 'badge-check', value: s.stat_6_value, label: s.stat_6_label || STATS[5].label },
+          { icon: 'map-pin', value: s.stat_1_value, label: s.stat_1_label || STATS[0]?.label || '' },
+          { icon: 'globe', value: s.stat_2_value ?? STATS[1]?.value ?? '', label: s.stat_2_label || STATS[1]?.label || '' },
+          { icon: 'award', value: s.stat_3_value ?? STATS[2]?.value ?? '', label: s.stat_3_label || STATS[2]?.label || '' },
+          { icon: 'heart-handshake', value: s.stat_4_value ?? STATS[3]?.value ?? '', label: s.stat_4_label || STATS[3]?.label || '' },
+          { icon: 'graduation-cap', value: s.stat_5_value ?? STATS[4]?.value ?? '', label: s.stat_5_label || STATS[4]?.label || '' },
+          { icon: 'badge-check', value: s.stat_6_value ?? STATS[5]?.value ?? '', label: s.stat_6_label || STATS[5]?.label || '' },
         ]);
       }
     });

@@ -12,4 +12,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // replays it with the service-role key. The admin passcode never ships in the
 // client bundle; it is verified server-side and remembered via an httpOnly
 // session cookie. Used only by the admin dashboard pages.
-export { adminSupabase, adminLogin, adminLogout, adminSession } from "@/lib/admin-client";
+export {
+  adminSupabase,
+  adminLogin,
+  adminLogout,
+  adminPasscodeLogin,
+  adminSession,
+  adminListStaff,
+  adminInviteStaff,
+  adminAcceptInvite,
+  adminResendInviteCode,
+  adminRevokeStaff,
+} from "@/lib/admin-client";

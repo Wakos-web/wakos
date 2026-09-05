@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
 
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
@@ -106,7 +107,7 @@ function ClaimContent() {
           .eq("id", profile.id);
         if (updateError) throw updateError;
       } else {
-        const { error: insertError } = await supabase.from("alumni_profiles").insert({
+        const { data: inserted, error: insertError } = await supabase.from("alumni_profiles").insert({
           user_id: user!.id,
           full_name: fullName,
           graduation_year: parseInt(gradYear),
@@ -118,8 +119,16 @@ function ClaimContent() {
           is_public: true,
           approved: false,
           avatar_url: avatarUrl,
-        });
+        }).select("id").single();
         if (insertError) throw insertError;
+        // Tell the alumni approvers a registration is waiting for review.
+        if (inserted?.id) {
+          const { data: s } = await supabase.auth.getSession();
+          if (s.session?.access_token) {
+            notifyAlumniApprover({ data: { kind: "registration", submissionId: inserted.id, accessToken: s.session.access_token } })
+              .then(() => {}).catch(() => {});
+          }
+        }
       }
       await refreshProfile();
       setSuccess("Profile saved! It will appear in the directory after admin approval.");
@@ -138,7 +147,7 @@ function ClaimContent() {
     try {
       let logoUrl: string | null = null;
       if (bizLogo) logoUrl = await uploadFile(bizLogo, "class-notes-photos", "logos");
-      const { error: insertError } = await supabase.from("alumni_businesses").insert({
+      const { data: insertedBiz, error: insertError } = await supabase.from("alumni_businesses").insert({
         owner_id: profile.id,
         name: bizName,
         description: bizDesc || null,
@@ -148,8 +157,16 @@ function ClaimContent() {
         location: bizLocation || null,
         logo_url: logoUrl,
         approved: false,
-      });
+      }).select("id").single();
       if (insertError) throw insertError;
+      // Tell the alumni approvers a business listing is waiting for review.
+      if (insertedBiz?.id) {
+        const { data: s } = await supabase.auth.getSession();
+        if (s.session?.access_token) {
+          notifyAlumniApprover({ data: { kind: "business", submissionId: insertedBiz.id, accessToken: s.session.access_token } })
+            .then(() => {}).catch(() => {});
+        }
+      }
       setBizName(""); setBizDesc(""); setBizCategory("Other");
       setBizWebsite(""); setBizPhone(""); setBizLocation("");
       setShowBusinessForm(false);

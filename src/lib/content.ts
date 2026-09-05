@@ -75,6 +75,7 @@ export const NAV_ITEMS = [
     { label: "Current Affairs", to: "/clubs/current-affairs" },
   ] },
   { label: "Alumni", to: "/alumni", children: [
+    { label: "MWOSA", to: "/mwosa" },
     { label: "Pulse", to: "/alumni" },
     { label: "Alumni Directory", to: "/alumni/directory" },
     { label: "Business Directory", to: "/alumni/directory/businesses" },
@@ -393,16 +394,17 @@ export async function getSettings(): Promise<Record<string, string>> {
   if (_settingsCache) return _settingsCache;
   if (_settingsPromise) return _settingsPromise;
 
-  _settingsPromise = supabase
-    .from("site_settings")
-    .select("key, value")
-    .then(({ data }) => {
+  _settingsPromise = (async () => {
+    try {
+      const { data } = await supabase.from("site_settings").select("key, value");
       const map: Record<string, string> = {};
       if (data) data.forEach((row: any) => { map[row.key] = row.value; });
       _settingsCache = map;
       return map;
-    })
-    .catch(() => ({}));
+    } catch {
+      return {};
+    }
+  })();
 
   return _settingsPromise;
 }

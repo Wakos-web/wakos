@@ -1,11 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { adminSupabase as supabase, adminLogin, adminLogout, adminSession } from "@/lib/supabase";
+import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff } from "@/lib/supabase";
+import { notifyClubEditor } from "@/lib/club-notify";
+import { notifyAlumniApplicant } from "@/lib/alumni-notify";
+import { LOGO_URL } from "@/lib/content";
+import { useOtpResend } from "@/hooks/useOtpResend";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
-  CalendarCheck, ChevronDown, Mail, Lock, LogOut
+  CalendarCheck, ChevronDown, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
+  Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -15,7 +20,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "clubs" | "alumni" | "events" | "rsvps" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "applications" | "mentorship" | "donations" | "scholarships" | "comments" | "settings";
+type Tab = "overview" | "clubs" | "alumni" | "events" | "rsvps" | "notes" | "inquiries" | "businesses" | "articles" | "pages" | "applications" | "mentorship" | "donations" | "scholarships" | "comments" | "giving" | "mwosa" | "settings" | "staff";
 
 function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
@@ -49,12 +54,24 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
 
   if (!item) return null;
 
+  // Alumni registration decisions get an email to the applicant (server fn is
+  // gated on the staff session cookie; DB state must already match the verdict).
+  const notifyApplicant = async (verdict: "approved" | "rejected") => {
+    if (item.table !== "alumni_profiles") return;
+    try {
+      await notifyAlumniApplicant({ data: { profileId: item.id, verdict, note: rejectNotes.trim() } });
+    } catch (e: any) {
+      console.warn("notifyAlumniApplicant:", e?.message || e);
+    }
+  };
+
   const handleApprove = async () => {
     setSaving(true);
     const { error } = await supabase.from(item.table).update({ approved: true, rejected_notes: null }).eq("id", item.id);
     setSaving(false);
     if (error) { setToast({ message: error.message, type: "error" }); return; }
     setToast({ message: "Submission approved", type: "success" });
+    await notifyApplicant("approved");
     onRefresh();
     onClose();
   };
@@ -66,6 +83,7 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
     setSaving(false);
     if (error) { setToast({ message: error.message, type: "error" }); return; }
     setToast({ message: "Submission rejected", type: "success" });
+    await notifyApplicant("rejected");
     onRefresh();
     onClose();
   };
@@ -166,46 +184,284 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   );
 }
 
-function OverviewTab({ stats }: { stats: Record<string, number> }) {
+/* ------------------------------------------------------------------ */
+/* Club co-editor workflow: patrons invite a chairperson/secretary to   */
+/* write club posts; their posts arrive as "pending" and are approved   */
+/* (published) or rejected here. Editors sign in at /clubs/editor.      */
+/* ------------------------------------------------------------------ */
+function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: string }) {
+  const [editors, setEditors] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [invName, setInvName] = useState("");
+  const [invRole, setInvRole] = useState("Chairperson");
+  const [invEmail, setInvEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [rejectNoteFor, setRejectNoteFor] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
+  const [msg, setMsg] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const [eRes, pRes] = await Promise.all([
+        supabase.from("club_editors").select("*").eq("club_id", club.id).order("created_at", { ascending: true }),
+        supabase.from("club_posts").select("*").eq("club_id", club.id).in("status", ["pending", "rejected"]).order("created_at", { ascending: false }),
+      ]);
+      if (!active) return;
+      if (eRes.data) setEditors(eRes.data);
+      if (pRes.data) setPosts(pRes.data);
+      setLoaded(true);
+    })();
+    return () => { active = false; };
+  }, [club.id]);
+
+  const flash = (text: string, kind: "ok" | "err") => {
+    setMsg({ text, kind });
+    window.setTimeout(() => setMsg(null), 4000);
+  };
+
+  const reload = async () => {
+    const [eRes, pRes] = await Promise.all([
+      supabase.from("club_editors").select("*").eq("club_id", club.id).order("created_at", { ascending: true }),
+      supabase.from("club_posts").select("*").eq("club_id", club.id).in("status", ["pending", "rejected"]).order("created_at", { ascending: false }),
+    ]);
+    if (eRes.data) setEditors(eRes.data);
+    if (pRes.data) setPosts(pRes.data);
+  };
+
+  const invite = async () => {
+    const name = invName.trim();
+    const email = invEmail.trim().toLowerCase();
+    if (!name || !email) { flash("Name and email are required", "err"); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { flash("Enter a valid email address", "err"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("club_editors").insert({
+      club_id: club.id, name, role_title: invRole, email, status: "pending", notes: "Invited by admin",
+    });
+    setSaving(false);
+    if (error) {
+      flash(error.code === "23505" ? "That email is already an editor for this club" : (error.message || "Could not send invite"), "err");
+      return;
+    }
+    flash("Invite sent. They can sign in at /clubs/editor with this email.", "ok");
+    setInvName(""); setInvEmail(""); setInvRole("Chairperson"); setShowInvite(false);
+    reload();
+  };
+
+  const revoke = async (ed: any) => {
+    if (!window.confirm("Remove " + ed.name + " as co-editor? They will no longer be able to post for this club.")) return;
+    const { error } = await supabase.from("club_editors").update({ status: "removed", updated_at: new Date().toISOString() }).eq("id", ed.id);
+    if (error) { flash(error.message || "Could not remove editor", "err"); return; }
+    flash("Co-editor removed", "ok");
+    reload();
+  };
+
+  const decide = async (post: any, verdict: "approve" | "reject") => {
+    const patch: any = { reviewed_by: reviewerName || "Admin", reviewed_at: new Date().toISOString() };
+    if (verdict === "approve") {
+      patch.published = true; patch.status = "published";
+    } else {
+      patch.published = false; patch.status = "rejected";
+      patch.review_note = rejectNote.trim() || null;
+      setRejectNoteFor(null); setRejectNote("");
+    }
+    const { error } = await supabase.from("club_posts").update(patch).eq("id", post.id);
+    if (error) { flash(error.message || "Update failed", "err"); return; }
+    flash(verdict === "approve" ? "Post published to the club page" : "Post rejected", "ok");
+    reload();
+    // Tell the co-editor their post was decided (fire-and-forget; a failed
+    // email must never block the decision itself).
+    notifyClubEditor({
+      data: {
+        postId: post.id,
+        verdict: verdict === "approve" ? "approved" : "rejected",
+        reviewNote: (patch as any).review_note || "",
+      },
+    }).then(() => {}).catch(() => {});
+  };
+
+  const pending = posts.filter((p: any) => p.status === "pending");
+  const rejected = posts.filter((p: any) => p.status === "rejected");
+  const activeEditors = editors.filter((e: any) => e.status !== "removed");
+  const removedEditors = editors.filter((e: any) => e.status === "removed");
+
+  const chip = (ed: any) =>
+    ed.status === "active" ? <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-semibold">Active</span>
+      : ed.status === "removed" ? <span className="px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-400 text-[10px] font-semibold">Removed</span>
+        : <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">Invited</span>;
+
+  if (!loaded) {
+    return <div className="py-2 text-xs text-stone-400">Loading editors&hellip;</div>;
+  }
+
   return (
-    <div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <StatCard icon={LayoutDashboard} label="Total Clubs" value={stats.clubs} color="bg-green-800" />
-        <StatCard icon={Users} label="Club Members" value={stats.clubMembers} color="bg-blue-600" />
-        <StatCard icon={GraduationCap} label="Alumni Profiles" value={stats.alumni} color="bg-purple-600" />
-        <StatCard icon={Building2} label="Businesses" value={stats.businesses} color="bg-amber-600" />
-        <StatCard icon={Calendar} label="Events" value={stats.events} color="bg-rose-600" />
-        <StatCard icon={BookOpen} label="Class Notes" value={stats.notes} color="bg-cyan-600" />
-        <StatCard icon={Megaphone} label="Club Posts" value={stats.clubPosts} color="bg-indigo-600" />
-        <StatCard icon={MessageSquare} label="Inquiries" value={stats.inquiries} color="bg-orange-600" />
+    <div className="mt-4 border-t border-stone-200 pt-4 space-y-5">
+      {msg && (
+        <div className={`text-xs px-3 py-2 rounded-lg ${msg.kind === "ok" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Pending approval */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold text-stone-500 uppercase">Posts awaiting approval ({pending.length})</p>
+        </div>
+        {pending.length === 0 && <p className="text-xs text-stone-400">No posts waiting. New posts from co-editors appear here for your approval.</p>}
+        {pending.map((post: any) => (
+          <div key={post.id} className="rounded-lg bg-amber-50 border border-amber-200 p-3 mb-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-stone-800">{post.title}</p>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {post.editor_name || "Co-editor"}{post.editor_role ? " · " + post.editor_role : ""} · {post.created_at ? new Date(post.created_at).toLocaleDateString() : ""}
+                </p>
+                {post.excerpt && <p className="text-xs text-stone-500 mt-1 line-clamp-2">{post.excerpt}</p>}
+              </div>
+              <div className="flex gap-1.5 shrink-0">
+                <button onClick={() => decide(post, "approve")} className="px-2.5 py-1 rounded-lg bg-green-800 text-white text-xs font-semibold hover:bg-green-900 inline-flex items-center gap-1"><Check className="h-3 w-3" /> Approve</button>
+                <button onClick={() => { setRejectNoteFor(rejectNoteFor === post.id ? null : post.id); setRejectNote(""); }} className="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-600 text-xs font-semibold hover:bg-stone-200 inline-flex items-center gap-1"><X className="h-3 w-3" /> Reject</button>
+              </div>
+            </div>
+            {rejectNoteFor === post.id && (
+              <div className="mt-2 flex gap-2">
+                <input value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="Reason for rejection (optional)" className="flex-1 rounded-lg border border-stone-300 px-3 py-1.5 text-xs" />
+                <button onClick={() => decide(post, "reject")} className="px-3 py-1 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700">Reject post</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {rejected.length > 0 && (
+          <div className="mt-2">
+            <p className="text-[10px] font-semibold text-stone-400 uppercase mb-1">Recently rejected</p>
+            {rejected.slice(0, 3).map((post: any) => (
+              <div key={post.id} className="flex items-center justify-between py-1 text-xs">
+                <span className="text-stone-500 line-through truncate">{post.title}</span>
+                <span className="text-stone-300 shrink-0 ml-2">{post.review_note ? "· " + post.review_note : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <button onClick={() => setTab("clubs")} className="group rounded-2xl bg-green-50 border border-green-200 p-5 hover:border-green-800 hover:shadow-md transition-all text-left">
-          <Users className="h-6 w-6 text-green-800 mb-2" />
-          <p className="font-display text-sm font-bold text-stone-900">Clubs</p>
-          <p className="text-xs text-stone-500">Manage clubs & members</p>
-        </button>
-        <button onClick={() => setTab("events")} className="group rounded-2xl bg-rose-50 border border-rose-200 p-5 hover:border-rose-800 hover:shadow-md transition-all text-left">
-          <Calendar className="h-6 w-6 text-rose-800 mb-2" />
-          <p className="font-display text-sm font-bold text-stone-900">Events</p>
-          <p className="text-xs text-stone-500">Create & manage events</p>
-        </button>
-        <button onClick={() => setTab("notes")} className="group rounded-2xl bg-cyan-50 border border-cyan-200 p-5 hover:border-cyan-800 hover:shadow-md transition-all text-left">
-          <BookOpen className="h-6 w-6 text-cyan-800 mb-2" />
-          <p className="font-display text-sm font-bold text-stone-900">Class Notes</p>
-          <p className="text-xs text-stone-500">Approve submissions</p>
-        </button>
-        <button onClick={() => setTab("settings")} className="group rounded-2xl bg-stone-100 border border-stone-200 p-5 hover:border-stone-400 hover:shadow-md transition-all text-left">
-          <Settings className="h-6 w-6 text-stone-600 mb-2" />
-          <p className="font-display text-sm font-bold text-stone-900">Settings</p>
-          <p className="text-xs text-stone-500">Site info & hero media</p>
-        </button>
+
+      {/* Co-editors */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold text-stone-500 uppercase">Co-editors ({activeEditors.length})</p>
+          <button onClick={() => setShowInvite(!showInvite)} className="text-xs font-semibold text-green-800 hover:underline px-2 py-1 rounded-lg bg-green-50 border border-green-200">+ Invite chairperson / secretary</button>
+        </div>
+
+        {showInvite && (
+          <div className="rounded-lg bg-stone-50 border border-stone-200 p-3 mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <input value={invName} onChange={(e) => setInvName(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs" placeholder="Full name" />
+              <select value={invRole} onChange={(e) => setInvRole(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs">
+                <option>Chairperson</option><option>Secretary</option><option>Vice Chair</option><option>Treasurer</option><option>Other</option>
+              </select>
+              <input value={invEmail} onChange={(e) => setInvEmail(e.target.value)} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs" placeholder="student@email.com" />
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button onClick={invite} disabled={saving || !invName || !invEmail} className="px-3 py-1 rounded-lg bg-green-800 text-white text-xs font-semibold disabled:opacity-50">{saving ? "Sending..." : "Send invite"}</button>
+              <button onClick={() => setShowInvite(false)} className="px-3 py-1 rounded-lg bg-stone-100 text-stone-600 text-xs">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {activeEditors.length === 0 && !showInvite && <p className="text-xs text-stone-400">No co-editors yet. Invite your chairperson or secretary to write club news.</p>}
+        {activeEditors.map((ed: any) => (
+          <div key={ed.id} className="flex items-center justify-between py-1.5 text-xs">
+            <span className="min-w-0">
+              <span className="font-semibold text-stone-700">{ed.name}</span> <span className="text-stone-400">· {ed.role_title} · {ed.email}</span> {chip(ed)}
+            </span>
+            <button onClick={() => revoke(ed)} className="p-1 rounded hover:bg-red-50" title="Remove editor"><Trash2 className="h-3 w-3 text-red-400" /></button>
+          </div>
+        ))}
+        {removedEditors.length > 0 && (
+          <p className="text-[10px] text-stone-300 mt-1">
+            Removed: {removedEditors.map((ed: any) => ed.name).join(", ")}
+          </p>
+        )}
+        <p className="text-[10px] text-stone-400 mt-1">Co-editors sign in at /clubs/editor with their email; invited chairs and secretaries write posts that you approve here before they go live.</p>
       </div>
     </div>
   );
 }
 
-function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[]; onRefresh: () => void }) {
+/* ------------------------------------------------------------------ */
+/* Role-aware overview: quick actions are limited to what the signed-in  */
+/* role can actually use (the proxy enforces the same limits server-side). */
+/* ------------------------------------------------------------------ */
+function OverviewView({
+  stats, roles, onNavigate,
+}: { stats: Record<string, number>; roles: string[]; onNavigate: (t: Tab) => void }) {
+  const isSuper = roles.includes("super_admin");
+  const isFull = isSuper || roles.includes("admin");
+  const isClubPatron = roles.includes("club_patron") && !isFull;
+  const isAlumniPatron = roles.includes("alumni_patron") && !isFull;
+
+  const quickCard = (key: Tab, label: string, desc: string, icon: any, bg: string, fg: string) => (
+    <button onClick={() => onNavigate(key)} className={`group rounded-2xl border p-5 hover:shadow-md transition-all text-left ${bg}`.trim()}>
+      <span className={`${fg} mb-2 block`}>{icon}</span>
+      <p className="font-display text-sm font-bold text-stone-900">{label}</p>
+      <p className="text-xs text-stone-500">{desc}</p>
+    </button>
+  );
+
+  const intro = !isFull
+    ? isClubPatron
+      ? "Signed in as a club patron — everything below is scoped to your club(s)."
+      : isAlumniPatron
+        ? "Signed in as an alumni patron — below covers alumni, businesses, class notes and events."
+        : null
+    : null;
+
+  return (
+    <div>
+      {intro && (
+        <div className="mb-5 rounded-2xl bg-green-50 border border-green-200 px-5 py-4 text-sm text-green-900">
+          {intro}
+        </div>
+      )}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <StatCard icon={LayoutDashboard} label="Total Clubs" value={stats.clubs ?? 0} color="bg-green-800" />
+        <StatCard icon={Users} label="Club Members" value={stats.clubMembers ?? 0} color="bg-blue-600" />
+        <StatCard icon={GraduationCap} label="Alumni Profiles" value={stats.alumni ?? 0} color="bg-purple-600" />
+        <StatCard icon={Building2} label="Businesses" value={stats.businesses ?? 0} color="bg-amber-600" />
+        <StatCard icon={Calendar} label="Events" value={stats.events ?? 0} color="bg-rose-600" />
+        <StatCard icon={BookOpen} label="Class Notes" value={stats.notes ?? 0} color="bg-cyan-600" />
+        <StatCard icon={Megaphone} label="Club Posts" value={stats.clubPosts ?? 0} color="bg-indigo-600" />
+        <StatCard icon={MessageSquare} label="Inquiries" value={stats.inquiries ?? 0} color="bg-orange-600" />
+      </div>
+      <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        {isFull ? (
+          <>
+            {quickCard("clubs", "Clubs", "Manage clubs & members", <Users className="h-6 w-6" />, "bg-green-50 border-green-200", "text-green-800")}
+            {quickCard("events", "Events", "Create & manage events", <Calendar className="h-6 w-6" />, "bg-rose-50 border-rose-200", "text-rose-700")}
+            {quickCard("notes", "Class Notes", "Approve submissions", <BookOpen className="h-6 w-6" />, "bg-cyan-50 border-cyan-200", "text-cyan-700")}
+            {isSuper && quickCard("settings", "Settings", "Site info & hero media", <Settings className="h-6 w-6" />, "bg-stone-100 border-stone-200", "text-stone-600")}
+          </>
+        ) : isClubPatron ? (
+          <>
+            {quickCard("clubs", "My Clubs", "Club info, members & news", <Users className="h-6 w-6" />, "bg-green-50 border-green-200", "text-green-800")}
+            {quickCard("applications", "Club Applications", "Review join requests", <Users className="h-6 w-6" />, "bg-indigo-50 border-indigo-200", "text-indigo-700")}
+            {quickCard("events", "Events", "School & club events", <Calendar className="h-6 w-6" />, "bg-rose-50 border-rose-200", "text-rose-700")}
+          </>
+        ) : isAlumniPatron ? (
+          <>
+            {quickCard("alumni", "Alumni", "Profiles & approvals", <GraduationCap className="h-6 w-6" />, "bg-purple-50 border-purple-200", "text-purple-700")}
+            {quickCard("businesses", "Businesses", "Alumni business directory", <Building2 className="h-6 w-6" />, "bg-amber-50 border-amber-200", "text-amber-700")}
+            {quickCard("notes", "Class Notes", "Approve class notes", <BookOpen className="h-6 w-6" />, "bg-cyan-50 border-cyan-200", "text-cyan-700")}
+            {quickCard("events", "Events", "Reunions & RSVPs", <Calendar className="h-6 w-6" />, "bg-rose-50 border-rose-200", "text-rose-700")}
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs: any[]; members: any[]; onRefresh: () => void; reviewerName: string; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [showAddClub, setShowAddClub] = useState(false);
   const [editClub, setEditClub] = useState<any>(null);
   const [showAddMember, setShowAddMember] = useState<string | null>(null);
@@ -306,6 +562,8 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
                 </div>
               </div>
 
+              <ClubEditorTools club={club} reviewerName={reviewerName} />
+
               {/* Members */}
               <div className="ml-13">
                 <div className="flex items-center justify-between mb-2">
@@ -362,7 +620,7 @@ function ClubsTab({ clubs, members, onRefresh }: { clubs: any[]; members: any[];
   );
 }
 
-function EventsTab({ events, onRefresh }: { events: any[]; onRefresh: () => void }) {
+function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [title, setTitle] = useState("");
@@ -739,6 +997,212 @@ function InquiriesTab({ inquiries, onRefresh }: { inquiries: any[]; onRefresh: (
   );
 }
 
+function GivingTab({ setToast }: { setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [section, setSection] = useState<"ways" | "stats" | "accounts" | "mobile" | "contact">("ways");
+  const [ways, setWays] = useState<any[]>([]);
+  const [stats, setStats] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [mobile, setMobile] = useState<any[]>([]);
+  const [contact, setContact] = useState<any[]>([]);
+  const [edit, setEdit] = useState<any | null>(null);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    const [w, s, a, m, c] = await Promise.all([
+      supabase.from("giving_ways").select("*").order("sort_order", { ascending: true }),
+      supabase.from("giving_stats").select("*").order("sort_order", { ascending: true }),
+      supabase.from("donation_accounts").select("*").order("sort_order", { ascending: true }),
+      supabase.from("mobile_donations").select("*").order("sort_order", { ascending: true }),
+      supabase.from("giving_contact").select("*"),
+    ]);
+    if (w.data) setWays(w.data);
+    if (s.data) setStats(s.data);
+    if (a.data) setAccounts(a.data);
+    if (m.data) setMobile(m.data);
+    if (c.data) setContact(c.data);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const resetForm = () => { setEdit(null); setForm({}); };
+  const startEdit = (item: any) => {
+    const f: Record<string, string> = {};
+    Object.entries(item || {}).forEach(([k, v]) => {
+      if (v !== null && v !== undefined && k !== "id" && k !== "created_at" && k !== "updated_at") f[k] = String(v);
+    });
+    setEdit(item);
+    setForm(f);
+  };
+
+  type GivingSection = "ways" | "stats" | "accounts" | "mobile" | "contact";
+  const fieldDefs: Record<GivingSection, { label: string; type?: string; section: GivingSection }[]> = {
+    ways: [
+      { label: "title", section: "ways" }, { label: "description", section: "ways" }, { label: "tag", section: "ways" }, { label: "slug", section: "ways" }, { label: "sort_order", type: "number", section: "ways" },
+    ],
+    stats: [
+      { label: "value", section: "stats" }, { label: "label", section: "stats" }, { label: "sort_order", type: "number", section: "stats" },
+    ],
+    accounts: [
+      { label: "bank_name", section: "accounts" }, { label: "account_name", section: "accounts" }, { label: "account_number", section: "accounts" }, { label: "currency", section: "accounts" }, { label: "branch", section: "accounts" }, { label: "note", section: "accounts" }, { label: "way_slug", section: "accounts" }, { label: "sort_order", type: "number", section: "accounts" },
+    ],
+    mobile: [
+      { label: "provider", section: "mobile" }, { label: "number", section: "mobile" }, { label: "account_name", section: "mobile" }, { label: "note", section: "mobile" }, { label: "way_slug", section: "mobile" }, { label: "sort_order", type: "number", section: "mobile" },
+    ],
+    contact: [
+      { label: "person_name", section: "contact" }, { label: "title", section: "contact" }, { label: "phone", section: "contact" }, { label: "email", section: "contact" }, { label: "note", section: "contact" },
+    ],
+  };
+
+  const tableFor = (sec: string) =>
+    sec === "ways" ? "giving_ways" : sec === "stats" ? "giving_stats" : sec === "accounts" ? "donation_accounts" : sec === "mobile" ? "mobile_donations" : "giving_contact";
+
+  const save = async () => {
+    setSaving(true);
+    const table = tableFor(section);
+    const payload: any = {};
+    Object.entries(form).forEach(([k, v]) => {
+      if (k === "way_slug") {
+        payload[k] = v.trim() ? v.trim() : null; // empty = general / shown on every card
+        return;
+      }
+      if (v.trim() === "") return;
+      payload[k] = fieldDefs[section].find(f => f.label === k)?.type === "number" ? parseInt(v) || 0 : v;
+    });
+    let error: any = null;
+    if (edit?.id) {
+      ({ error } = await supabase.from(table).update(payload).eq("id", edit.id));
+    } else {
+      ({ error } = await supabase.from(table).insert(payload));
+    }
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: edit?.id ? "Updated" : "Added", type: "success" });
+    resetForm();
+    load();
+  };
+
+  const remove = async (id: string) => {
+    const { error } = await supabase.from(tableFor(section)).delete().eq("id", id);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Deleted", type: "success" });
+    load();
+  };
+
+  const toggleActive = async (id: string, current: boolean) => {
+    await supabase.from(tableFor(section)).update({ active: !current }).eq("id", id);
+    load();
+  };
+
+  const sectionTabs = [
+    { key: "ways", label: "Ways of Giving" },
+    { key: "stats", label: "Impact Stats" },
+    { key: "accounts", label: "Bank Accounts" },
+    { key: "mobile", label: "Mobile Money" },
+    { key: "contact", label: "Contact Person" },
+  ] as const;
+  const list: any[] = section === "ways" ? ways : section === "stats" ? stats : section === "accounts" ? accounts : section === "mobile" ? mobile : contact;
+  const titleOf = (item: any) => item.title || item.label || item.bank_name || item.provider || item.person_name || "—";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-bold text-stone-900">Giving Engine</h2>
+          <p className="text-sm text-stone-500 mt-1">Cards, stats, donation accounts, mobile money and the contact person shown on /giving. Donations are manual — update these anytime.</p>
+        </div>
+        <button onClick={() => startEdit(null)}
+          className="rounded-xl bg-green-900 text-white px-5 py-2.5 text-sm font-semibold hover:bg-green-800 transition-colors inline-flex items-center gap-2">
+          + Add
+        </button>
+      </div>
+
+      {/* Section tabs */}
+      <div className="flex gap-1 overflow-x-auto scrollbar-hide border-b border-stone-200">
+        {sectionTabs.map(t => (
+          <button key={t.key} onClick={() => { setSection(t.key); resetForm(); }}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${section === t.key ? "border-green-800 text-green-800" : "border-transparent text-stone-500 hover:text-stone-700"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Edit form (when adding/editing) */}
+      {form && Object.keys(form).length > 0 && (
+        <div className="rounded-2xl bg-white border border-stone-200 p-6">
+          <h3 className="font-display font-bold text-stone-900 mb-4">{edit?.id ? "Edit" : "Add"} {sectionTabs.find(t => t.key === section)?.label}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {fieldDefs[section].filter(f => f.section === section).map(f => (
+              <div key={f.label} className={f.label === "description" || f.label === "note" ? "md:col-span-2" : ""}>
+                <label className="block text-xs font-semibold text-stone-600 mb-1.5 capitalize">{f.label.replace(/_/g, " ")}</label>
+                {f.label === "way_slug" ? (
+                  <>
+                    <select value={form.way_slug || ""} onChange={e => setForm(prev => ({ ...prev, way_slug: e.target.value }))}
+                      className="w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent bg-white">
+                      <option value="">All ways (shown on every card)</option>
+                      {ways.filter(w => w.slug).map(w => (
+                        <option key={w.slug} value={w.slug}>{w.title} ({w.slug})</option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-stone-400 mt-1">Leave empty to show this account on every card, or pick one way to show it only on that card.</p>
+                  </>
+                ) : f.label === "description" || f.label === "note" ? (
+                  <textarea rows={3} value={form[f.label] || ""} onChange={e => setForm(prev => ({ ...prev, [f.label]: e.target.value }))}
+                    className="w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" />
+                ) : f.label === "slug" ? (
+                  <>
+                    <input type="text" value={form.slug || ""} onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
+                      placeholder="e.g. trust_fund"
+                      className="w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" />
+                    <p className="text-[11px] text-stone-400 mt-1">Stable key used to link bank / mobile accounts to this card (e.g. trust_fund, bursary, laboratory, infrastructure, scholarship, in_kind).</p>
+                  </>
+                ) : (
+                  <input type={f.type || "text"} value={form[f.label] || ""} onChange={e => setForm(prev => ({ ...prev, [f.label]: e.target.value }))}
+                    className="w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent" />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={save} disabled={saving} className="rounded-xl bg-green-900 text-white px-5 py-2.5 text-sm font-semibold hover:bg-green-800 disabled:opacity-50">
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button onClick={resetForm} className="rounded-xl bg-stone-100 text-stone-600 px-5 py-2.5 text-sm font-semibold hover:bg-stone-200">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* List */}
+      <div className="rounded-2xl bg-white border border-stone-200 divide-y divide-stone-100">
+        {list.length === 0 && <p className="p-6 text-sm text-stone-500">Nothing here yet. Add one to get started.</p>}
+        {list.map(item => (
+          <div key={item.id} className="flex items-center justify-between gap-4 p-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-stone-900 truncate">{titleOf(item)}</p>
+              <p className="text-xs text-stone-500 truncate mt-0.5">
+                {item.description || item.note || item.number || item.account_number || item.value || ""}
+                {(section === "accounts" || section === "mobile") && item.way_slug && (
+                  <span className="text-green-700 font-medium"> · card: {ways.find((w: any) => w.slug === item.way_slug)?.title || item.way_slug}</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {section !== "contact" && item.active !== undefined && (
+                <button onClick={() => toggleActive(item.id, item.active)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold ${item.active ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-500"}`}>
+                  {item.active ? "Live" : "Hidden"}
+                </button>
+              )}
+              <button onClick={() => startEdit(item)} className="p-2 rounded-lg text-stone-500 hover:bg-stone-100 hover:text-green-800"><Eye className="h-4 w-4" /></button>
+              <button onClick={() => remove(item.id)} className="p-2 rounded-lg text-stone-500 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -852,8 +1316,8 @@ function SettingsTab() {
                   <label className="block text-sm font-medium text-stone-700 mb-1">{f.label}</label>
                   {f.type === "video" ? (
                     <div>
-                      {settings[f.key] && settings[f.key].startsWith("http") && (
-                        <video src={settings[f.key]} className="w-full max-h-48 rounded-xl mb-2 object-cover" controls />)
+                      {!!settings[f.key] && settings[f.key]!.startsWith("http") && (
+                        <video src={settings[f.key]!} className="w-full max-h-48 rounded-xl mb-2 object-cover" controls />)
                       }
                       <div className="flex items-center gap-3">
                         <label className="flex-1">
@@ -866,8 +1330,8 @@ function SettingsTab() {
                     </div>
                   ) : f.type === "image" ? (
                     <div>
-                      {settings[f.key] && settings[f.key].startsWith("http") && (
-                        <img src={settings[f.key]} className="w-full max-h-48 rounded-xl mb-2 object-cover" alt={f.label} />)
+                      {!!settings[f.key] && settings[f.key]!.startsWith("http") && (
+                        <img src={settings[f.key]!} className="w-full max-h-48 rounded-xl mb-2 object-cover" alt={f.label} />)
                       }
                       <div className="flex items-center gap-3">
                         <label className="flex-1">
@@ -1237,7 +1701,8 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
     'student-life': 'Student Life',
     'athletics': 'Athletics',
     'giving': 'Giving',
-    'academics': 'Academics'
+    'academics': 'Academics',
+    'mwosa': 'MWOSA Alumni'
   };
 
   const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
@@ -1270,10 +1735,11 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
       const parts = key.split('.');
       let current = content;
       for (let i = 0; i < parts.length - 1; i++) {
-        if (!current[parts[i]]) current[parts[i]] = {};
-        current = current[parts[i]];
+        const part = parts[i]!;
+        if (!current[part]) current[part] = {};
+        current = current[part];
       }
-      const lastKey = parts[parts.length - 1];
+      const lastKey = parts[parts.length - 1]!;
       // Try to parse arrays/objects
       if (value.includes('\n')) {
         const lines = value.split('\n').filter(l => l.trim());
@@ -1398,8 +1864,8 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
     columns.forEach(col => { details[col.key] = item[col.key]; });
     setReviewItem({
       id: item.id,
-      title: item[columns[0]?.key] || title,
-      author: item[columns[1]?.key] || item.student_name || item.mentor_name || item.donor_name || "",
+      title: item[columns[0]?.key ?? ""] || title,
+      author: item[columns[1]?.key ?? ""] || item.student_name || item.mentor_name || item.donor_name || "",
       content: item.reason || item.message || item.purpose || item.experience || item.achievement || "",
       details,
       approved: item.status === "approved",
@@ -1459,6 +1925,439 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Donations review: every thank-you form submission, with payment      */
+/* method and transaction reference, so the giving team can reconcile   */
+/* each gift against bank slips and mobile money messages.              */
+/* ------------------------------------------------------------------ */
+const DONATION_TYPE_LABELS: Record<string, string> = {
+  trust_fund: "Trust Fund",
+  bursary: "Bursary support",
+  laboratory: "Laboratory renovation",
+  infrastructure: "Infrastructure project",
+  scholarship: "Scholarship",
+  in_kind: "In-kind gift",
+  other: "Other",
+};
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  bank_transfer: "Bank transfer",
+  mtn_momo: "MTN Mobile Money",
+  airtel_money: "Airtel Money",
+  cash: "Cash",
+  in_kind: "In-kind / goods",
+  other: "Other",
+};
+
+function DonationsTab({ data, onRefresh, setToast }: { data: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [detail, setDetail] = useState<any | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const matchedCount = data.filter((d: any) => d.status === "matched").length;
+  const receivedCount = data.filter((d: any) => d.status === "received").length;
+
+  const filtered = data.filter((d: any) => {
+    if (filter === "matched" && d.status !== "matched") return false;
+    if (filter === "received" && d.status !== "received") return false;
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      const hay = [d.donor_name, d.donor_email, d.transaction_ref, d.donation_type, d.payment_method].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const setStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from("donations").update({ status }).eq("id", id);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: status === "matched" ? "Gift marked as matched" : "Gift moved back to received", type: "success" });
+    onRefresh();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this donation record?")) return;
+    await supabase.from("donations").delete().eq("id", id);
+    setToast({ message: "Deleted", type: "success" });
+    onRefresh();
+  };
+
+  const copyRef = async (d: any) => {
+    const text = d.transaction_ref || "";
+    if (!text) return;
+    try { await navigator.clipboard.writeText(text); } catch { /* clipboard blocked */ }
+    setCopiedId(d.id);
+    window.setTimeout(() => setCopiedId((c) => (c === d.id ? null : c)), 1500);
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h3 className="font-display text-xl font-bold text-stone-900">Donations review ({data.length})</h3>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="h-4 w-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search donor, ref, email..."
+              className="pl-9 pr-3 py-2 w-60 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="all">All</option>
+            <option value="received">Received / to match ({receivedCount})</option>
+            <option value="matched">Matched ({matchedCount})</option>
+          </select>
+          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors" title="Refresh"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+        </div>
+      </div>
+
+      {/* Reconciliation summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="rounded-xl bg-white border border-stone-200 p-4">
+          <p className="text-2xl font-bold text-stone-900">{data.length}</p>
+          <p className="text-xs text-stone-500 mt-0.5">Total gifts recorded</p>
+        </div>
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+          <p className="text-2xl font-bold text-amber-700">{receivedCount}</p>
+          <p className="text-xs text-stone-500 mt-0.5">Received — still to match</p>
+        </div>
+        <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+          <p className="text-2xl font-bold text-green-800">{matchedCount}</p>
+          <p className="text-xs text-stone-500 mt-0.5">Matched to bank / mobile money</p>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 text-stone-400">
+          <Heart className="h-10 w-10 mx-auto mb-3" />
+          <p>No donation submissions{query.trim() || filter !== "all" ? " matching this view" : " yet"}.</p>
+          <p className="text-sm mt-1">Thank-you form submissions from the Giving page appear here for reconciliation.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((item: any) => {
+            const matched = item.status === "matched";
+            return (
+              <div key={item.id} className="rounded-xl bg-white border border-stone-200 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${matched ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+                        {matched ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                        {matched ? "Matched" : "Received"}
+                      </span>
+                      <span className="text-xs text-stone-400">{new Date(item.created_at).toLocaleString()}</span>
+                    </div>
+                    <p className="font-semibold text-stone-900">{item.donor_name || "Anonymous"}</p>
+                    {item.donor_email && <p className="text-xs text-stone-400">{item.donor_email}</p>}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-green-800">{DONATION_TYPE_LABELS[item.donation_type] || item.donation_type || "Other"}</span>
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">{PAYMENT_METHOD_LABELS[item.payment_method] || item.payment_method || "—"}</span>
+                    </div>
+                    {item.transaction_ref && (
+                      <div className="mt-2.5 flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
+                        <p className="text-sm font-mono text-stone-700 break-all">{item.transaction_ref}</p>
+                        <button onClick={() => copyRef(item)} className="ml-auto shrink-0 p-1.5 rounded-md hover:bg-stone-200 text-stone-500 transition-colors" title="Copy transaction reference">
+                          {copiedId === item.id ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => setDetail(item)} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View details">
+                      <Eye className="h-4 w-4 text-blue-600" />
+                    </button>
+                    {!matched ? (
+                      <button onClick={() => setStatus(item.id, "matched")} className="px-3 py-2 rounded-lg bg-green-800 hover:bg-green-900 text-white text-xs font-semibold transition-colors" title="Reconciled against the bank/MoMo statement">
+                        Mark matched
+                      </button>
+                    ) : (
+                      <button onClick={() => setStatus(item.id, "received")} className="px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold transition-colors" title="Move back to received">
+                        Reopen
+                      </button>
+                    )}
+                    <button onClick={() => remove(item.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
+                      <Trash2 className="h-4 w-4 text-red-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDetail(null)}>
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-stone-200 flex items-center justify-between">
+              <h3 className="font-display text-xl font-bold text-stone-900">Gift details</h3>
+              <button onClick={() => setDetail(null)} className="p-2 hover:bg-stone-100 rounded-lg transition-colors">
+                <X className="h-5 w-5 text-stone-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Status</p>
+                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${detail.status === "matched" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+                  {detail.status === "matched" ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                  {detail.status === "matched" ? "Matched" : "Received — awaiting match"}
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Donor</p>
+                <p className="font-display text-lg font-bold text-stone-900">{detail.donor_name || "Anonymous"}</p>
+                {detail.donor_email && <p className="text-sm text-stone-600">{detail.donor_email}</p>}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">What they donated</p>
+                  <p className="text-sm text-stone-700">{DONATION_TYPE_LABELS[detail.donation_type] || detail.donation_type || "Other"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">How they paid</p>
+                  <p className="text-sm text-stone-700">{PAYMENT_METHOD_LABELS[detail.payment_method] || detail.payment_method || "—"}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Transaction reference / message</p>
+                <p className="text-sm font-mono text-stone-700 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 break-all">{detail.transaction_ref || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Submitted</p>
+                <p className="text-sm text-stone-700">{new Date(detail.created_at).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Record id</p>
+                <p className="text-xs font-mono text-stone-400 break-all">{detail.id}</p>
+              </div>
+            </div>
+            <div className="p-6 border-t border-stone-200 flex gap-3">
+              {detail.status === "matched" ? (
+                <button onClick={() => { setStatus(detail.id, "received"); setDetail(null); }} className="flex-1 py-3 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl font-semibold transition-colors">
+                  Reopen as received
+                </button>
+              ) : (
+                <button onClick={() => { setStatus(detail.id, "matched"); setDetail(null); }} className="flex-1 py-3 px-4 bg-green-800 hover:bg-green-900 text-white rounded-xl font-semibold transition-colors">
+                  Mark as matched
+                </button>
+              )}
+              <button onClick={() => setDetail(null)} className="flex-1 py-3 px-4 bg-white border border-stone-300 text-stone-700 rounded-xl font-semibold transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* MWOSA: alumni association page (stats, links, updates)               */
+/* ------------------------------------------------------------------ */
+function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [section, setSection] = useState<"stats" | "links" | "updates">("links");
+  const [stats, setStats] = useState<any[]>([]);
+  const [links, setLinks] = useState<any[]>([]);
+  const [updates, setUpdates] = useState<any[]>([]);
+  const [edit, setEdit] = useState<any | null>(null);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    const [s, l, u] = await Promise.all([
+      supabase.from("mwosa_stats").select("*").order("sort_order", { ascending: true }),
+      supabase.from("mwosa_links").select("*").order("sort_order", { ascending: true }),
+      supabase.from("mwosa_updates").select("*").order("sort_order", { ascending: true }),
+    ]);
+    if (s.data) setStats(s.data);
+    if (l.data) setLinks(l.data);
+    if (u.data) setUpdates(u.data);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const resetForm = () => { setEdit(null); setForm({}); };
+  const startEdit = (item: any) => {
+    const f: Record<string, string> = {};
+    Object.entries(item || {}).forEach(([k, v]) => {
+      if (v !== null && v !== undefined && k !== "id" && k !== "created_at" && k !== "updated_at") f[k] = String(v);
+    });
+    setEdit(item);
+    setForm(f);
+  };
+
+  const tableFor = (sec: string) =>
+    sec === "stats" ? "mwosa_stats" : sec === "links" ? "mwosa_links" : "mwosa_updates";
+
+  type MwosaSection = "stats" | "links" | "updates";
+  const fieldDefs: Record<MwosaSection, { label: string; type?: string }[]> = {
+    stats: [
+      { label: "value" }, { label: "label" }, { label: "sort_order", type: "number" },
+    ],
+    links: [
+      { label: "label" }, { label: "url" }, { label: "description" },
+      { label: "icon" }, { label: "category" }, { label: "sort_order", type: "number" },
+    ],
+    updates: [
+      { label: "title" }, { label: "body" }, { label: "update_date" }, { label: "sort_order", type: "number" },
+    ],
+  };
+
+  const save = async () => {
+    setSaving(true);
+    const table = tableFor(section);
+    const payload: any = {};
+    Object.entries(form).forEach(([k, v]) => {
+      if (v.trim() === "") return;
+      payload[k] = fieldDefs[section].find(f => f.label === k)?.type === "number" ? parseInt(v) || 0 : v;
+    });
+    if (section === "links" && !payload.category) payload.category = "quick";
+    let error: any = null;
+    if (edit?.id) {
+      ({ error } = await supabase.from(table).update(payload).eq("id", edit.id));
+    } else {
+      ({ error } = await supabase.from(table).insert(payload));
+    }
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: edit?.id ? "Updated" : "Added", type: "success" });
+    resetForm();
+    load();
+  };
+
+  const remove = async (id: string) => {
+    const { error } = await supabase.from(tableFor(section)).delete().eq("id", id);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Deleted", type: "success" });
+    load();
+  };
+
+  const toggleActive = async (id: string, current: boolean) => {
+    await supabase.from(tableFor(section)).update({ active: !current }).eq("id", id);
+    load();
+  };
+
+  const sectionTabs = [
+    { key: "links", label: "Links (Pulse, Directory, Channels)" },
+    { key: "stats", label: "Milestone Stats" },
+    { key: "updates", label: "Project Updates" },
+  ] as const;
+
+  const rows = section === "stats" ? stats : section === "links" ? links : updates;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <h3 className="font-display text-xl font-bold text-stone-900">MWOSA Alumni Page</h3>
+        <div className="flex gap-2 flex-wrap">
+          {sectionTabs.map(t => (
+            <button key={t.key} onClick={() => { setSection(t.key); resetForm(); }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${section === t.key ? "bg-green-800 text-white" : "bg-white border border-stone-300 text-stone-600 hover:border-green-800"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-sm text-stone-500 mb-5">
+        These items render on the public /mwosa page. The narrative text (Who we are, project updates)
+        is edited under <strong>Page Content</strong> for the <strong>mwosa</strong> page.
+      </p>
+
+      {edit && (
+        <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-display text-lg font-bold text-stone-900">
+              {edit.id ? `Edit: ${edit.label || edit.title || edit.value || "item"}` : "Add new"}
+            </h4>
+            <button onClick={resetForm} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {fieldDefs[section].map(f => (
+              <div key={f.label} className="md:col-span-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">{f.label}</label>
+                <input
+                  type={f.type === "number" ? "number" : "text"}
+                  value={form[f.label] ?? ""}
+                  onChange={e => setForm({ ...form, [f.label]: e.target.value })}
+                  className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                />
+              </div>
+            ))}
+          </div>
+          {section === "links" && (
+            <p className="text-xs text-stone-500">
+              <strong>category:</strong> "quick" shows the big Get Involved cards (Pulse, Directory, Business);
+              "channel" shows the Whats Up class channels by decade.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving} className="px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button onClick={resetForm} className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-stone-500">{rows.length} items</p>
+        <button onClick={() => { setEdit({}); setForm({}); }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors">
+          <UserPlus className="h-4 w-4" /> Add {section === "stats" ? "Stat" : section === "updates" ? "Update" : "Link"}
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {rows.length === 0 && (
+          <div className="rounded-xl bg-white border border-dashed border-stone-300 p-10 text-center text-sm text-stone-400">
+            No {section} yet. Click "Add" to create one.
+          </div>
+        )}
+        {rows.map((item: any) => {
+          const title = item.label || item.title || item.value || "(untitled)";
+          const sub = item.url || item.body || item.label || "";
+          return (
+            <div key={item.id} className="rounded-xl bg-white border border-stone-200 p-4 flex items-center justify-between gap-4 hover:border-green-800 transition-colors">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-display font-bold text-stone-900 truncate">{title}</p>
+                  {section === "links" && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${item.category === "channel" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"}`}>
+                      {item.category === "channel" ? "Channel" : "Quick link"}
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${item.active === false ? "bg-stone-100 text-stone-500" : "bg-emerald-100 text-emerald-700"}`}>
+                    {item.active === false ? "Hidden" : "Live"}
+                  </span>
+                </div>
+                <p className="text-sm text-stone-500 truncate mt-0.5">{sub}</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => toggleActive(item.id, item.active)} title={item.active === false ? "Publish" : "Hide"}
+                  className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors">
+                  {item.active === false ? <Eye className="h-4 w-4" /> : <ListChecks className="h-4 w-4" />}
+                </button>
+                <button onClick={() => startEdit(item)} title="Edit" className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors">
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+                <button onClick={() => remove(item.id)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CommentsTab({ comments, onRefresh, setToast }: { comments: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [filter, setFilter] = useState("");
 
@@ -1508,23 +2407,299 @@ function CommentsTab({ comments, onRefresh, setToast }: { comments: any[]; onRef
   );
 }
 
-function AdminLoginScreen({ onAuthed }: { onAuthed: () => void }) {
-  const [secret, setSecret] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+/* ------------------------------------------------------------------ */
+/* Staff & Roles: super admins invite staff by email. The invite becomes  */
+/* active the first time that person signs in with their email OTP at     */
+/* /admin; the session cookie then carries their auth user_id.            */
+/* ------------------------------------------------------------------ */
+const STAFF_ROLE_OPTIONS = [
+  { value: "super_admin", label: "Super Admin" },
+  { value: "admin", label: "Admin" },
+  { value: "club_patron", label: "Club Patron" },
+  { value: "alumni_patron", label: "Alumni Patron" },
+];
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!secret.trim() || busy) return;
-    setBusy(true);
-    setError(false);
-    const res = await adminLogin({ data: { secret: secret.trim() } });
-    setBusy(false);
-    if (res.ok) {
-      setSecret("");
-      onAuthed();
+function StaffTab() {
+  const [invites, setInvites] = useState<any[] | null>(null);
+  const [clubs, setClubs] = useState<any[]>([]);
+  const [showInvite, setShowInvite] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("admin");
+  const [clubId, setClubId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+
+  const load = async () => {
+    const res = await adminListStaff();
+    if (res.error) {
+      setError(String(res.error));
+      setInvites([]);
     } else {
-      setError(true);
+      setInvites(res.invites || []);
+    }
+    const { data } = await supabase.from("clubs").select("id, name").order("name");
+    if (data) setClubs(data);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const flash = (text: string, kind: "ok" | "err") => {
+    setMsg({ text, kind });
+    window.setTimeout(() => setMsg(null), 4500);
+  };
+
+  const invite = async () => {
+    setError("");
+    if (!name.trim() || !email.trim()) { flash("Name and email are required", "err"); return; }
+    if (role === "club_patron" && !clubId) { flash("Pick the club this patron oversees", "err"); return; }
+    setBusy(true);
+    const res = await adminInviteStaff({
+      data: {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        role,
+        club_id: role === "club_patron" ? clubId : undefined,
+      },
+    });
+    setBusy(false);
+    if (res.error) { flash(String(res.error), "err"); return; }
+    flash("Invite sent — they can sign in at /admin with this email", "ok");
+    setName(""); setEmail(""); setRole("admin"); setClubId(""); setShowInvite(false);
+    load();
+  };
+
+  const revoke = async (inv: any) => {
+    if (!window.confirm(`Remove ${inv.name} (${inv.email})? They lose dashboard access immediately.`)) return;
+    const res = await adminRevokeStaff({ data: { id: inv.id } });
+    if (res.error) { flash(String(res.error), "err"); return; }
+    flash("Staff member removed", "ok");
+    load();
+  };
+
+  const resend = async (inv: any) => {
+    setBusy(true);
+    const res = await adminResendInviteCode({ data: { id: inv.id } });
+    setBusy(false);
+    if (res.error) { flash(String(res.error), "err"); return; }
+    flash(`A fresh invite code was emailed to ${inv.email}`, "ok");
+  };
+
+  const chip = (inv: any) =>
+    inv.status === "active" ? <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-semibold">Active</span>
+      : inv.status === "removed" ? <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-400 text-[10px] font-semibold">Removed</span>
+        : <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">Invited</span>;
+
+  const roleName = (r: string) => STAFF_ROLE_OPTIONS.find((o) => o.value === r)?.label || r;
+  const clubName = (clubId: string | null) => clubs.find((c) => c.id === clubId)?.name || "";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-display text-xl font-bold text-stone-900">Staff & Roles</h3>
+        <button onClick={() => setShowInvite(!showInvite)} className="px-5 py-2.5 rounded-xl bg-green-800 text-white font-semibold hover:bg-green-900 transition-colors shadow-md inline-flex items-center gap-2">
+          <UserPlus className="h-4 w-4" /> Invite staff member
+        </button>
+      </div>
+
+      {msg && (
+        <div className={`text-xs px-3 py-2 rounded-lg mb-4 ${msg.kind === "ok" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {showInvite && (
+        <div className="rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
+          <p className="text-sm font-semibold text-green-800 mb-4">Invite a staff member</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Full name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. Mr. Moses Okello" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Email (their sign-in)</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="staff@email.com" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Role</label>
+              <select value={role} onChange={(e) => { setRole(e.target.value); setClubId(""); }} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm">
+                {STAFF_ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            {role === "club_patron" && (
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Club they patron</label>
+                <select value={clubId} onChange={(e) => setClubId(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm">
+                  <option value="">Select club…</option>
+                  {clubs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-stone-500 mt-3">
+            They'll receive a 6-digit invite code by email to accept at /admin/accept-invite and set their password.
+            {role === "club_patron" && " Their dashboard is limited to their club; row-level scoping applies once they sign in."}
+          </p>
+          <div className="flex gap-3 mt-4">
+            <button onClick={invite} disabled={busy || !name || !email} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 disabled:opacity-50">
+              {busy ? "Sending…" : "Send invite"}
+            </button>
+            <button onClick={() => setShowInvite(false)} className="px-4 py-2 rounded-xl bg-stone-100 text-stone-600 text-sm font-semibold hover:bg-stone-200">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+
+      {invites === null ? (
+        <div className="flex justify-center py-16"><div className="h-6 w-6 animate-spin rounded-full border-2 border-green-800 border-t-transparent" /></div>
+      ) : invites.length === 0 ? (
+        <p className="text-sm text-stone-500">No staff yet. Invite your first member above — the site owner invite is pending sign-in.</p>
+      ) : (
+        <div className="space-y-3">
+          {invites.map((inv) => (
+            <div key={inv.id} className="rounded-2xl bg-white border border-stone-200 p-5 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-stone-900">
+                  {inv.name}
+                  {inv.role === "club_patron" && clubName(inv.club_id) ? <span className="text-stone-400 font-medium"> · {clubName(inv.club_id)}</span> : null}
+                </p>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {inv.email} · <span className="font-semibold text-stone-700">{roleName(inv.role)}</span> · invited {new Date(inv.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {chip(inv)}
+                {inv.status === "pending" && (
+                  <button onClick={() => resend(inv)} disabled={busy} className="px-2.5 py-1.5 rounded-lg hover:bg-green-50 border border-green-100 text-xs font-semibold text-green-800" title="Email a fresh invite code">
+                    <RefreshCw className="h-3.5 w-3.5 inline mr-1" />Resend code
+                  </button>
+                )}
+                {inv.status !== "removed" && (
+                  <button onClick={() => revoke(inv)} className="p-2 rounded-lg hover:bg-red-50 border border-red-100" title="Remove access">
+                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Staff sign in: email one-time code (Supabase Auth OTP). There is no   */
+/* shared passcode anymore. The verified session is exchanged for the    */
+/* httpOnly staff cookie (which carries the user_id) by adminLogin.      */
+/* ------------------------------------------------------------------ */
+function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
+  const resend = useOtpResend();
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [usePasscode, setUsePasscode] = useState(false);
+  const [passcode, setPasscode] = useState("");
+  const [usePassword, setUsePassword] = useState(false);
+  const [password, setPassword] = useState("");
+
+  const passwordLogin = async () => {
+    setError("");
+    const em = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { setError("Enter your email address."); return; }
+    if (!password) { setError("Enter your password."); return; }
+    setBusy(true);
+    try {
+      const { data, error: signInErr } = await supabase.auth.signInWithPassword({ email: em, password });
+      if (signInErr) {
+        setError("Email or password is incorrect.");
+        return;
+      }
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Sign-in did not complete.");
+      const res = await adminLogin({ data: { accessToken: token } });
+      if (!res.ok) {
+        await supabase.auth.signOut();
+        setError(res.reason || "This email is not an invited staff member.");
+        return;
+      }
+      setEmail(""); setCode(""); setPassword(""); setSent(false); setUsePasscode(false); setUsePassword(false);
+      onAuthed();
+    } catch (e: any) {
+      setError(e?.message || "Could not sign in with that password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const passcodeLogin = async () => {
+    setError("");
+    const em = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { setError("Enter your email address."); return; }
+    if (!passcode.trim()) { setError("Enter the passcode."); return; }
+    setBusy(true);
+    try {
+      const res = await adminPasscodeLogin({ data: { email: em, passcode: passcode.trim() } });
+      if (!res.ok) {
+        setError(res.reason || "That passcode did not work.");
+        return;
+      }
+      setEmail(""); setCode(""); setPasscode(""); setSent(false); setUsePasscode(false);
+      onAuthed();
+    } catch (e: any) {
+      setError(e?.message || "Could not sign in with the passcode.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendCode = async () => {
+    setError("");
+    const em = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { setError("Enter a valid email address."); return; }
+    if (!resend.allowSend()) { setError(resend.hint()); return; }
+    setBusy(true);
+    try {
+      await supabase.auth.signInWithOtp({
+        email: em,
+        options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/admin` },
+      });
+      resend.onSent();
+      setSent(true);
+    } catch (e: any) {
+      setError(e?.message || "Could not send the code. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyAndLink = async () => {
+    setError("");
+    const em = email.trim().toLowerCase();
+    if (!code.trim()) { setError("Enter the code you received by email."); return; }
+    setBusy(true);
+    try {
+      const { data, error: verifyErr } = await supabase.auth.verifyOtp({ email: em, token: code.trim(), type: "email" });
+      if (verifyErr) throw verifyErr;
+      const token = data.session?.access_token || (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) throw new Error("Sign-in did not complete.");
+      const res = await adminLogin({ data: { accessToken: token } });
+      if (!res.ok) {
+        // The OTP worked but this email has no staff role — clear the browser auth session.
+        await supabase.auth.signOut();
+        setError(res.reason || "This email is not an invited staff member.");
+        return;
+      }
+      setEmail(""); setCode(""); setSent(false);
+      onAuthed();
+    } catch (e: any) {
+      setError(e?.message || "That code did not work. Check it and try again.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -1533,34 +2708,136 @@ function AdminLoginScreen({ onAuthed }: { onAuthed: () => void }) {
       <div className="w-full max-w-md">
         <div className="rounded-2xl bg-white border border-stone-200 p-8 shadow-sm">
           <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-green-900 text-white mb-5 mx-auto">
-            <Lock className="h-5 w-5" />
+            <ShieldCheck className="h-5 w-5" />
           </div>
-          <p className="text-center text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Admin Dashboard</p>
+          <p className="text-center text-sm font-semibold text-green-800 uppercase tracking-widest mb-2">Staff Portal</p>
           <h1 className="text-center font-display text-2xl font-bold text-stone-900 mb-2">M.M College Wairaka</h1>
-          <p className="text-center text-sm text-stone-500 mb-6">Enter the admin passcode to manage content.</p>
-          <form onSubmit={submit} className="space-y-4">
-            <input
-              type="password"
-              value={secret}
-              onChange={(e) => { setSecret(e.target.value); setError(false); }}
-              placeholder="Admin passcode"
-              autoFocus
-              className={`w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${error ? "border-red-400" : "border-stone-300"}`}
-            />
-            {error && <p className="text-sm text-red-600">Incorrect passcode. Try again.</p>}
-            <button type="submit" disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
-              {busy ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-          <Link to="/" className="block text-center mt-5 text-sm font-medium text-stone-400 hover:text-stone-600">← Back to site</Link>
+          <p className="text-center text-sm text-stone-500 mb-6">
+            {usePasscode
+              ? "Super admin only: enter your email and the fallback passcode."
+              : usePassword
+                ? "Enter the email and password you set from your invite."
+                : sent
+                  ? "Enter the one-time code emailed to you."
+                  : "Sign in with your staff email."}
+          </p>
+
+          {usePassword ? (
+            <div className="space-y-4">
+              <input
+                type="email" value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                placeholder="staff@email.com"
+                autoFocus
+                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+              />
+              <input
+                type="password" value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && passwordLogin()}
+                placeholder="Password"
+                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button onClick={passwordLogin} disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-colors">
+                <KeyRound className="h-4 w-4" /> {busy ? "Signing in…" : "Sign in with password"}
+              </button>
+              <button onClick={() => { setUsePassword(false); setPassword(""); setError(""); }} className="w-full text-center text-sm text-stone-400 hover:text-stone-600">
+                Back to email sign-in
+              </button>
+            </div>
+          ) : usePasscode ? (
+            <div className="space-y-4">
+              <input
+                type="email" value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                placeholder="superadmin@email.com"
+                autoFocus
+                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+              />
+              <input
+                type="password" value={passcode}
+                onChange={(e) => { setPasscode(e.target.value); setError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && passcodeLogin()}
+                placeholder="Passcode"
+                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button onClick={passcodeLogin} disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-colors">
+                <KeyRound className="h-4 w-4" /> {busy ? "Signing in…" : "Sign in with passcode"}
+              </button>
+              <button onClick={() => { setUsePasscode(false); setPasscode(""); setError(""); }} className="w-full text-center text-sm text-stone-400 hover:text-stone-600">
+                Back to email sign-in
+              </button>
+            </div>
+          ) : !sent ? (
+            <div className="space-y-4">
+              <input
+                type="email" value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && sendCode()}
+                placeholder="staff@email.com"
+                autoFocus
+                className="w-full p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button onClick={sendCode} disabled={busy || resend.sendsLeft <= 0} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-colors">
+                <Send className="h-4 w-4" /> {busy ? "Sending…" : "Email me a code"}
+              </button>
+              {resend.sendsLeft < resend.maxSends && (
+                <p className="text-center text-[11px] text-stone-400">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-stone-400">Code sent to <span className="font-medium text-stone-600">{email.trim().toLowerCase()}</span></p>
+              <input
+                value={code}
+                onChange={(e) => { setCode(e.target.value); setError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && verifyAndLink()}
+                placeholder="One-time code"
+                inputMode="numeric"
+                className="w-full p-3 border rounded-xl text-sm text-center tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-green-500 border-stone-300"
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button onClick={verifyAndLink} disabled={busy} className="w-full px-6 py-3 bg-green-900 hover:bg-green-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
+                {busy ? "Signing in…" : "Sign in"}
+              </button>
+              <button onClick={sendCode} disabled={busy || !resend.allowSend()} className="w-full text-center text-sm text-stone-400 hover:text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed">
+                {resend.label()}
+              </button>
+              <p className="text-center text-[11px] text-stone-400">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
+              <button onClick={() => { setSent(false); setCode(""); }} className="w-full text-center text-sm text-stone-400 hover:text-stone-600">
+                Wrong email? Start over
+              </button>
+            </div>
+          )}
+
+          {!usePasscode && !usePassword && (
+            <div className="mt-5 space-y-2">
+              <button onClick={() => { setUsePassword(true); setPassword(""); setError(""); }} className="block mx-auto text-xs font-medium text-stone-400 hover:text-stone-600 underline underline-offset-2">
+                Have a password? Sign in with email & password
+              </button>
+              <button onClick={() => { setUsePasscode(true); setPasscode(""); setError(""); }} className="block mx-auto text-xs font-medium text-stone-400 hover:text-stone-600 underline underline-offset-2">
+                Email unavailable? Use the super admin passcode
+              </button>
+            </div>
+          )}
+          <Link to="/" className="block text-center mt-2 text-sm font-medium text-stone-400 hover:text-stone-600">← Back to site</Link>
         </div>
       </div>
     </div>
   );
 }
 
+type StaffSessionState = {
+  authed: boolean;
+  user: { id: string; email: string; name?: string } | null;
+  roles: string[];
+};
+
 function AdminPage() {
-  const [authed, setAuthed] = useState<boolean | null>(null);
+  const [session, setSession] = useState<StaffSessionState | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Record<string, number>>({});
   const [clubs, setClubs] = useState<any[]>([]);
@@ -1578,13 +2855,15 @@ function AdminPage() {
   const [pageContent, setPageContent] = useState<any[]>([]);
   const [noteComments, setNoteComments] = useState<any[]>([]);
   const [rsvps, setRsvps] = useState<any[]>([]);
+  const [mwosaLinks, setMwosaLinks] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes, commentsRes, rsvpsRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes, commentsRes, rsvpsRes, mwosaRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
@@ -1600,6 +2879,7 @@ function AdminPage() {
       supabase.from("sports_scholarships").select("*").order("created_at", { ascending: false }),
       supabase.from("note_comments").select("*").order("created_at", { ascending: false }),
       supabase.from("event_rsvps").select("*, alumni_profiles(id, full_name, graduation_year, profession, current_location, avatar_url, email), events(id, title, event_date, location, category, approved)"),
+      supabase.from("mwosa_links").select("*").order("sort_order", { ascending: true }),
     ]);
 
     const c = clubsRes.data || [];
@@ -1620,6 +2900,7 @@ function AdminPage() {
     setAlumni(a);
     setArticles(art);
     setPageContent(pc);
+    setMwosaLinks(mwosaRes.data || []);
     setApplications(appsRes.data || []);
     setMentorship(mentRes.data || []);
     setDonations(donRes.data || []);
@@ -1642,59 +2923,81 @@ function AdminPage() {
   };
 
   const boot = async () => {
-    const session = await adminSession();
-    const authedNow = session.authed;
-    setAuthed(authedNow);
-    if (authedNow) fetchData();
+    const s = await adminSession();
+    setSession({ authed: s.authed, user: s.user, roles: s.roles });
+    if (s.authed) fetchData();
   };
 
   useEffect(() => { boot(); }, []);
 
+  const roleVisible: Record<string, Tab[]> = {
+    super_admin: ["overview", "clubs", "alumni", "events", "rsvps", "notes", "inquiries", "businesses", "articles", "pages", "applications", "mentorship", "donations", "giving", "mwosa", "scholarships", "comments", "settings", "staff"],
+    admin: ["overview", "clubs", "alumni", "events", "rsvps", "notes", "inquiries", "businesses", "articles", "pages", "applications", "mentorship", "giving", "mwosa", "scholarships", "comments"],
+    club_patron: ["overview", "clubs", "applications", "events"],
+    alumni_patron: ["overview", "alumni", "businesses", "notes", "comments", "events", "rsvps", "inquiries"],
+  };
+  const sessionRoles = session?.roles || [];
+  const visibleTabs = new Set<string>();
+  sessionRoles.forEach((r) => (roleVisible[r] || []).forEach((k) => visibleTabs.add(k)));
+  const roleLabel = sessionRoles
+    .map((r) => (r === "super_admin" ? "Super Admin" : r === "club_patron" ? "Club Patron" : r === "alumni_patron" ? "Alumni Patron" : "Admin"))
+    .join(", ") || "Staff";
+
   const tabs: { key: Tab; label: string; icon: any; count?: number }[] = [
     { key: "overview", label: "Overview", icon: LayoutDashboard },
-    { key: "clubs", label: "Clubs", icon: Users, count: stats.clubs },
-    { key: "alumni", label: "Alumni", icon: GraduationCap, count: stats.alumni },
-    { key: "events", label: "Events", icon: Calendar, count: stats.events },
+    { key: "clubs", label: "Clubs", icon: Users, count: stats.clubs ?? 0 },
+    { key: "alumni", label: "Alumni", icon: GraduationCap, count: stats.alumni ?? 0 },
+    { key: "events", label: "Events", icon: Calendar, count: stats.events ?? 0 },
     { key: "rsvps", label: "RSVPs", icon: CalendarCheck, count: rsvps.length },
-    { key: "notes", label: "Class Notes", icon: BookOpen, count: stats.notes },
-    { key: "articles", label: "Campus News", icon: Megaphone, count: stats.articles },
+    { key: "notes", label: "Class Notes", icon: BookOpen, count: stats.notes ?? 0 },
+    { key: "articles", label: "Campus News", icon: Megaphone, count: stats.articles ?? 0 },
     { key: "pages", label: "Page Content", icon: FileText, count: pageContent.length },
-    { key: "inquiries", label: "Inquiries", icon: MessageSquare, count: stats.inquiries },
-    { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses },
+    { key: "inquiries", label: "Inquiries", icon: MessageSquare, count: stats.inquiries ?? 0 },
+    { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses ?? 0 },
     { key: "applications", label: "Club Apps", icon: Users, count: applications.length },
     { key: "mentorship", label: "Mentorship", icon: Heart, count: mentorship.length },
     { key: "donations", label: "Donations", icon: Heart, count: donations.length },
+    { key: "giving", label: "Giving", icon: Heart },
+    { key: "mwosa", label: "MWOSA", icon: HandHeart, count: mwosaLinks.length },
     { key: "scholarships", label: "Scholarships", icon: GraduationCap, count: scholarships.length },
     { key: "comments", label: "Comments", icon: MessageSquare, count: noteComments.length },
     { key: "settings", label: "Site Settings", icon: Settings },
+    { key: "staff", label: "Staff & Roles", icon: ShieldCheck },
   ];
 
-  if (authed === null) {
+  // Mobile layout: 4 primary tabs pinned in the bottom bar; everything else
+  // lives behind the "More" sheet.
+  const primaryKeys = ["overview", "clubs", "articles", "alumni"];
+  const primaryTabs = tabs.filter((t) => primaryKeys.includes(t.key) && visibleTabs.has(t.key));
+  const moreTabs = tabs.filter((t) => visibleTabs.has(t.key) && !primaryKeys.includes(t.key));
+
+  if (session === null) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
       </div>
     );
   }
-  if (!authed) {
-    return <AdminLoginScreen onAuthed={() => { setAuthed(true); fetchData(); }} />;
+  if (!session.authed) {
+    return <StaffLoginScreen onAuthed={boot} />;
   }
 
   return (
     <div className="min-h-screen bg-stone-50">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {/* Header */}
-      <div className="bg-white border-b border-stone-200">
+      {/* Header (desktop) */}
+      <div className="hidden md:block bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-1">Admin Dashboard</p>
               <h1 className="font-display text-3xl font-bold text-stone-900">M.M College Wairaka</h1>
               <p className="text-sm text-stone-500 mt-1">Manage all content, members, and inquiries from one place.</p>
+              <p className="text-xs text-stone-400 mt-0.5">Signed in as <span className="font-medium text-stone-600">{session.user?.email || ""}</span> · {roleLabel}</p>
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={async () => { await adminLogout({ data: {} }); setAuthed(false); }}
+                onClick={async () => { await supabase.auth.signOut(); await adminLogout({ data: {} }); setSession({ authed: false, user: null, roles: [] }); }}
                 className="rounded-xl bg-stone-100 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 transition-colors inline-flex items-center gap-2"
               >
                 <LogOut className="h-3.5 w-3.5" /> Sign out
@@ -1707,11 +3010,43 @@ function AdminPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-stone-200 sticky top-0 z-10">
+      {/* Header (mobile) */}
+      <div className="md:hidden sticky top-0 z-20 bg-white border-b border-stone-200">
+        <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src={LOGO_URL} alt="WACOS logo" className="h-9 w-auto shrink-0 drop-shadow" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-green-800 uppercase tracking-widest">Admin Dashboard</p>
+              <h1 className="font-display text-base font-bold text-stone-900 truncate">M.M College Wairaka</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              to="/"
+              aria-label="Back to site"
+              className="p-2 rounded-lg bg-stone-100 text-stone-600 active:bg-stone-200 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <button
+              onClick={async () => { await supabase.auth.signOut(); await adminLogout({ data: {} }); setSession({ authed: false, user: null, roles: [] }); }}
+              aria-label="Sign out"
+              className="p-2 rounded-lg bg-stone-100 text-stone-600 active:bg-stone-200 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <p className="px-4 pb-2 text-[11px] text-stone-500 truncate">
+          Signed in as <span className="font-medium text-stone-600">{session.user?.email || ""}</span> · {roleLabel}
+        </p>
+      </div>
+
+      {/* Tabs (desktop) */}
+      <div className="hidden md:block bg-white border-b border-stone-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide -mb-px">
-            {tabs.map((t) => {
+            {tabs.filter((t) => visibleTabs.has(t.key)).map((t) => {
               const Icon = t.icon;
               return (
                 <button
@@ -1736,18 +3071,18 @@ function AdminPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-32 md:py-8">
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
           </div>
         ) : (
           <>
-            {tab === "overview" && <OverviewTab stats={stats} />}
-            {tab === "clubs" && <ClubsTab clubs={clubs} members={members} onRefresh={fetchData} />}
+            {tab === "overview" && <OverviewView stats={stats} roles={sessionRoles} onNavigate={(k) => setTab(k)} />}
+            {tab === "clubs" && <ClubsTab clubs={clubs} members={members} onRefresh={fetchData} reviewerName={session.user?.name || session.user?.email || "Admin"} setToast={setToast} />}
             {tab === "alumni" && (
               <AlumniTab alumni={alumni} onRefresh={fetchData} setToast={setToast} />
-            )}            { tab === "events" && <EventsTab events={events} onRefresh={fetchData} /> }
+            )}            { tab === "events" && <EventsTab events={events} onRefresh={fetchData} setToast={setToast} /> }
             { tab === "rsvps" && <RsvpsTab rsvps={rsvps} events={events} onRefresh={fetchData} setToast={setToast} /> }
             {tab === "notes" && <NotesTab notes={notes} onRefresh={fetchData} setToast={setToast} />}
             {tab === "inquiries" && <InquiriesTab inquiries={inquiries} onRefresh={fetchData} />}
@@ -1756,13 +3091,92 @@ function AdminPage() {
             {tab === "pages" && <PagesTab pages={pageContent} onRefresh={fetchData} setToast={setToast} />}
             {tab === "applications" && <SubmissionsList title="Club Applications" icon={Users} data={applications} columns={[{ key: "club_name", label: "Club" }, { key: "student_name", label: "Student" }, { key: "class_level", label: "Class" }, { key: "reason", label: "Reason" }]} table="club_applications" onRefresh={fetchData} setToast={setToast} />}
             {tab === "mentorship" && <SubmissionsList title="Mentorship Requests" icon={Heart} data={mentorship} columns={[{ key: "mentor_name", label: "Name" }, { key: "mentor_email", label: "Email" }, { key: "club_interest", label: "Club" }, { key: "graduation_year", label: "Class Of" }, { key: "expertise", label: "Expertise" }]} table="mentorship_requests" onRefresh={fetchData} setToast={setToast} />}
-            {tab === "donations" && <SubmissionsList title="Donations" icon={Heart} data={donations} columns={[{ key: "donor_name", label: "Donor" }, { key: "amount", label: "Amount" }, { key: "donation_type", label: "Type" }, { key: "purpose", label: "Purpose" }]} table="donations" onRefresh={fetchData} setToast={setToast} />}
+            {tab === "donations" && <DonationsTab data={donations} onRefresh={fetchData} setToast={setToast} />}
             {tab === "scholarships" && <SubmissionsList title="Sports Scholarships" icon={GraduationCap} data={scholarships} columns={[{ key: "student_name", label: "Student" }, { key: "parent_name", label: "Parent" }, { key: "phone", label: "Phone" }, { key: "sport", label: "Sport" }, { key: "achievement", label: "Achievement" }]} table="sports_scholarships" onRefresh={fetchData} setToast={setToast} />}
             {tab === "comments" && <CommentsTab comments={noteComments} onRefresh={fetchData} setToast={setToast} />}
+            {tab === "giving" && <GivingTab setToast={setToast} />}
+            {tab === "mwosa" && <MwosaTab setToast={setToast} />}
             {tab === "settings" && <SettingsTab />}
+            {tab === "staff" && <StaffTab />}
           </>
         )}
       </div>
+
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-stone-200 pb-[env(safe-area-inset-bottom)]">
+        <div className="flex">
+          {primaryTabs.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors ${active ? "text-green-800" : "text-stone-400 active:text-stone-600"}`}
+              >
+                <span className="relative">
+                  <Icon className={`h-5 w-5 ${active ? "text-green-800" : "text-stone-400"}`} />
+                  {t.count !== undefined && t.count > 0 && (
+                    <span className={`absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-4 text-center ${active ? "bg-green-800 text-white" : "bg-stone-300 text-white"}`}>
+                      {t.count > 99 ? "99+" : t.count}
+                    </span>
+                  )}
+                </span>
+                {t.label}
+              </button>
+            );
+          })}
+          {moreTabs.length > 0 && (
+            <button
+              onClick={() => setMoreOpen(true)}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors ${moreTabs.some((t) => t.key === tab) ? "text-green-800" : "text-stone-400 active:text-stone-600"}`}
+            >
+              <MoreHorizontal className={`h-5 w-5 ${moreTabs.some((t) => t.key === tab) ? "text-green-800" : "text-stone-400"}`} />
+              More
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile More sheet */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-30">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMoreOpen(false)} />
+          <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl max-h-[78vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="sticky top-0 bg-white rounded-t-2xl border-b border-stone-100">
+              <div className="flex items-center justify-between px-4 py-3">
+                <p className="text-sm font-semibold text-stone-800">All sections</p>
+                <button
+                  onClick={() => setMoreOpen(false)}
+                  aria-label="Close menu"
+                  className="p-2 -m-2 rounded-lg text-stone-500 active:bg-stone-100 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 p-4">
+              {moreTabs.map((t) => {
+                const Icon = t.icon;
+                const active = tab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => { setTab(t.key); setMoreOpen(false); }}
+                    className={`flex items-center gap-2.5 rounded-xl border px-3 py-3 text-left text-[13px] font-medium transition-colors ${active ? "border-green-800/30 bg-green-50 text-green-900" : "border-stone-200 bg-white text-stone-700 active:bg-stone-50"}`}
+                  >
+                    <Icon className={`h-4 w-4 shrink-0 ${active ? "text-green-800" : "text-stone-400"}`} />
+                    <span className="min-w-0 flex-1 truncate">{t.label}</span>
+                    {t.count !== undefined && t.count > 0 && (
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-stone-100 text-[10px] font-semibold text-stone-500">{t.count}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

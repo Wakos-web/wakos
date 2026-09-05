@@ -22,12 +22,24 @@ const BUSINESS_CATEGORIES = [
 ];
 
 function DirectoryContent() {
-  
+
+  // Support ?year=XXXX coming from the MWOSA "Whats Up" channels: the value is
+  // the decade start (e.g. 2020 = Class of 2020s) so we match the 10-year band.
+  // Watched via the router search so a channel click while already on the
+  // directory page (same path, search-only change) still applies the filter.
+  const searchStr = useRouterState({ select: (s) => s.location.searchStr || "" });
+
   const [alumni, setAlumni] = useState<AlumniProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
+  const [decadeFilter, setDecadeFilter] = useState("");
   const [professionFilter, setProfessionFilter] = useState("");
+
+  useEffect(() => {
+    const y = new URLSearchParams(searchStr.replace(/^\?/, "")).get("year");
+    setDecadeFilter(y && /^\d{4}$/.test(y) ? y : "");
+  }, [searchStr]);
 
   useEffect(() => {
     fetchAlumni();
@@ -51,9 +63,11 @@ function DirectoryContent() {
       (a.profession && a.profession.toLowerCase().includes(search.toLowerCase())) ||
       (a.company && a.company.toLowerCase().includes(search.toLowerCase()));
     const matchYear = !yearFilter || a.graduation_year === parseInt(yearFilter);
+    const matchDecade = !decadeFilter ||
+      (a.graduation_year >= parseInt(decadeFilter) && a.graduation_year < parseInt(decadeFilter) + 10);
     const matchProfession = !professionFilter ||
       (a.profession && a.profession.toLowerCase().includes(professionFilter.toLowerCase()));
-    return matchSearch && matchYear && matchProfession;
+    return matchSearch && matchYear && matchDecade && matchProfession;
   });
 
   const uniqueYears = [...new Set(alumni.map(a => a.graduation_year))].sort((a, b) => b - a);
@@ -84,6 +98,23 @@ function DirectoryContent() {
           </p>
         </div>
       </section>
+
+      {/* Class channel banner (from MWOSA Whats Up channels) */}
+      {decadeFilter && (
+        <div className="bg-green-800 text-white">
+          <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+            <p className="text-sm font-medium">
+              Class of {decadeFilter}s channel — {filtered.length} {filtered.length === 1 ? "classmate" : "classmates"} found
+            </p>
+            <button
+              onClick={() => { setDecadeFilter(""); setYearFilter(""); }}
+              className="shrink-0 text-xs font-semibold underline underline-offset-2 hover:text-green-200 transition-colors"
+            >
+              Show all alumni
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search and filters */}
       <section className="bg-white border-b border-stone-200 py-6">
@@ -133,7 +164,7 @@ function DirectoryContent() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-stone-400 text-lg font-body">No alumni found matching your search.</p>
-              <button onClick={() => { setSearch(""); setYearFilter(""); setProfessionFilter(""); }}
+              <button onClick={() => { setSearch(""); setYearFilter(""); setDecadeFilter(""); setProfessionFilter(""); }}
                 className="mt-4 text-green-800 font-semibold hover:underline">
                 Clear filters
               </button>

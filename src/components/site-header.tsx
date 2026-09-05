@@ -49,7 +49,7 @@ export function SiteHeader() {
                   {openDropdown === item.label && (
                     <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-xl border border-border bg-white/95 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150">
                       {item.children.map((child) => (
-                        <Link key={child.to} to={child.to} className="block px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-primary/5 first:rounded-t-xl last:rounded-b-xl">
+                        <Link key={child.to} to={child.to as any} className="block px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-primary/5 first:rounded-t-xl last:rounded-b-xl">
                           {child.label}
                         </Link>
                       ))}
@@ -105,7 +105,7 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
                 {openDropdown === item.label && (
                   <div className="ml-4 flex flex-col gap-1 pb-2">
                     {item.children.map((child) => (
-                      <Link key={child.to} to={child.to} className="rounded-xl px-5 py-3 text-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:text-xl">
+                      <Link key={child.to} to={child.to as any} className="rounded-xl px-5 py-3 text-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:text-xl">
                         {child.label}
                       </Link>
                     ))}

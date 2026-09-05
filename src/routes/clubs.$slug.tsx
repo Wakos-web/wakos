@@ -453,7 +453,7 @@ function AnimatedNumber({ target, suffix = '' }: { target: number; suffix?: stri
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      ([entry]) => { if (entry?.isIntersecting) setVisible(true); },
       { threshold: 0.3 }
     );
     if (ref.current) observer.observe(ref.current);
@@ -477,7 +477,7 @@ function AnimatedNumber({ target, suffix = '' }: { target: number; suffix?: stri
 }function getAvatar(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
-  return AVATARS[Math.abs(hash) % AVATARS.length];
+  return AVATARS[Math.abs(hash) % AVATARS.length] ?? "";
 }
 
 function MemberAvatar({ person, size = 'md' }: { person: Person; size?: 'sm' | 'md' }) {
@@ -581,6 +581,9 @@ function ClubDetailPage() {
           <img src={club.img} alt={club.name} className='h-full w-full object-cover object-center' />
           <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent' />
         </div>
+        <Link to='/clubs/editor' className='absolute top-5 right-5 z-20 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 px-4 py-1.5 text-xs font-medium text-white/85 hover:bg-black/60 hover:text-white transition-colors'>
+          Club editors sign in
+        </Link>
         <div className='relative z-10 w-full max-w-6xl mx-auto px-6 pb-12'>
           <p className='text-xs font-semibold uppercase tracking-wider text-white/60 mb-2'>{club.tagline}</p>
           <h1 className='font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4'>{club.name}</h1>
@@ -660,7 +663,7 @@ function ClubDetailPage() {
           <div className='mb-8'>
             <p className='text-xs font-semibold uppercase tracking-wider text-stone-500 mb-6 text-center'>Executives</p>
             <div className='grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 justify-items-center'>
-              {club.executives.map((ex, i) => (
+              {club.executives.map((ex: any, i: number) => (
                 <PortraitCard key={ex.name} person={ex} index={i + 1} size='md' />
               ))}
             </div>
@@ -678,7 +681,7 @@ function ClubDetailPage() {
               )}
             </div>
             <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6 justify-items-center'>
-              {visibleMembers.map((m, i) => (
+              {visibleMembers.map((m: any, i: number) => (
                 <PortraitCard key={m.name} person={m} index={i + 4} size='sm' />
               ))}
             </div>
@@ -698,7 +701,7 @@ function ClubDetailPage() {
               const postDate = post.date || (post.created_at ? new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
               const postImg = post.img || post.image_url;
               return (
-                <Link key={post.id} to={`/clubs/${slug}/posts/${post.id}`} className='block group rounded-2xl bg-white border border-stone-200 overflow-hidden hover:shadow-md transition-shadow'>
+                <Link key={post.id} to={`/clubs/${slug}/posts/${post.id}` as any} className='block group rounded-2xl bg-white border border-stone-200 overflow-hidden hover:shadow-md transition-shadow'>
                   <div className='md:flex'>
                     <div className='md:w-1/3 relative overflow-hidden bg-gradient-to-br from-green-50 to-stone-100 flex flex-col items-center justify-center min-h-[12rem]'>
                       {postImg ? (
@@ -734,7 +737,7 @@ function ClubDetailPage() {
           <div className='rounded-2xl bg-stone-50 border border-stone-200 p-8'>
             <p className='text-sm font-semibold text-green-800 uppercase tracking-widest mb-4'>Activities</p>
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-              {club.activities.map((act) => (
+              {club.activities.map((act: any) => (
                 <div key={act} className='flex items-start gap-2'>
                   <span className='mt-1.5 w-1.5 h-1.5 rounded-full bg-green-800 shrink-0' />
                   <span className='text-stone-600 font-body'>{act}</span>

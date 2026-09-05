@@ -66,7 +66,7 @@ function PostDetailPage() {
           <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent' />
         </div>
         <div className='relative z-10 w-full max-w-4xl mx-auto px-6 pb-12'>
-          <Link to={`/clubs/${slug}`} className='inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-4'>
+          <Link to={`/clubs/${slug}` as any} className='inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-4'>
             <ArrowLeft className='h-4 w-4' /> Back to Club
           </Link>
           <div className='flex items-center gap-3 mb-3'>
@@ -100,7 +100,7 @@ function PostDetailPage() {
       {/* Back link */}
       <section className='py-8 border-t border-stone-200'>
         <div className='max-w-3xl mx-auto px-6'>
-          <Link to={`/clubs/${slug}`} className='inline-flex items-center gap-2 text-green-800 font-semibold hover:underline'>
+          <Link to={`/clubs/${slug}` as any} className='inline-flex items-center gap-2 text-green-800 font-semibold hover:underline'>
             <ArrowLeft className='h-4 w-4' /> Back to {slug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())} Club
           </Link>
         </div>

@@ -39,6 +39,9 @@ function HeroSection() {
         <img src={IMAGES.studentLife} alt='WACOS clubs' className='h-full w-full object-cover object-center' />
         <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
       </div>
+      <Link to='/clubs/editor' className='absolute top-5 right-5 z-20 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 px-4 py-1.5 text-xs font-medium text-white/85 hover:bg-black/60 hover:text-white transition-colors'>
+        Club editors sign in
+      </Link>
       <div className='relative z-10 w-full max-w-6xl mx-auto px-6 pb-16'>
         <h1 className='font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4'>Clubs</h1>
         <p className='text-lg md:text-xl text-white/80 max-w-2xl font-body'>Lead, organise, and do. Every club is an opportunity to take responsibility.</p>
