@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyClubPatron } from "@/lib/club-notify";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import {
   LogOut, Send, ImagePlus, Trash2, PenLine, X, ArrowLeft, Mail, Clock, Eye,
+  Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical,
 } from "lucide-react";
 
 export const Route = createFileRoute("/clubs/editor")({
@@ -65,6 +66,164 @@ function uploadImage(file: File): Promise<string> {
       const { data } = supabase.storage.from("class-notes-photos").getPublicUrl(path);
       return data.publicUrl;
     });
+}
+
+/* Media manager for one club post: photos and videos with captions, uploaded
+ * straight to Supabase Storage (never a URL). This is the backend for the
+ * post's detail/story page — each card leads to a page full of captioned
+ * media in animated containers. */
+function PostMediaManager({ postId, notice }: { postId: string; notice: (text: string, kind: "ok" | "err") => void }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [edits, setEdits] = useState<Record<string, { caption: string; sort: string }>>({});
+  const [addCaption, setAddCaption] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("club_post_media").select("*").eq("post_id", postId).order("sort_order", { ascending: true });
+    setItems(data || []);
+    const e: Record<string, { caption: string; sort: string }> = {};
+    (data || []).forEach((m: any) => { e[m.id] = { caption: m.caption || "", sort: String(m.sort_order ?? 0) }; });
+    setEdits(e);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [postId]);
+
+  const uploadMediaFile = async (file: File): Promise<string> => {
+    const ext = file.name.split(".").pop();
+    const path = "club-posts-media/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
+    const { error } = await supabase.storage.from("class-notes-photos").upload(path, file, { contentType: file.type });
+    if (error) throw error;
+    const { data } = supabase.storage.from("class-notes-photos").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const addMedia = async (file: File | undefined, type: "image" | "video") => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadMediaFile(file);
+      const { error } = await supabase.from("club_post_media").insert({
+        post_id: postId,
+        media_type: type,
+        media_url: url,
+        caption: addCaption.trim() || null,
+        sort_order: items.length + 1,
+      });
+      if (error) throw error;
+      setAddCaption("");
+      notice("Media added", "ok");
+      load();
+    } catch (e: any) {
+      notice(e?.message || "Upload failed", "err");
+    } finally {
+      setUploading(false);
+      if (photoRef.current) photoRef.current.value = "";
+      if (videoRef.current) videoRef.current.value = "";
+    }
+  };
+
+  const saveRow = async (id: string) => {
+    const e = edits[id];
+    if (!e) return;
+    const { error } = await supabase.from("club_post_media").update({
+      caption: e.caption.trim() || null,
+      sort_order: parseInt(e.sort) || 0,
+    }).eq("id", id);
+    if (error) { notice(error.message || "Save failed", "err"); return; }
+    notice("Saved", "ok");
+    load();
+  };
+
+  const removeRow = async (id: string) => {
+    const { error } = await supabase.from("club_post_media").delete().eq("id", id);
+    if (error) { notice(error.message || "Delete failed", "err"); return; }
+    notice("Media removed", "ok");
+    load();
+  };
+
+  return (
+    <div className="rounded-xl bg-stone-50 border border-stone-200 p-4">
+      <p className="text-sm font-semibold text-stone-700 mb-1">Story media (photos & videos with captions)</p>
+      <p className="text-xs text-stone-400 mb-4">
+        These appear on the post's detailed page as a captioned gallery. Upload a photo or video, give it a caption, and reorder.
+      </p>
+
+      <div className="rounded-xl bg-white border border-stone-200 p-3 mb-4 space-y-3">
+        <input
+          value={addCaption}
+          onChange={(e) => setAddCaption(e.target.value)}
+          placeholder="Caption for the new photo / video"
+          className="w-full p-2.5 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => photoRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-green-800 hover:bg-green-900 text-white text-xs font-semibold disabled:opacity-50 transition-colors"
+          >
+            <ImageIcon className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Add photo"}
+          </button>
+          <button
+            onClick={() => videoRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-stone-300 hover:border-green-800 text-stone-700 text-xs font-semibold disabled:opacity-50 transition-colors"
+          >
+            <VideoIcon className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Add video"}
+          </button>
+          <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "image")} />
+          <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "video")} />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-4 text-center text-xs text-stone-400">Loading media…</div>
+      ) : items.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-stone-300 p-5 text-center text-xs text-stone-400">
+          No media yet. Add a photo or video to build the post's story page.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div key={item.id} className="flex items-center gap-3 rounded-lg bg-white border border-stone-200 p-2.5">
+              {item.media_type === "video" ? (
+                <div className="w-16 h-12 shrink-0 rounded-md bg-black flex items-center justify-center">
+                  <PlayCircle className="h-5 w-5 text-white/80" />
+                </div>
+              ) : (
+                <img src={item.media_url} alt="" className="w-16 h-12 shrink-0 rounded-md object-cover border border-stone-200" />
+              )}
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <input
+                  value={edits[item.id]?.caption ?? ""}
+                  onChange={(e) => setEdits({ ...edits, [item.id]: { ...edits[item.id], caption: e.target.value } })}
+                  placeholder="Caption"
+                  className="w-full p-1.5 border border-stone-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-green-800"
+                />
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-3 w-3 text-stone-300" />
+                  <input
+                    type="number"
+                    value={edits[item.id]?.sort ?? "0"}
+                    onChange={(e) => setEdits({ ...edits, [item.id]: { ...edits[item.id], sort: e.target.value } })}
+                    className="w-14 p-1 border border-stone-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-green-800"
+                    title="Order (1 = first)"
+                  />
+                  <span className="text-[10px] text-stone-400">{item.media_type === "video" ? "Video" : "Photo"} · order</span>
+                  <button onClick={() => saveRow(item.id)} className="ml-auto px-2 py-1 rounded-md bg-green-800 text-white text-[10px] font-semibold hover:bg-green-900">Save</button>
+                  <button onClick={() => removeRow(item.id)} className="p-1 rounded-md hover:bg-red-50 text-red-400"><Trash2 className="h-3 w-3" /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function OtpPanel({ onSignedIn }: { onSignedIn: (email: string) => void }) {
@@ -186,9 +345,10 @@ function OtpPanel({ onSignedIn }: { onSignedIn: (email: string) => void }) {
 }
 
 function Composer({
-  editor, post, onCancel, onSaved,
+  editor, post, onCancel, onSaved, onCreated,
 }: {
   editor: EditorRow; post: PostRow | null; onCancel: () => void; onSaved: () => void;
+  onCreated?: (post: PostRow) => void;
 }) {
   const [title, setTitle] = useState(post?.title || "");
   const [excerpt, setExcerpt] = useState(post?.excerpt || "");
@@ -253,6 +413,12 @@ function Composer({
             .then(() => {})
             .catch(() => {});
         }
+        // Keep the composer open in edit mode so the writer can immediately
+        // add photos and videos to the post's story page.
+        if (onCreated && inserted?.id) {
+          onCreated({ ...body, review_note: null, id: inserted.id, created_at: new Date().toISOString() } as PostRow);
+          return;
+        }
       }
       onSaved();
     } catch (e: any) {
@@ -306,6 +472,18 @@ function Composer({
 
         {notice && <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{notice}</p>}
         {error && <p className="text-xs text-red-600">{error}</p>}
+
+        {post?.id && (
+          <div className="border-t border-stone-100 pt-4">
+            <PostMediaManager
+              postId={post.id}
+              notice={(text, kind) => {
+                if (kind === "ok") setNotice(text);
+                else setError(text);
+              }}
+            />
+          </div>
+        )}
 
         <div className="flex gap-2 pt-1">
           <button
@@ -455,6 +633,7 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
           editor={activeEditor!}
           post={editing}
           onCancel={() => { setComposing(false); setEditing(null); }}
+          onCreated={(created) => { setComposing(true); setEditing(created); }}
           onSaved={() => {
             setComposing(false); setEditing(null);
             if (clubId) {

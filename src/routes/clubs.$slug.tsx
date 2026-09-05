@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect, useRef } from 'react';
 import { IMAGES } from '@/lib/content';
+import { Video, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import campusImg from '@/assets/campus.jpg';
 import athleticsImg from '@/assets/athletics.jpg';
@@ -526,6 +527,7 @@ function ClubDetailPage() {
   const [dbClub, setDbClub] = useState<any>(null);
   const [dbMembers, setDbMembers] = useState<any[]>([]);
   const [dbPosts, setDbPosts] = useState<any[]>([]);
+  const [postMedia, setPostMedia] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [showAllMembers, setShowAllMembers] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -544,9 +546,29 @@ function ClubDetailPage() {
         Promise.all([
           supabase.from('club_members').select('*').eq('club_id', clubData.id).order('sort_order'),
           supabase.from('club_posts').select('*').eq('club_id', clubData.id).eq('published', true).order('created_at', { ascending: false }),
-        ]).then(([membersRes, postsRes]) => {
+        ]).then(async ([membersRes, postsRes]) => {
           if (membersRes.data) setDbMembers(membersRes.data);
-          if (postsRes.data) setDbPosts(postsRes.data);
+          if (postsRes.data) {
+            setDbPosts(postsRes.data);
+            // Pull each post's story media so cards can show the cover image
+            // and a photo/video count (Pinterest-style preview).
+            const ids = postsRes.data.map((p: any) => p.id);
+            if (ids.length > 0) {
+              const { data: media } = await supabase
+                .from('club_post_media')
+                .select('*')
+                .in('post_id', ids)
+                .eq('active', true)
+                .order('sort_order', { ascending: true });
+              if (media) {
+                const byPost: Record<string, any[]> = {};
+                media.forEach((m: any) => {
+                  (byPost[m.post_id] = byPost[m.post_id] || []).push(m);
+                });
+                setPostMedia(byPost);
+              }
+            }
+          }
           setLoading(false);
         });
       } else {
@@ -696,33 +718,41 @@ function ClubDetailPage() {
             <p className='text-sm font-semibold text-green-800 uppercase tracking-widest mb-3'>Latest Updates</p>
             <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold'>What we have been up to</h2>
           </div>
-          <div className='space-y-6'>
+          <div className='grid sm:grid-cols-2 gap-6'>
             {posts.map((post) => {
               const postDate = post.date || (post.created_at ? new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
-              const postImg = post.img || post.image_url;
+              const media = postMedia[post.id] || [];
+              const coverImg = post.img || post.image_url || media.find((m: any) => m.media_type === 'image')?.media_url || null;
+              const hasVideo = media.some((m: any) => m.media_type === 'video');
               return (
-                <Link key={post.id} to={`/clubs/${slug}/posts/${post.id}` as any} className='block group rounded-2xl bg-white border border-stone-200 overflow-hidden hover:shadow-md transition-shadow'>
-                  <div className='md:flex'>
-                    <div className='md:w-1/3 relative overflow-hidden bg-gradient-to-br from-green-50 to-stone-100 flex flex-col items-center justify-center min-h-[12rem]'>
-                      {postImg ? (
-                        <img src={postImg} alt={post.title} className='w-full h-full object-cover' loading='lazy' />
-                      ) : (
-                        <>
-                          <svg className='w-10 h-10 text-green-800/30 mb-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z' /><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M15 13a3 3 0 11-6 0 3 3 0 016 0z' /></svg>
-                          <span className='text-xs text-green-800/40 font-medium uppercase tracking-wider'>Photo coming soon</span>
-                        </>
-                      )}
-                    </div>
-                    <div className='md:w-2/3 p-6'>
-                      <div className='flex items-center gap-3 mb-3'>
-                        <span className='text-xs font-semibold text-green-800 uppercase tracking-wider'>{post.author}</span>
-                        <span className='text-xs text-stone-400'>|</span>
-                        <span className='text-xs text-stone-500'>{postDate}</span>
+                <Link key={post.id} to={`/clubs/${slug}/posts/${post.id}` as any} className='block group rounded-2xl bg-stone-50 border border-stone-200 overflow-hidden hover:border-green-800 hover:shadow-lg transition-all flex flex-col'>
+                  <div className='relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-green-50 to-stone-100'>
+                    {coverImg ? (
+                      <img src={coverImg} alt={post.title} loading='lazy' className='h-full w-full object-cover transition-transform duration-500 group-hover:scale-105' />
+                    ) : (
+                      <div className='h-full w-full flex flex-col items-center justify-center'>
+                        <svg className='w-10 h-10 text-green-800/30 mb-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z' /><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M15 13a3 3 0 11-6 0 3 3 0 016 0z' /></svg>
+                        <span className='text-xs text-green-800/40 font-medium uppercase tracking-wider'>Photo coming soon</span>
                       </div>
-                      <h3 className='font-display text-xl font-bold text-stone-900 mb-2 group-hover:text-green-800 transition-colors'>{post.title}</h3>
-                      <p className='text-stone-600 font-body leading-relaxed'>{post.excerpt}</p>
-                      <span className='inline-flex items-center gap-1 mt-3 text-sm font-semibold text-green-800 group-hover:gap-2 transition-all'>Read more</span>
+                    )}
+                    {media.length > 0 && (
+                      <span className='absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-white'>
+                        {hasVideo && <Video className='h-3 w-3' />}
+                        {media.filter((m: any) => m.media_type === 'image').length} {hasVideo ? 'photos + video' : 'photos'}
+                      </span>
+                    )}
+                  </div>
+                  <div className='flex flex-1 flex-col p-6'>
+                    <div className='flex items-center gap-3 mb-3'>
+                      <span className='text-xs font-semibold text-green-800 uppercase tracking-wider'>{post.author}</span>
+                      <span className='text-xs text-stone-400'>|</span>
+                      <span className='text-xs text-stone-500'>{postDate}</span>
                     </div>
+                    <h3 className='font-display text-lg font-bold text-stone-900 mb-2 group-hover:text-green-800 transition-colors'>{post.title}</h3>
+                    <p className='text-sm text-stone-600 font-body leading-relaxed line-clamp-3 flex-1'>{post.excerpt}</p>
+                    <span className='mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-green-800 group-hover:gap-2.5 transition-all'>
+                      View full story <ArrowRight className='h-4 w-4' />
+                    </span>
                   </div>
                 </Link>
               );

@@ -21,7 +21,7 @@ export const Route = createFileRoute("/mwosa")({
 
 type MwosaStat = { value: string; label: string };
 type MwosaLink = { label: string; url: string; description: string | null; icon: string; category: string };
-type MwosaUpdate = { title: string; body: string; update_date: string | null };
+type MwosaUpdate = { id?: string; title: string; body: string; update_date: string | null; image_url?: string | null };
 
 const DEFAULT_STATS: MwosaStat[] = [
   { value: "2020", label: "Wairaka Trust Fund launched by the alumni executive" },
@@ -166,21 +166,45 @@ function UpdatesSection({ updates }: { updates: MwosaUpdate[] }) {
         <div className="text-center mb-12">
           <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Project Updates</p>
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">What your contributions have done</h2>
+          <p className="mt-4 max-w-2xl mx-auto text-stone-600 font-body">
+            Every update opens into a full story — tap a card to see the photos and videos of the completed work.
+          </p>
         </div>
-        <div className="grid md:grid-cols-2 gap-6">
-          {updates.map((u, i) => (
-            <div key={u.title} className="rounded-2xl border border-stone-200 bg-stone-50 p-7 flex gap-5 hover:border-green-800 hover:shadow-md transition-all">
-              <div className="flex flex-col items-center shrink-0">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-800 text-white font-display font-bold">{i + 1}</span>
-                {i < updates.length - 1 && <span className="mt-2 w-px flex-1 bg-stone-300" />}
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-green-700 mb-1">{u.update_date || "Completed"}</p>
-                <h3 className="font-display text-lg font-bold text-stone-900 mb-2">{u.title}</h3>
-                <p className="text-sm text-stone-600 font-body leading-relaxed">{u.body}</p>
-              </div>
-            </div>
-          ))}
+        <div className="grid sm:grid-cols-2 gap-6">
+          {updates.map((u) => {
+            const href = u.id ? ("/mwosa/update/" + u.id) as any : null;
+            const card = (
+              <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-stone-50 hover:border-green-800 hover:shadow-lg transition-all flex flex-col">
+                <div className="relative aspect-[4/3] overflow-hidden bg-green-900">
+                  {u.image_url ? (
+                    <img
+                      src={u.image_url}
+                      alt={u.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-green-800 to-stone-900" />
+                  )}
+                  <span className="absolute left-4 top-4 rounded-full bg-black/60 backdrop-blur px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                    {u.update_date || "Completed"}
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col p-6">
+                  <h3 className="font-display text-lg font-bold text-stone-900 mb-2 group-hover:text-green-800 transition-colors">{u.title}</h3>
+                  <p className="text-sm text-stone-600 font-body leading-relaxed line-clamp-3 flex-1">{u.body}</p>
+                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-green-800 group-hover:gap-2.5 transition-all">
+                    View full story <ArrowRight className="h-4 w-4" />
+                  </span>
+                </div>
+              </article>
+            );
+            return href ? (
+              <Link key={u.id || u.title} to={href} className="block h-full">{card}</Link>
+            ) : (
+              <div key={u.title} className="h-full">{card}</div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -343,7 +367,7 @@ function MwosaPage() {
         if (quick.length) setQuickLinks(quick);
         if (chan.length) setChannels(chan);
       }
-      if (u.data?.length) setUpdates(u.data.map((x: any) => ({ title: x.title, body: x.body, update_date: x.update_date })));
+      if (u.data?.length) setUpdates(u.data.map((x: any) => ({ id: x.id, title: x.title, body: x.body, update_date: x.update_date, image_url: x.image_url })));
     })();
   }, []);
 
