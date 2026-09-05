@@ -174,13 +174,13 @@ function UpdatesSection({ updates, loading }: { updates: MwosaUpdate[]; loading?
             Every update opens into a full story — tap a card to see the photos and videos of the completed work.
           </p>
         </div>
-        <div className="grid sm:grid-cols-2 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {loading && linked.length === 0 && (
-            <div className="col-span-full grid sm:grid-cols-2 gap-6">
+            <div className="col-span-full grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[0, 1, 2, 3].map((n) => (
                 <div key={n} className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50 animate-pulse">
                   <div className="aspect-[4/3] bg-stone-200" />
-                  <div className="p-5 space-y-3">
+                  <div className="p-4 space-y-2.5">
                     <div className="h-4 bg-stone-200 rounded w-3/4" />
                     <div className="h-3 bg-stone-200 rounded w-full" />
                     <div className="h-3 bg-stone-200 rounded w-2/3" />
@@ -209,15 +209,15 @@ function UpdatesSection({ updates, loading }: { updates: MwosaUpdate[]; loading?
                   ) : (
                     <div className="h-full w-full bg-gradient-to-br from-green-800 to-stone-900" />
                   )}
-                  <span className="absolute left-4 top-4 rounded-full bg-black/60 backdrop-blur px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                  <span className="absolute left-3 top-3 rounded-full bg-black/60 backdrop-blur px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                     {u.update_date || "Completed"}
                   </span>
                 </div>
-                <div className="flex flex-1 flex-col p-6">
-                  <h3 className="font-display text-lg font-bold text-stone-900 mb-2 group-hover:text-green-800 transition-colors">{u.title}</h3>
-                  <p className="text-sm text-stone-600 font-body leading-relaxed line-clamp-3 flex-1">{u.body}</p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-green-800 group-hover:gap-2.5 transition-all">
-                    View full story <ArrowRight className="h-4 w-4" />
+                <div className="flex flex-1 flex-col p-4">
+                  <h3 className="font-display text-base font-bold text-stone-900 mb-1.5 group-hover:text-green-800 transition-colors line-clamp-2">{u.title}</h3>
+                  <p className="text-[13px] text-stone-600 font-body leading-relaxed line-clamp-2 flex-1">{u.body}</p>
+                  <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-green-800 group-hover:gap-2.5 transition-all">
+                    View full story <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </article>

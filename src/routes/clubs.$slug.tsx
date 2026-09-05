@@ -749,13 +749,13 @@ function ClubDetailPage() {
             <p className='text-sm font-semibold text-green-800 uppercase tracking-widest mb-3'>Latest Updates</p>
             <h2 className='font-display text-3xl md:text-4xl text-stone-900 font-bold'>What we have been up to</h2>
           </div>
-          <div className='grid sm:grid-cols-2 gap-6'>
+          <div className='grid sm:grid-cols-2 lg:grid-cols-3 gap-5'>
             {loading && posts.length === 0 && (
-              <div className='col-span-full grid sm:grid-cols-2 gap-6'>
-                {[0, 1].map((n) => (
+              <div className='col-span-full grid sm:grid-cols-2 lg:grid-cols-3 gap-5'>
+                {[0, 1, 2].map((n) => (
                   <div key={n} className='rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden animate-pulse'>
                     <div className='aspect-[4/3] bg-stone-200' />
-                    <div className='p-5 space-y-3'>
+                    <div className='p-4 space-y-2.5'>
                       <div className='h-4 bg-stone-200 rounded w-3/4' />
                       <div className='h-3 bg-stone-200 rounded w-full' />
                       <div className='h-3 bg-stone-200 rounded w-2/3' />
@@ -786,21 +786,21 @@ function ClubDetailPage() {
                       </div>
                     )}
                     {media.length > 0 && (
-                      <span className='absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-white'>
+                      <span className='absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-0.5 text-[10px] font-semibold text-white'>
                         {hasVideo && <Video className='h-3 w-3' />}
                         {media.filter((m: any) => m.media_type === 'image').length} {hasVideo ? 'photos + video' : 'photos'}
                       </span>
                     )}
                   </div>
-                  <div className='flex flex-1 flex-col p-6'>
-                    <div className='flex items-center gap-3 mb-3'>
-                      <span className='text-xs font-semibold text-green-800 uppercase tracking-wider'>{post.author}</span>
-                      <span className='text-xs text-stone-400'>|</span>
-                      <span className='text-xs text-stone-500'>{postDate}</span>
+                  <div className='flex flex-1 flex-col p-4'>
+                    <div className='flex items-center gap-2 mb-2'>
+                      <span className='text-[11px] font-semibold text-green-800 uppercase tracking-wider'>{post.author}</span>
+                      <span className='text-[11px] text-stone-400'>|</span>
+                      <span className='text-[11px] text-stone-500'>{postDate}</span>
                     </div>
-                    <h3 className='font-display text-lg font-bold text-stone-900 mb-2 group-hover:text-green-800 transition-colors'>{post.title}</h3>
-                    <p className='text-sm text-stone-600 font-body leading-relaxed line-clamp-3 flex-1'>{post.excerpt}</p>
-                    <span className='mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-green-800 group-hover:gap-2.5 transition-all'>
+                    <h3 className='font-display text-base font-bold text-stone-900 mb-1.5 group-hover:text-green-800 transition-colors line-clamp-2'>{post.title}</h3>
+                    <p className='text-[13px] text-stone-600 font-body leading-relaxed line-clamp-2 flex-1'>{post.excerpt}</p>
+                    <span className='mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-green-800 group-hover:gap-2.5 transition-all'>
                       View full story <ArrowRight className='h-4 w-4' />
                     </span>
                   </div>
