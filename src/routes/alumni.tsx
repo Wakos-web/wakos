@@ -1539,38 +1539,49 @@ function AlumniPulsePage() {
 
   if (!alumnus) {
     return (
-      <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden bg-[#0A0D14] text-white flex flex-col items-center justify-center px-6">
+      <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto bg-[#0A0D14] text-white flex items-center justify-center px-4 py-10">
+        {/* Pillar faded behind the dark navy */}
+        <img
+          src="/hero-poster.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.14]"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0A0D14]/70 via-[#0A0D14]/60 to-[#0A0D14]/85" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.14),transparent_65%)]" />
-        <div className="relative w-full max-w-lg text-center">
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-400/15 ring-1 ring-emerald-400/30 flex items-center justify-center mb-6">
-            <Users className="h-7 w-7 text-emerald-300" />
+
+        <div className="relative w-full max-w-md">
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.05] backdrop-blur-xl shadow-2xl">
+            <div className="p-8 sm:p-10 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-400/15 ring-1 ring-emerald-400/30 flex items-center justify-center mb-5">
+                <Users className="h-8 w-8 text-emerald-300" />
+              </div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300/90 mb-2">Alumni only</p>
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-white leading-tight">The WACOS Pulse</h1>
+              <p className="mt-3 text-sm text-white/55 font-body leading-relaxed">
+                Sign in with the email you registered with, or register as a WACOS alumnus — catch up with classmates, share updates, and hear about reunions first.
+              </p>
+
+              <div className="mt-7 text-left">
+                <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} />
+                <p className="text-center text-[11px] text-white/30 mt-4 font-body">
+                  Already registered on this email? Entering the same email signs you straight back in.
+                </p>
+              </div>
+
+              <ul className="mt-7 space-y-2 text-left text-[13px] text-white/60 font-body mx-auto max-w-xs">
+                <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Chat with classmates from every decade</li>
+                <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Post career news, memories and achievements</li>
+                <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Hear about and RSVP to reunions</li>
+              </ul>
+
+              <p className="mt-5 text-[11px] text-white/35 font-body">
+                New registrations are reviewed by the alumni admin — you'll get an email once you're approved.
+              </p>
+              <Link to="/" className="mt-6 inline-block text-sm text-white/40 hover:text-white">← Back to the M.M College Wairaka site</Link>
+            </div>
           </div>
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-300/90 mb-3">Alumni only</p>
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-white leading-tight">The WACOS Pulse is for alumni</h1>
-          <p className="mt-4 text-white/55 font-body leading-relaxed">
-            Sign in with the email you registered with, or register as a WACOS alumnus — catch up with old classmates, share updates, and hear about reunions first.
-          </p>
-          <ul className="mt-6 space-y-2 text-left text-sm text-white/60 font-body mx-auto max-w-sm">
-            <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Chat with classmates from every decade</li>
-            <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Post career news, memories and achievements</li>
-            <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />Hear about and RSVP to reunions</li>
-          </ul>
-          <button onClick={() => setPanel("join")} className="mt-8 w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 font-bold text-lg hover:brightness-110 transition-all">
-            Sign in or register as an alumnus
-          </button>
-          <p className="mt-4 text-xs text-white/35 font-body">
-            New registrations are reviewed by the alumni admin — you'll get an email once you're approved.
-          </p>
-          <Link to="/" className="mt-8 inline-block text-sm text-white/40 hover:text-white">← Back to the M.M College Wairaka site</Link>
         </div>
-        {panel === "join" && (
-          <SlidePanel title="Join the WACOS Pulse" subtitle="Sign in with a one-time code — then a quick review by the alumni office" showGuidelines onClose={closePanel}>
-            <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} />
-            <p className="text-center text-xs text-white/30 mt-4 font-body">
-              Already registered on this email? Entering the same email signs you straight back in.
-            </p>
-          </SlidePanel>
-        )}
         {noticeToast}
       </div>
     );
@@ -1578,7 +1589,15 @@ function AlumniPulsePage() {
 
   if (!alumnus.approved) {
     return (
-      <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden bg-[#0A0D14] text-white flex flex-col items-center justify-center px-6">
+      <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto bg-[#0A0D14] text-white flex items-center justify-center px-4 py-10">
+        {/* Pillar faded behind the dark navy */}
+        <img
+          src="/hero-poster.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.14]"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0A0D14]/70 via-[#0A0D14]/60 to-[#0A0D14]/85" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(251,191,36,0.12),transparent_65%)]" />
         <div className="relative w-full max-w-lg text-center">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-400/15 ring-1 ring-amber-400/30 flex items-center justify-center mb-6">
@@ -1846,15 +1865,7 @@ function AlumniPulsePage() {
         </div>
       )}
 
-      {/* Join / Edit slide panels */}
-      {panel === "join" && (
-        <SlidePanel title="Join the WACOS Pulse" subtitle="Sign in with a one-time code — then a quick review by the alumni office" showGuidelines onClose={closePanel}>
-          <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} />
-          <p className="text-center text-xs text-white/30 mt-4 font-body">
-            Already registered on this email? Entering the same email signs you straight back in.
-          </p>
-        </SlidePanel>
-      )}
+      {/* Edit profile slide panel */}
       {panel === "edit" && alumnus && (
         <SlidePanel title="Edit your alumni profile" subtitle="Your photo appears on your posts and in the directory" onClose={closePanel}>
           <RegistrationForm alumnus={alumnus} mode="edit" onDone={handleProfileSaved} onSignOut={() => { signOut(); closePanel(); }} />
