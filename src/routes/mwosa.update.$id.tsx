@@ -65,33 +65,41 @@ function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; 
 function MediaCard({ item }: { item: MediaItem }) {
   if (item.media_type === "video") {
     return (
-      <figure className="mb-6 break-inside-avoid overflow-hidden rounded-2xl bg-stone-100 border border-stone-200 shadow-sm hover:shadow-lg transition-shadow">
-        <div className="relative group">
+      <figure className="group mb-6 break-inside-avoid overflow-hidden rounded-2xl bg-stone-100 border border-stone-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500">
+        <div className="relative">
           <video
             src={item.media_url}
             poster={item.poster_url || undefined}
             controls
             playsInline
             preload="metadata"
-            className="w-full aspect-video object-cover bg-black"
+            className="w-full aspect-video object-cover bg-black transition-transform duration-700 ease-out group-hover:scale-[1.03]"
           />
-          <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
-            <PlayCircle className="h-3.5 w-3.5" /> Video
+          <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition-all duration-500 group-hover:bg-green-800 group-hover:scale-105">
+            <PlayCircle className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-12" /> Video
           </span>
         </div>
         {item.caption && (
-          <figcaption className="px-4 py-3 text-sm text-stone-600 font-body leading-relaxed">{item.caption}</figcaption>
+          <figcaption className="px-4 py-3 text-sm text-stone-600 font-body leading-relaxed transition-colors duration-500 group-hover:text-stone-800">{item.caption}</figcaption>
         )}
       </figure>
     );
   }
   return (
-    <figure className="mb-6 break-inside-avoid overflow-hidden rounded-2xl bg-stone-100 border border-stone-200 shadow-sm hover:shadow-lg transition-shadow">
+    <figure className="group mb-6 break-inside-avoid overflow-hidden rounded-2xl bg-stone-100 border border-stone-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500">
       <div className="relative overflow-hidden">
-        <img src={item.media_url} alt={item.caption || ""} loading="lazy" className="w-full object-cover" />
+        <img
+          src={item.media_url}
+          alt={item.caption || ""}
+          loading="lazy"
+          className="w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
       </div>
       {item.caption && (
-        <figcaption className="px-4 py-3 text-sm text-stone-600 font-body leading-relaxed">{item.caption}</figcaption>
+        <figcaption className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out bg-gradient-to-t from-black/85 via-black/60 to-transparent px-4 pt-12 pb-3 text-sm text-white font-body leading-relaxed">
+          {item.caption}
+        </figcaption>
       )}
     </figure>
   );
