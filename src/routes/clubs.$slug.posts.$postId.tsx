@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Calendar, Image as ImageIcon, Video as VideoIcon, PlayCircle } from 'lucide-react';
+import { Lightbox, LightboxHint } from '@/components/lightbox';
 
 export const Route = createFileRoute('/clubs/$slug/posts/$postId')({
   head: ({ params }) => ({
@@ -73,7 +74,7 @@ function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; 
   );
 }
 
-function MediaCard({ item }: { item: MediaItem }) {
+function MediaCard({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
   if (item.media_type === 'video') {
     return (
       <figure className="group mb-8 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
@@ -98,7 +99,18 @@ function MediaCard({ item }: { item: MediaItem }) {
     );
   }
   return (
-    <figure className="group mb-8 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
+    <figure
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      aria-label={item.caption ? `View photo: ${item.caption}` : 'View photo'}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="group mb-8 break-inside-avoid cursor-zoom-in overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700">
       <div className="relative overflow-hidden">
         <img
           src={item.media_url}
@@ -108,6 +120,7 @@ function MediaCard({ item }: { item: MediaItem }) {
         />
         {/* Glossy bubble highlight */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-transparent" />
+        <LightboxHint />
       </div>
       {item.caption && (
         <figcaption className="px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">
@@ -124,6 +137,7 @@ function PostDetailPage() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [clubName, setClubName] = useState(slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -215,11 +229,20 @@ function PostDetailPage() {
           <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 [column-fill:_balance]">
             {media.map((item, i) => (
               <Reveal key={item.id} delay={(i % 3) * 90}>
-                <MediaCard item={item} />
+                <MediaCard item={item} onOpen={() => setLightboxIndex(i)} />
               </Reveal>
             ))}
           </div>
         </section>
+      )}
+
+      {lightboxIndex !== null && media.length > 0 && (
+        <Lightbox
+          items={media}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={(next) => setLightboxIndex(next)}
+        />
       )}
 
       {/* Story text */}
