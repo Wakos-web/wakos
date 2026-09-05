@@ -299,8 +299,15 @@ function ThankYouForm({ ways }: { ways: GivingWay[] }) {
   };
 
   return (
-    <section className="bg-green-900 py-20">
-      <div className="max-w-4xl mx-auto px-6">
+    <section className="relative overflow-hidden bg-green-900 py-20">
+      {/* Pillar image faded behind the green */}
+      <img
+        src="/hero-poster.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.1]"
+      />
+      <div className="relative max-w-4xl mx-auto px-6">
         {!submitted ? (
           <>
             <div className="text-center mb-10">
