@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS alumni_profiles (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL,
+  nickname TEXT,
   graduation_year INT NOT NULL,
   programme TEXT NOT NULL DEFAULT 'O-Level',
   current_location TEXT,

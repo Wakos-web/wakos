@@ -31,6 +31,7 @@ type Alumnus = {
   id: string;
   user_id: string | null;
   full_name: string;
+  nickname: string | null;
   graduation_year: number;
   programme: string;
   email: string | null;
@@ -229,6 +230,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
 }) {
   const isEdit = mode === "edit";
   const [name, setName] = useState(alumnus?.full_name || "");
+  const [nickname, setNickname] = useState(alumnus?.nickname || "");
   const [email, setEmail] = useState(alumnus?.email || "");
   const [year, setYear] = useState(alumnus ? String(alumnus.graduation_year) : "");
   const [programme, setProgramme] = useState(alumnus?.programme || "O-Level");
@@ -269,6 +271,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
     const uploadedAvatar = avatarFile ? await uploadFileToBucket("class-notes-photos", "avatars", avatarFile) : null;
     const { data, error: insertError } = await supabase.from("alumni_profiles").insert({
       full_name: name.trim(),
+      nickname: nickname.trim() || null,
       email: email.trim().toLowerCase(),
       graduation_year: parseInt(year),
       programme,
@@ -292,6 +295,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
     const uploadedAvatar = avatarFile ? await uploadFileToBucket("class-notes-photos", "avatars", avatarFile) : alumnus?.avatar_url;
     const { data, error: updateError } = await supabase.from("alumni_profiles").update({
       full_name: name.trim(),
+      nickname: nickname.trim() || null,
       profession: profession || null,
       company: company || null,
       current_location: location || null,
@@ -351,13 +355,18 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
           <input type="text" required value={name} onChange={e => setName(e.target.value)} className={inputCls} placeholder="Your full name" />
         </div>
         <div>
-          <label className={labelCls}>Email Address *</label>
-          <input type="email" required disabled={isEdit} value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="you@example.com" />
-          {isEdit && <p className="text-xs text-white/35 mt-1">Email is your identity and cannot be changed here.</p>}
+          <label className={labelCls}>Nickname</label>
+          <input type="text" value={nickname} onChange={e => setNickname(e.target.value)} className={inputCls} placeholder="What classmates call you" />
+          <p className="text-xs text-white/35 mt-1">Optional. Shows on your posts so classmates recognize you.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>Email Address *</label>
+          <input type="email" required disabled={isEdit} value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="you@example.com" />
+          {isEdit && <p className="text-xs text-white/35 mt-1">Email is your identity and cannot be changed here.</p>}
+        </div>
         <div>
           <label className={labelCls}>Graduation Year *</label>
           <select required value={year} onChange={e => setYear(e.target.value)} className={inputCls}>
@@ -365,6 +374,9 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut }: {
             {years.map(y => <option key={y} value={y} className="bg-[#10141d]">{y}</option>)}
           </select>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Programme *</label>
           <select value={programme} onChange={e => setProgramme(e.target.value)} className={inputCls}>
