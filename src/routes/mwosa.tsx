@@ -390,6 +390,17 @@ function MwosaPage() {
   const [updatesLoading, setUpdatesLoading] = useState(true);
   const [socials, setSocials] = useState<any[]>([]);
 
+  // Browsers can restore a stale page from the back/forward cache without
+  // re-fetching, which shows old cards with dead links after a deploy.
+  // Reload when that happens so the page always reflects the latest build.
+  useEffect(() => {
+    const onPageshow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", onPageshow);
+    return () => window.removeEventListener("pageshow", onPageshow);
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {

@@ -541,6 +541,16 @@ function ClubDetailPage() {
     return function() { window.removeEventListener('scroll', onScroll); };
   }, []);
 
+  // Reload when the browser restores this page from the back/forward cache
+  // (bfcache) — a stale DOM shows old cards with dead links after a deploy.
+  useEffect(() => {
+    const onPageshow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload();
+    };
+    window.addEventListener('pageshow', onPageshow);
+    return () => window.removeEventListener('pageshow', onPageshow);
+  }, []);
+
   useEffect(() => {
     supabase.from('clubs').select('*').eq('slug', slug).single().then(({ data: clubData }) => {
       if (clubData) {
