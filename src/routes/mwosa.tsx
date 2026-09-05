@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
+import { SocialLinksRow } from "@/components/social-links";
 import {
   MessageCircle, Users, Building2, Sparkles, Briefcase, TrendingUp,
   Landmark, Award, Crown, ArrowRight, Heart, Calendar, ChevronRight,
-  HandHeart, Megaphone, GraduationCap,
+  HandHeart, Megaphone, GraduationCap, AlertTriangle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/mwosa")({
@@ -73,7 +74,7 @@ function HeroSection({ desc }: { desc: string }) {
   return (
     <section className="relative h-[52vh] min-h-[380px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src="/mwosa.jpeg" alt="MWOSA alumni association" className="h-full w-full object-cover object-center" />
+        <img src="/mwosa-hero.png" alt="MWOSA alumni association" className="h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
@@ -159,7 +160,10 @@ function StatsSection({ stats }: { stats: MwosaStat[] }) {
   );
 }
 
-function UpdatesSection({ updates }: { updates: MwosaUpdate[] }) {
+function UpdatesSection({ updates, loading }: { updates: MwosaUpdate[]; loading?: boolean }) {
+  // DEFAULT_UPDATES carry no id — render skeletons while loading and only
+  // ever link cards that have a real DB id, so every card leads to its story.
+  const linked = updates.filter((u) => u.id);
   return (
     <section className="py-20 bg-white">
       <div className="max-w-6xl mx-auto px-6">
@@ -171,8 +175,27 @@ function UpdatesSection({ updates }: { updates: MwosaUpdate[] }) {
           </p>
         </div>
         <div className="grid sm:grid-cols-2 gap-6">
-          {updates.map((u) => {
-            const href = u.id ? ("/mwosa/update/" + u.id) as any : null;
+          {loading && linked.length === 0 && (
+            <div className="col-span-full grid sm:grid-cols-2 gap-6">
+              {[0, 1, 2, 3].map((n) => (
+                <div key={n} className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50 animate-pulse">
+                  <div className="aspect-[4/3] bg-stone-200" />
+                  <div className="p-5 space-y-3">
+                    <div className="h-4 bg-stone-200 rounded w-3/4" />
+                    <div className="h-3 bg-stone-200 rounded w-full" />
+                    <div className="h-3 bg-stone-200 rounded w-2/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {!loading && linked.length === 0 && (
+            <p className="col-span-full text-center text-stone-500 py-8 font-body">
+              No updates yet — check back soon.
+            </p>
+          )}
+          {linked.map((u) => {
+            const href = ("/mwosa/update/" + u.id) as any;
             const card = (
               <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-stone-50 hover:border-green-800 hover:shadow-lg transition-all flex flex-col">
                 <div className="relative aspect-[4/3] overflow-hidden bg-green-900">
@@ -217,14 +240,15 @@ function UpdatesSection({ updates }: { updates: MwosaUpdate[] }) {
  * mailto, tel) become plain anchors. */
 function MwosaLinkCard({ l, card }: { l: MwosaLink; card: "quick" | "channel" }) {
   const Icon = LINK_ICONS[l.icon] || MessageCircle;
-  const isExternal = /^(https?:|mailto:|tel:)/.test(l.url);
-  const hashIdx = l.url.indexOf("#");
-  const qIdx = l.url.indexOf("?");
-  const hashAt = hashIdx > -1 ? hashIdx : l.url.length;
+  const url = (l.url || "").trim();
+  const isExternal = /^(https?:|mailto:|tel:)/.test(url);
+  const hashIdx = url.indexOf("#");
+  const qIdx = url.indexOf("?");
+  const hashAt = hashIdx > -1 ? hashIdx : url.length;
   const qAt = qIdx > -1 && (hashIdx === -1 || qIdx < hashIdx) ? qIdx : hashAt;
-  const toPath = l.url.slice(0, qAt);
-  const searchStr = l.url.slice(qAt, hashAt);
-  const hash = l.url.slice(hashAt + 1);
+  const toPath = url.slice(0, qAt);
+  const searchStr = url.slice(qAt, hashAt);
+  const hash = url.slice(hashAt + 1);
   // TanStack Router's default serializer JSON-quotes string search values
   // (?year=%222020%22), but numeric values stay clean (?year=2020) and parse
   // back to numbers. Digit-only params are therefore sent as numbers.
@@ -264,8 +288,20 @@ function MwosaLinkCard({ l, card }: { l: MwosaLink; card: "quick" | "channel" })
     ? `group rounded-2xl bg-white border border-stone-200 p-7 hover:border-green-800 hover:shadow-lg transition-all ${quickCard}`
     : channelCard;
 
+  if (!url) {
+    // No link set (or blank) — never reroute. Show an error state instead.
+    return (
+      <div key={l.label} title="This link has not been set up yet." className={cls + " cursor-not-allowed"}>
+        {content}
+        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+          <AlertTriangle className="h-3.5 w-3.5" /> Link not available yet
+        </span>
+      </div>
+    );
+  }
+
   if (isExternal || toPath.startsWith("//")) {
-    return <a key={l.label} href={l.url} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noopener noreferrer" : undefined} className={cls}>{content}</a>;
+    return <a key={l.label} href={url} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noopener noreferrer" : undefined} className={cls}>{content}</a>;
   }
   const hasSearch = Object.keys(searchParams).length > 0;
   const linkProps: Record<string, any> = { key: l.label, to: toPath, className: cls };
@@ -296,7 +332,7 @@ function ChannelsSection({ channels }: { channels: MwosaLink[] }) {
     <section className="py-20 bg-white">
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-12">
-          <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Whats Up Channels</p>
+          <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">WhatsApp Channels</p>
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">Discover your OB and OG by graduation year</h2>
           <p className="mt-4 max-w-2xl mx-auto text-stone-600 font-body">
             Old Boys (OB) and Old Girls (OG) of every decade are in the alumni directory. Pick your class channel
@@ -351,32 +387,48 @@ function MwosaPage() {
   const [quickLinks, setQuickLinks] = useState<MwosaLink[]>(DEFAULT_QUICK_LINKS);
   const [channels, setChannels] = useState<MwosaLink[]>(DEFAULT_CHANNELS);
   const [updates, setUpdates] = useState<MwosaUpdate[]>(DEFAULT_UPDATES);
+  const [updatesLoading, setUpdatesLoading] = useState(true);
+  const [socials, setSocials] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [s, l, u] = await Promise.all([
-        supabase.from("mwosa_stats").select("*").eq("active", true).order("sort_order", { ascending: true }),
-        supabase.from("mwosa_links").select("*").eq("active", true).order("sort_order", { ascending: true }),
-        supabase.from("mwosa_updates").select("*").eq("active", true).order("sort_order", { ascending: true }),
-      ]);
-      if (s.data?.length) setStats(s.data.map((x: any) => ({ value: x.value, label: x.label })));
-      if (l.data?.length) {
-        const mapped = l.data.map((x: any) => ({ label: x.label, url: x.url, description: x.description, icon: x.icon, category: x.category }));
-        const quick = mapped.filter((m: any) => m.category !== "channel");
-        const chan = mapped.filter((m: any) => m.category === "channel");
-        if (quick.length) setQuickLinks(quick);
-        if (chan.length) setChannels(chan);
+      try {
+        const [s, l, u] = await Promise.all([
+          supabase.from("mwosa_stats").select("*").eq("active", true).order("sort_order", { ascending: true }),
+          supabase.from("mwosa_links").select("*").eq("active", true).order("sort_order", { ascending: true }),
+          supabase.from("mwosa_updates").select("*").eq("active", true).order("sort_order", { ascending: true }),
+        ]);
+        if (s.data?.length) setStats(s.data.map((x: any) => ({ value: x.value, label: x.label })));
+        if (l.data?.length) {
+          const mapped = l.data.map((x: any) => ({ label: x.label, url: x.url, description: x.description, icon: x.icon, category: x.category }));
+          const quick = mapped.filter((m: any) => m.category !== "channel");
+          const chan = mapped.filter((m: any) => m.category === "channel");
+          if (quick.length) setQuickLinks(quick);
+          if (chan.length) setChannels(chan);
+        }
+        if (u.data?.length) setUpdates(u.data.map((x: any) => ({ id: x.id, title: x.title, body: x.body, update_date: x.update_date, image_url: x.image_url })));
+        const s2 = await supabase.from("social_links").select("*").eq("entity_type", "mwosa").eq("active", true).order("sort_order", { ascending: true });
+        if (s2.data?.length) setSocials(s2.data);
+      } finally {
+        setUpdatesLoading(false);
       }
-      if (u.data?.length) setUpdates(u.data.map((x: any) => ({ id: x.id, title: x.title, body: x.body, update_date: x.update_date, image_url: x.image_url })));
     })();
   }, []);
 
   return (
     <div>
       <HeroSection desc={heroDesc} />
+      {socials.length > 0 && (
+        <section className="bg-green-900 border-t border-white/10">
+          <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between flex-wrap gap-3">
+            <p className="text-sm font-semibold text-white/90 uppercase tracking-widest">Follow MWOSA</p>
+            <SocialLinksRow links={socials} tone="dark" />
+          </div>
+        </section>
+      )}
       <OverviewSection content={content} />
       <StatsSection stats={stats} />
-      <UpdatesSection updates={updates} />
+      <UpdatesSection updates={updates} loading={updatesLoading} />
       <QuickLinksSection links={quickLinks} />
       <ChannelsSection channels={channels} />
       <JoinCta />
