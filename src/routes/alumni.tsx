@@ -396,7 +396,7 @@ function SlidePanel({ title, subtitle, onClose, children, showGuidelines = false
             <X className="h-5 w-5 text-white/50" />
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
           {showGuidelines && <PulseGuidelines />}
           <div className={showGuidelines ? "mt-5" : ""}>{children}</div>
         </div>
@@ -621,7 +621,7 @@ function NoteBubble({ note, mine, likes, comments, alumnus, onLike, onComment, o
               <div className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 <input value={commentText} onChange={e => setCommentText(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleComment()}
-                  placeholder="Reply..." className="flex-1 min-w-0 text-sm px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
+                  placeholder="Reply..." className="flex-1 min-w-0 text-base px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
                 <button onClick={handleComment} disabled={submitting || !commentText.trim()}
                   className="px-4 py-2 rounded-full bg-emerald-400 text-[#06110d] text-sm font-bold hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed">
                   {submitting ? "..." : "Reply"}
@@ -754,7 +754,7 @@ function ComposerBar({ alumnus, channelKey, sending, text, setText, onSend, onPi
         <textarea rows={2} enterKeyHint="send" value={text} onChange={e => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
           placeholder={channelKey === "events" ? "Suggest an event or chat about gatherings..." : "Send something to the Pulse..."}
-          className="flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] text-white placeholder-white/30 focus:outline-none" />
+          className="flex-1 resize-none bg-transparent px-2 py-1.5 text-base text-white placeholder-white/30 focus:outline-none" />
         {photoPreview && (
           <div className="relative shrink-0">
             <img src={photoPreview} alt="" className="h-12 w-14 rounded-lg object-cover" />
@@ -1006,6 +1006,31 @@ function AlumniPulsePage() {
   }, [channel, loading]);
   useEffect(() => { stickToLatest(); }, [notes.length, events.length]);
 
+  // On-screen keyboard handling: pinch the app to the visible viewport while a
+  // field is focused so the composer (and focused replies) stay above the keys.
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = mainRef.current;
+    if (!vv || !el) return;
+    const apply = () => {
+      const ae = document.activeElement;
+      const typing = !!ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA");
+      if (typing && vv.height < window.innerHeight - 40) el.style.height = `${vv.height}px`;
+      else el.style.height = "";
+    };
+    vv.addEventListener("resize", apply);
+    vv.addEventListener("scroll", apply);
+    document.addEventListener("focusin", apply);
+    document.addEventListener("focusout", apply);
+    return () => {
+      vv.removeEventListener("resize", apply);
+      vv.removeEventListener("scroll", apply);
+      document.removeEventListener("focusin", apply);
+      document.removeEventListener("focusout", apply);
+    };
+  }, []);
+
   // Unread badge helpers, consumed by the realtime handlers below.
   const markUnread = (k: string) => setUnread(prev => ({ ...prev, [k]: (prev[k] || 0) + 1 }));
   const dropUnread = (k: string) => setUnread(prev => (prev[k] ? { ...prev, [k]: prev[k] - 1 } : prev));
@@ -1209,7 +1234,7 @@ function AlumniPulsePage() {
   const threadCount = channel === "events" ? events.length : channelNotes.length;
 
   return (
-    <main className="h-screen supports-[height:100dvh]:h-[100dvh] flex bg-[#0A0D14] text-white overflow-hidden relative">
+    <main ref={mainRef} className="h-screen supports-[height:100dvh]:h-[100dvh] flex bg-[#0A0D14] text-white overflow-hidden relative">
       {/* Top ambient glow */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.14),transparent_65%)]" />
 
@@ -1373,7 +1398,7 @@ function AlumniPulsePage() {
       {drawer === "list" && (
         <div className="fixed inset-0 z-40 flex md:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawer("none")} />
-          <div className="relative w-[300px] bg-[#0C1018] border-r border-white/10 h-full animate-slide-in-left">
+          <div className="relative w-[300px] max-w-[85vw] bg-[#0C1018] border-r border-white/10 h-full animate-slide-in-left">
             <div className="flex justify-end p-2">
               <button onClick={() => setDrawer("none")} className="p-2 text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
@@ -1385,7 +1410,7 @@ function AlumniPulsePage() {
       {drawer === "info" && (
         <div className="fixed inset-0 z-40 flex justify-end xl:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawer("none")} />
-          <div className="relative w-[330px] bg-[#0C1018] border-l border-white/10 h-full animate-slide-in-right">
+          <div className="relative w-[330px] max-w-full bg-[#0C1018] border-l border-white/10 h-full animate-slide-in-right">
             <div className="flex justify-end p-2">
               <button onClick={() => setDrawer("none")} className="p-2 text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
