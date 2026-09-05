@@ -161,26 +161,20 @@ function UpdateStoryPage() {
     );
   }
 
-  const cover = story.image_url || (media.find((m) => m.media_type === "image")?.media_url ?? null);
-
   return (
     <div className="bg-stone-50 min-h-screen">
-      {/* Story header */}
-      <section className="relative overflow-hidden bg-green-900">
-        <div className="absolute inset-0">
-          {cover && <img src={cover} alt="" className="h-full w-full object-cover opacity-20" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-green-900 via-green-900/70 to-green-900/40" />
-        </div>
-        <div className="relative z-10 max-w-4xl mx-auto px-6 pt-28 pb-16">
-          <Link to="/mwosa" className="inline-flex items-center gap-1.5 text-sm text-white/70 hover:text-white mb-6 transition-colors">
+      {/* Story header — text only, no hero image */}
+      <section className="bg-white border-b border-stone-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-10">
+          <Link to="/mwosa" className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-green-800 mb-5 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to MWOSA
           </Link>
-          <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-green-200">
+          <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-green-800">
             <Calendar className="h-3.5 w-3.5" /> {story.update_date || "Completed"}
           </p>
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-white tracking-tight mb-5">{story.title}</h1>
-          <p className="text-lg text-white/85 font-body leading-relaxed max-w-3xl">{story.body}</p>
-          <p className="mt-6 text-sm text-white/60">
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-stone-900 tracking-tight mb-3">{story.title}</h1>
+          {story.body && <p className="text-base text-stone-600 font-body leading-relaxed max-w-3xl">{story.body}</p>}
+          <p className="mt-5 text-sm text-stone-400">
             {media.length} {media.length === 1 ? "photo or video" : "photos & videos"} in this story
           </p>
         </div>

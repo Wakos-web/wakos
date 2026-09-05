@@ -2508,6 +2508,34 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
 
   const addMedia = async (file: File | undefined, type: "image" | "video") => {
     if (!file) return;
+    const videoCount = items.filter((m: any) => m.media_type === "video").length;
+    const imageCount = items.filter((m: any) => m.media_type === "image").length;
+    if (type === "video" && videoCount >= 2) {
+      setToast({ message: "Stories allow a maximum of 2 videos. Remove one before adding another.", type: "error" });
+      if (videoRef.current) videoRef.current.value = "";
+      return;
+    }
+    if (type === "image" && imageCount >= 5) {
+      setToast({ message: "Stories allow a maximum of 5 photos. Remove one before adding another.", type: "error" });
+      if (photoRef.current) photoRef.current.value = "";
+      return;
+    }
+    if (items.length >= 6) {
+      setToast({ message: "Stories hold a maximum of 6 media items (5 photos + 2 videos).", type: "error" });
+      if (photoRef.current) photoRef.current.value = "";
+      if (videoRef.current) videoRef.current.value = "";
+      return;
+    }
+    if (type === "video" && file.size > 5 * 1024 * 1024) {
+      setToast({ message: "Videos must be 5MB or smaller. Compress or trim this clip first.", type: "error" });
+      if (videoRef.current) videoRef.current.value = "";
+      return;
+    }
+    const captionWords = addCaption.trim().split(/\s+/).filter(Boolean).length;
+    if (captionWords > 55) {
+      setToast({ message: "Captions are limited to 55 words. Shorten this caption before uploading.", type: "error" });
+      return;
+    }
     setUploading(true);
     try {
       const url = await uploadFile(file);
@@ -2534,6 +2562,11 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
   const saveRow = async (id: string) => {
     const e = edits[id];
     if (!e) return;
+    const captionWords = (e.caption || "").trim().split(/\s+/).filter(Boolean).length;
+    if (captionWords > 55) {
+      setToast({ message: "Captions are limited to 55 words. Shorten this caption before saving.", type: "error" });
+      return;
+    }
     const { error } = await supabase.from("mwosa_update_media").update({
       caption: e.caption.trim() || null,
       sort_order: parseInt(e.sort) || 0,
@@ -2613,12 +2646,17 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
       </p>
 
       <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 mb-4 space-y-3">
-        <input
-          value={addCaption}
-          onChange={(e) => setAddCaption(e.target.value)}
-          placeholder="Caption for the new photo / video"
-          className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-        />
+        <div className="relative">
+          <input
+            value={addCaption}
+            onChange={(e) => setAddCaption(e.target.value)}
+            placeholder="Caption for the new photo / video (max 55 words)"
+            className="w-full p-3 pr-20 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+          />
+          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold ${addCaption.trim().split(/\s+/).filter(Boolean).length > 55 ? "text-red-600" : "text-stone-400"}`}>
+            {addCaption.trim().split(/\s+/).filter(Boolean).length}/55
+          </span>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => photoRef.current?.click()}

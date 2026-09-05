@@ -105,6 +105,34 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
 
   const addMedia = async (file: File | undefined, type: "image" | "video") => {
     if (!file) return;
+    const videoCount = items.filter((m: any) => m.media_type === "video").length;
+    const imageCount = items.filter((m: any) => m.media_type === "image").length;
+    if (type === "video" && videoCount >= 2) {
+      notice("Stories allow a maximum of 2 videos. Remove one before adding another.", "err");
+      if (videoRef.current) videoRef.current.value = "";
+      return;
+    }
+    if (type === "image" && imageCount >= 5) {
+      notice("Stories allow a maximum of 5 photos. Remove one before adding another.", "err");
+      if (photoRef.current) photoRef.current.value = "";
+      return;
+    }
+    if (items.length >= 6) {
+      notice("Stories hold a maximum of 6 media items (5 photos + 2 videos).", "err");
+      if (photoRef.current) photoRef.current.value = "";
+      if (videoRef.current) videoRef.current.value = "";
+      return;
+    }
+    if (type === "video" && file.size > 5 * 1024 * 1024) {
+      notice("Videos must be 5MB or smaller. Compress or trim this clip first.", "err");
+      if (videoRef.current) videoRef.current.value = "";
+      return;
+    }
+    const captionWords = addCaption.trim().split(/\s+/).filter(Boolean).length;
+    if (captionWords > 55) {
+      notice("Captions are limited to 55 words. Shorten this caption before uploading.", "err");
+      return;
+    }
     setUploading(true);
     try {
       const url = await uploadMediaFile(file);
@@ -131,6 +159,11 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
   const saveRow = async (id: string) => {
     const e = edits[id];
     if (!e) return;
+    const captionWords = (e.caption || "").trim().split(/\s+/).filter(Boolean).length;
+    if (captionWords > 55) {
+      notice("Captions are limited to 55 words. Shorten this caption before saving.", "err");
+      return;
+    }
     const { error } = await supabase.from("club_post_media").update({
       caption: e.caption.trim() || null,
       sort_order: parseInt(e.sort) || 0,
@@ -155,12 +188,17 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
       </p>
 
       <div className="rounded-xl bg-white border border-stone-200 p-3 mb-4 space-y-3">
-        <input
-          value={addCaption}
-          onChange={(e) => setAddCaption(e.target.value)}
-          placeholder="Caption for the new photo / video"
-          className="w-full p-2.5 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-        />
+        <div className="relative">
+          <input
+            value={addCaption}
+            onChange={(e) => setAddCaption(e.target.value)}
+            placeholder="Caption for the new photo / video (max 55 words)"
+            className="w-full p-2.5 pr-16 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+          />
+          <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${addCaption.trim().split(/\s+/).filter(Boolean).length > 55 ? "text-red-600" : "text-stone-400"}`}>
+            {addCaption.trim().split(/\s+/).filter(Boolean).length}/55
+          </span>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => photoRef.current?.click()}
