@@ -73,7 +73,7 @@ function MediaCard({ item }: { item: MediaItem }) {
             controls
             playsInline
             preload="metadata"
-            className="w-full aspect-video object-cover bg-black transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+            className="w-full aspect-video object-cover bg-black"
           />
           {/* Glossy bubble highlight */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent" />
@@ -94,7 +94,7 @@ function MediaCard({ item }: { item: MediaItem }) {
           src={item.media_url}
           alt={item.caption || ""}
           loading="lazy"
-          className="w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+          className="kenburns w-full object-cover"
         />
         {/* Glossy bubble highlight */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-transparent" />
