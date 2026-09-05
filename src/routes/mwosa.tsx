@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
@@ -379,6 +379,10 @@ function JoinCta() {
 }
 
 function MwosaPage() {
+  // The story detail route (/mwosa/update/$id) is a child of this route.
+  // All hooks below must run unconditionally (React hook-order rule), so
+  // the story check happens only AFTER every hook has run.
+  const isStoryRoute = useMatch({ from: "/mwosa/update/$id", shouldThrow: false });
   const { content } = usePageContent("mwosa");
   const heroDesc =
     content.hero?.description ||
@@ -425,6 +429,10 @@ function MwosaPage() {
       }
     })();
   }, []);
+
+  // The story detail route is a child of this route. When it is active,
+  // render ONLY the story — this page's own content is for /mwosa itself.
+  if (isStoryRoute) return <Outlet />;
 
   return (
     <div>

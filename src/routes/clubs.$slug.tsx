@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, Outlet, useMatch } from '@tanstack/react-router';
 import { useState, useEffect, useRef } from 'react';
 import { IMAGES } from '@/lib/content';
 import { SocialLinksRow } from '@/components/social-links';
@@ -524,6 +524,10 @@ function PortraitCard({ person, index, size = 'lg' }: { person: Person; index: n
 }
 
 function ClubDetailPage() {
+  // The club story route (/clubs/$slug/posts/$postId) is a child of this
+  // route. All hooks below must run unconditionally (React hook-order rule),
+  // so the story check happens only AFTER every hook has run.
+  const isStoryRoute = useMatch({ from: "/clubs/$slug/posts/$postId", shouldThrow: false });
   const { slug } = Route.useParams();
   const [dbClub, setDbClub] = useState<any>(null);
   const [dbMembers, setDbMembers] = useState<any[]>([]);
@@ -606,6 +610,11 @@ function ClubDetailPage() {
   // Only render real DB posts. Sample fallback cards (numeric ids like posts/1)
   // used to render during SSR/hydration and linked to dead pages — never show them.
   const posts = dbPosts;
+
+  // The club story route is a child of this route. When it is active,
+  // render ONLY the story — this page's own content is for the club itself.
+  // Placed after every hook so SPA navigation keeps a stable hook order.
+  if (isStoryRoute) return <Outlet />;
 
   if (!club) return <div className='py-20 text-center text-stone-500'>Club not found.</div>;
 

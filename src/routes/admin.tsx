@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatch, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff, adminSendLoginCode, adminVerifyLoginCode } from "@/lib/supabase";
 import { notifyClubEditor } from "@/lib/club-notify";
@@ -3320,6 +3320,12 @@ function AdminPage() {
   };
 
   useEffect(() => { boot(); }, []);
+
+  // /admin/accept-invite is a child route of /admin. When it is active,
+  // render ONLY the accept page — the dashboard is for /admin itself.
+  // This check stays after every hook so SPA navigation keeps hook order.
+  const isAcceptInvite = useMatch({ from: "/admin/accept-invite", shouldThrow: false });
+  if (isAcceptInvite) return <Outlet />;
 
   const roleVisible: Record<string, Tab[]> = {
     super_admin: ["overview", "clubs", "alumni", "events", "rsvps", "notes", "inquiries", "businesses", "articles", "pages", "applications", "mentorship", "donations", "giving", "mwosa", "scholarships", "comments", "settings", "staff"],
