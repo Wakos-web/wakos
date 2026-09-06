@@ -955,17 +955,40 @@ export const adminAcceptInvite = createServerFn({ method: "POST" })
     .eq("role", invite.role)
     .maybeSingle();
   if (!existingRole) {
-    const { data: newRole } = await supabase
+    const { data: newRole, error: roleErr } = await supabase
       .from("user_roles")
       .insert({ user_id: uid, role: invite.role, created_by: invite.created_by })
       .select()
       .single();
-    if (newRole?.id && invite.club_id) {
-      await supabase.from("role_scopes").insert({
+    if (roleErr || !newRole) {
+      // Do NOT claim success — the invitee would land on a login screen with
+      // no role (the session boot clears a role-less cookie). Leave the invite
+      // pending so the code can be retried once the cause is fixed.
+      console.error("adminAcceptInvite user_roles:", roleErr?.message || "no row returned");
+      return {
+        ok: false as const,
+        reason: "Your invite verified but the account could not be activated. Ask your super admin for help.",
+      };
+    }
+    if (invite.club_id) {
+      const { error: scopeErr } = await supabase.from("role_scopes").insert({
         user_role_id: newRole.id,
         scope_type: "club",
         scope_id: invite.club_id,
       });
+      if (scopeErr) {
+        // Roll the role back so a retry can rebuild it cleanly with its scope.
+        try {
+          await supabase.from("user_roles").delete().eq("id", newRole.id);
+        } catch {
+          // best-effort cleanup only
+        }
+        console.error("adminAcceptInvite role_scopes:", scopeErr.message);
+        return {
+          ok: false as const,
+          reason: "Your role was added but its club scope could not be attached. Ask your super admin for help.",
+        };
+      }
     }
   }
   await supabase
