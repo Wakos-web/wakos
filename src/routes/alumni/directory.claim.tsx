@@ -142,6 +142,10 @@ function ClaimContent() {
   const handleBusinessAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+    if (!profile.approved) {
+      setError("Your alumni profile must be approved before you can list a business.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -440,6 +444,56 @@ function ClaimContent() {
 }
 
 function ClaimPage() {
+  const { user, profile, loading } = useAlumniAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    // Not signed in: the unified Pulse sign-in covers alumni, profile and businesses.
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center px-6 py-20">
+        <div className="max-w-md text-center">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mb-5">
+            <Building2 className="h-7 w-7 text-green-800" />
+          </div>
+          <h2 className="font-display text-3xl font-bold text-stone-900 mb-3">Sign in to manage your business</h2>
+          <p className="text-stone-600 font-body mb-8">
+            Businesses live on alumni profiles. Sign in once on the Pulse — your profile, directory listing and businesses all unlock together.
+          </p>
+          <Link to="/alumni" className="inline-flex items-center gap-2 bg-green-900 text-white px-8 py-4 rounded-full font-semibold hover:bg-green-800 transition-colors">
+            Sign in on the Pulse
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    // Signed in but no alumni profile: register via the unified flow.
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center px-6 py-20">
+        <div className="max-w-md text-center">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mb-5">
+            <Building2 className="h-7 w-7 text-green-800" />
+          </div>
+          <h2 className="font-display text-3xl font-bold text-stone-900 mb-3">Register to list your business</h2>
+          <p className="text-stone-600 font-body mb-8">
+            Your business is attached to your alumni profile. Register once on the Pulse — after the alumni admin approves you, come back here to add your business.
+          </p>
+          <a href="/alumni?signup=1" className="inline-flex items-center gap-2 bg-green-900 text-white px-8 py-4 rounded-full font-semibold hover:bg-green-800 transition-colors">
+            Register on the Pulse
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ClaimContent />
   );

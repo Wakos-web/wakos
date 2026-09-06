@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, MapPin, Globe, Phone, ArrowLeft, Mail, ExternalLink } from "lucide-react";
+import { Search, MapPin, Globe, Phone, ArrowLeft, Mail, ExternalLink, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/alumni/directory/businesses")({
   head: () => ({
@@ -100,12 +100,19 @@ function BusinessesPage() {
           <Link to="/mwosa" className="inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-4">
             <ArrowLeft className="h-4 w-4" /> Alumni
           </Link>
-          <h1 className="font-display text-4xl md:text-5xl text-white font-bold tracking-tight">
-            Business Directory
-          </h1>
-          <p className="text-lg text-white/70 mt-2 font-body">
-            {businesses.length} businesses listed by WACOS alumni
-          </p>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="font-display text-4xl md:text-5xl text-white font-bold tracking-tight">
+                Business Directory
+              </h1>
+              <p className="text-lg text-white/70 mt-2 font-body">
+                {businesses.length} businesses listed by WACOS alumni
+              </p>
+            </div>
+            <Link to="/alumni/directory/claim" className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-6 py-3 rounded-full font-bold text-sm hover:brightness-110 transition-all">
+              <Plus className="h-4 w-4" /> List your business
+            </Link>
+          </div>
         </div>
       </section>
 
