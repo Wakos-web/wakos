@@ -134,54 +134,201 @@ async function uploadFileToBucket(bucket: string, folder: string, file: File): P
 /* ------------------------------------------------------------------ */
 
 function OtpJoinFlow({ onDone, onClose }: { onDone: (p: Alumnus) => void; onClose: () => void }) {
-  const { user, requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
+  const { requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
   const resend = useOtpResend();
-  const [step, setStep] = useState<"email" | "code" | "profile">("email");
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [step, setStep] = useState<"email" | "code" | "profile" | "password">("email");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [code, setCode] = useState("");
+  const [pendingProfile, setPendingProfile] = useState<Alumnus | null>(null);
+  const [useCode, setUseCode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const sendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || busy) return;
+  const switchMode = (m: "login" | "signup") => {
+    setMode(m);
+    setStep(m === "signup" ? "profile" : "email");
     setError("");
-    if (!resend.allowSend()) { setError(resend.hint()); return; }
+    setCode("");
+    setPassword("");
+    setConfirmPassword("");
+    setUseCode(false);
+  };
+
+  const sendOtp = async (em: string) => {
+    if (!em.trim() || busy) return false;
+    setError("");
+    if (!resend.allowSend()) { setError(resend.hint()); return false; }
     setBusy(true);
     try {
-      await requestOtp(email.trim());
+      await requestOtp(em.trim());
       resend.onSent();
       setStep("code");
+      return true;
     } catch (err: any) {
       setError(err.message || "Could not send the code. Try again.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendOtp(email);
+  };
+
+  const loginWithPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password || busy) return;
+    setError("");
+    setBusy(true);
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      if (err) throw err;
+      const p = await refreshProfile();
+      if (p) onDone(p as Alumnus);
+      else {
+        setError("That account has no alumni profile linked yet. Register below instead.");
+        switchMode("signup");
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Could not sign in with that password.";
+      setError(/invalid login credentials/i.test(msg)
+        ? "Wrong email or password. If you never set a password, use the one-time code option below."
+        : msg);
     }
     setBusy(false);
   };
 
+  const handleFormDone = async (p: Alumnus) => {
+    setPendingProfile(p);
+    setEmail((p.email || email).trim());
+    await sendOtp(p.email || email);
+  };
+
   const verify = async (e: React.FormEvent) => {
     e.preventDefault();
+    const em = (pendingProfile?.email || email).trim();
     if (code.trim().length < 6 || busy) return;
     setError("");
     setBusy(true);
     try {
-      await verifyOtp(email.trim(), code.trim());
-      const p = await refreshProfile();
-      if (p) onDone(p as Alumnus);
-      else setStep("profile");
+      await verifyOtp(em, code.trim());
+      const p = pendingProfile || (await refreshProfile());
+      if (p) {
+        if (mode === "signup" && !p.approved) setStep("password");
+        else onDone(p as Alumnus);
+      } else {
+        setStep("profile");
+      }
     } catch (err: any) {
       setError(err.message || "That code didn't work. Try again.");
     }
     setBusy(false);
   };
 
+  const setNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 8) { setError("Use at least 8 characters for your password."); return; }
+    if (password !== confirmPassword) { setError("Passwords do not match."); return; }
+    setError("");
+    setBusy(true);
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password });
+      if (err) throw err;
+      const p = pendingProfile || (await refreshProfile());
+      onDone(p as Alumnus);
+    } catch (err: any) {
+      setError(err?.message || "Could not set your password. Try again.");
+    }
+    setBusy(false);
+  };
+
+  const activeEmail = pendingProfile?.email || email.trim();
+  const codeStep = (
+    <form onSubmit={verify} className="space-y-4">
+      <p className="text-sm text-white/55 font-body">
+        We emailed a one-time code to <span className="font-semibold text-white/85">{activeEmail}</span>. Enter it below.
+      </p>
+      <div>
+        <label className={labelCls}>One-time code *</label>
+        <input type="text" inputMode="numeric" autoComplete="one-time-code" required autoFocus value={code}
+          onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+          className={`${inputCls} text-center text-2xl tracking-[0.4em]`} placeholder="••••••" />
+      </div>
+      <button type="submit" disabled={busy || code.trim().length < 6}
+        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 rounded-full font-bold text-sm hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+        {busy ? "Verifying..." : mode === "signup" ? "Verify email" : "Verify & Continue"}
+      </button>
+      <button type="button" onClick={() => sendOtp(activeEmail)} disabled={busy || !resend.allowSend()}
+        className="w-full text-center text-sm text-white/40 hover:text-white/70 disabled:opacity-40 disabled:cursor-not-allowed">
+        {resend.label()}
+      </button>
+      <p className="text-center text-[11px] text-white/30">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
+      {mode === "signup" ? (
+        <button type="button" onClick={() => { setStep("profile"); setCode(""); setError(""); }}
+          className="w-full text-center text-sm text-white/40 hover:text-white/70">Edit my details</button>
+      ) : (
+        <button type="button" onClick={() => { setStep("email"); setCode(""); setError(""); }}
+          className="w-full text-center text-sm text-white/40 hover:text-white/70">Use a different email</button>
+      )}
+    </form>
+  );
+
   return (
     <div className="space-y-5">
       {error && <div className="rounded-xl bg-red-500/10 border border-red-400/30 p-3 text-sm text-red-300">{error}</div>}
 
-      {step === "email" && (
+      {/* Log in / Sign up tabs */}
+      <div className="flex rounded-full bg-white/[0.06] border border-white/10 p-1">
+        <button type="button" onClick={() => switchMode("login")}
+          className={`flex-1 rounded-full py-2 text-sm font-bold transition-all ${mode === "login" ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d]" : "text-white/50 hover:text-white"}`}>
+          Log in
+        </button>
+        <button type="button" onClick={() => switchMode("signup")}
+          className={`flex-1 rounded-full py-2 text-sm font-bold transition-all ${mode === "signup" ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d]" : "text-white/50 hover:text-white"}`}>
+          Sign up
+        </button>
+      </div>
+
+      {mode === "login" && !useCode && step !== "code" && (
+        <form onSubmit={loginWithPassword} className="space-y-4">
+          <p className="text-sm text-white/55 font-body">
+            Sign in with the email and password you set when you registered.
+          </p>
+          <div>
+            <label className={labelCls}>Email Address *</label>
+            <input type="email" required autoFocus value={email} onChange={e => setEmail(e.target.value)}
+              className={inputCls} placeholder="you@example.com" />
+          </div>
+          <div>
+            <label className={labelCls}>Password *</label>
+            <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && loginWithPassword(e)}
+              className={inputCls} placeholder="Your password" />
+          </div>
+          <button type="submit" disabled={busy || !email.trim() || !password}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 rounded-full font-bold text-sm hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            {busy ? "Signing in..." : "Log in"}
+          </button>
+          <button type="button" onClick={() => { setUseCode(true); setStep("email"); setError(""); }}
+            className="w-full text-center text-sm text-white/40 hover:text-white">
+            Forgot password? Use a one-time code instead
+          </button>
+          <p className="text-center text-[11px] text-white/30">New to the Pulse? Switch to Sign up to register.</p>
+        </form>
+      )}
+
+      {mode === "login" && useCode && step !== "code" && (
         <form onSubmit={sendCode} className="space-y-4">
           <p className="text-sm text-white/55 font-body">
-            Sign in with your alumni email — we'll send a one-time code. First time? You'll set up your profile right after.
+            Enter your email and we'll send a one-time code. No password needed.
           </p>
           <div>
             <label className={labelCls}>Email Address *</label>
@@ -189,48 +336,50 @@ function OtpJoinFlow({ onDone, onClose }: { onDone: (p: Alumnus) => void; onClos
               className={inputCls} placeholder="you@example.com" />
           </div>
           <button type="submit" disabled={busy || !email.trim()}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 rounded-full font-bold text-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-            {busy ? "Sending..." : "Send sign-in code"}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 rounded-full font-bold text-sm hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            {busy ? "Sending..." : "Send one-time code"}
+          </button>
+          <button type="button" onClick={() => setUseCode(false)}
+            className="w-full text-center text-sm text-white/40 hover:text-white">
+            Back to password sign-in
           </button>
         </form>
       )}
 
-      {step === "code" && (
-        <form onSubmit={verify} className="space-y-4">
-          <p className="text-sm text-white/55 font-body">
-            We emailed a one-time code to <span className="font-semibold text-white/85">{email.trim()}</span>. Enter it below.
-          </p>
-          <div>
-            <label className={labelCls}>One-time code *</label>
-            <input type="text" inputMode="numeric" autoComplete="one-time-code" required autoFocus value={code}
-              onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ""))}
-              className={`${inputCls} text-center text-2xl tracking-[0.4em]`} placeholder="••••••" />
-          </div>
-          <button type="submit" disabled={busy || code.trim().length < 6}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-4 rounded-full font-bold text-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-            {busy ? "Verifying..." : "Verify & Continue"}
-          </button>
-          <button type="button" onClick={sendCode} disabled={busy || !resend.allowSend()}
-            className="w-full text-center text-sm text-white/40 hover:text-white/70 disabled:opacity-40 disabled:cursor-not-allowed">
-            {resend.label()}
-          </button>
-          <p className="text-center text-[11px] text-white/30">{resend.sendsLeft} of {resend.maxSends} sends left this session</p>
-          <button type="button" onClick={() => { setStep("email"); setCode(""); setError(""); }}
-            className="w-full text-center text-sm text-white/40 hover:text-white/70">Use a different email</button>
-        </form>
-      )}
+      {step === "code" && codeStep}
 
-      {step === "profile" && user && (
+      {mode === "signup" && step === "profile" && (
         <RegistrationForm
           alumnus={null}
           mode="join"
-          lockedEmail={email.trim()}
-          userId={user.id}
-          onDone={async (p) => {
-            const fresh = await refreshProfile();
-            onDone((fresh || p) as Alumnus);
-          }}
+          onDone={handleFormDone}
         />
+      )}
+
+      {mode === "signup" && step === "password" && (
+        <form onSubmit={setNewPassword} className="space-y-4">
+          <p className="text-sm text-white/55 font-body">
+            Your email is verified. Create the password you'll use to log in to the Pulse from now on.
+          </p>
+          <div>
+            <label className={labelCls}>Password *</label>
+            <input type="password" required autoFocus value={password} onChange={e => setPassword(e.target.value)}
+              className={inputCls} placeholder="At least 8 characters" />
+          </div>
+          <div>
+            <label className={labelCls}>Confirm password *</label>
+            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && setNewPassword(e)}
+              className={inputCls} placeholder="Repeat your password" />
+          </div>
+          <button type="submit" disabled={busy || password.length < 8 || password !== confirmPassword}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-8 py-3.5 rounded-full font-bold text-sm hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            {busy ? "Saving..." : "Create password & finish"}
+          </button>
+          <p className="text-center text-[11px] text-white/30">
+            Your profile goes to the alumni admin for review. You'll get an email once approved.
+          </p>
+        </form>
       )}
     </div>
   );
