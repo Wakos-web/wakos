@@ -683,9 +683,14 @@ async function sendStaffInviteEmail(email: string, name: string, roleLabel: stri
   // preview deployment. Set PORTAL_URL explicitly if the domain changes.
   const portalBase = (process.env.PORTAL_URL || "https://wacos.alerotek.co.ke").replace(/\/$/, "");
   const portal = portalBase + "/admin";
-  // Direct link to the password-creation screen (code + new password), so the
-  // flow is one hop: code → create password → sign in.
-  const acceptUrl = portalBase + "/admin/accept-invite?email=" + encodeURIComponent(email);
+  // Direct link to the password-creation screen carrying email AND code, so
+  // the flow is one hop: open link (both already filled in) → new password →
+  // sign in. The route coerces the numeric code defensively, so a raw
+  // ?code=123456 in the email link prefills correctly. The code is still
+  // printed below as a fallback if the link is mangled by a mail client.
+  const acceptUrl =
+    portalBase + "/admin/accept-invite?email=" + encodeURIComponent(email) +
+    "&code=" + encodeURIComponent(code);
   const html = `
     <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #1c1917;">
       <p style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #166534; margin-bottom: 4px;">
@@ -701,9 +706,10 @@ async function sendStaffInviteEmail(email: string, name: string, roleLabel: stri
       </p>
       <ol style="font-size: 15px; line-height: 1.7; margin: 0 0 20px; padding-left: 20px; color: #1c1917;">
         <li>
-          Open the staff portal: <a href="${acceptUrl}" style="color: #166534; font-weight: 700;">${portal}</a>
+          Open the link below — your email and one-time code are already
+          filled in — then choose your new password:
+          <br /><a href="${acceptUrl}" style="color: #166534; font-weight: 700;">${acceptUrl}</a>
         </li>
-        <li>Enter your email and this one-time code, then choose your new password:</li>
       </ol>
       <p style="margin: 0 0 20px;">
         <span style="display: inline-block; background: #f0fdf4; border: 2px solid #166534; color: #14532d;
