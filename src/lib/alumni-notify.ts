@@ -7,9 +7,11 @@ import { readStaffSession } from "@/lib/staff-session";
  * directory, Pulse class notes).
  *
  * notifyAlumniApprover: tells the alumni patrons / super admins that a new
- * submission arrived so it can be reviewed (registrations and businesses land
- * `approved: false` and need approval; Pulse class notes go live immediately
- * and are moderated by unpublishing). The caller must prove they own the
+ * submission arrived so it can be reviewed. Registrations are auto-approved
+ * on sign-up and are informational (the office can recall access with a
+ * reason later); business directory submissions land `approved: false` and
+ * need approval before they appear; Pulse class notes go live immediately
+ * and are moderated by unpublishing. The caller must prove they own the
  * submission (their Supabase access token is verified server-side), so this
  * cannot be abused to spam the approvers.
  */

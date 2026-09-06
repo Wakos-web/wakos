@@ -226,7 +226,9 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
       await verifyOtp(em, code.trim());
       const p = pendingProfile || (await refreshProfile());
       if (p) {
-        if (mode === "signup" && !p.approved) setStep("password");
+        // New sign-ups always create a password, then go straight in —
+        // profiles are auto-approved (the alumni office can recall later).
+        if (mode === "signup") setStep("password");
         else onDone(p as Alumnus);
       } else {
         setStep("profile");
@@ -480,7 +482,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
         onDone(existing as Alumnus);
         return;
       }
-      throw new Error("This email already has a registration pending review. The alumni admin will approve it soon — you'll get an email, then you can sign in.");
+      throw new Error("Your registration for this email was recalled by the alumni office. Contact MMCWOSA if you think this is a mistake.");
     }
     const uploadedAvatar = avatarFile ? await uploadFileToBucket("class-notes-photos", "avatars", avatarFile) : null;
     const { data, error: insertError } = await supabase.from("alumni_profiles").insert({
@@ -500,7 +502,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
       twitter_url: null,
       instagram_url: null,
       is_public: true,
-      approved: false, // every new alumnus is reviewed by the alumni admin before access
+      approved: true, // sign-ups are automatic; the alumni office can recall access with a reason
     }).select().single();
     if (insertError) throw insertError;
     // Email alert: the alumni admin(s) get pinged about every sign-up request.
@@ -553,7 +555,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
 
       {!isEdit && (
         <p className="text-sm text-white/55 font-body">
-          Register once with your real details and a photo. Your request goes to the alumni admin for review — you'll get an email the moment you're approved, then you can post, like and comment as yourself.
+          Register once with your real details and a photo. You're in right away — your profile goes live on the Pulse and the alumni directory, and you can post, like and comment as yourself. The alumni office may recall your access with a reason if your details don't check out.
         </p>
       )}
 
@@ -1731,7 +1733,7 @@ function AlumniPulsePage() {
               </ul>
 
               <p className="mt-5 text-[11px] text-white/35 font-body">
-                New registrations are reviewed by the alumni admin — you'll get an email once you're approved.
+                Sign-ups are automatic — you're in right away. The alumni office may recall access with a reason if your details don't check out.
               </p>
               <Link to="/" className="mt-6 inline-block text-sm text-white/40 hover:text-white">← Back to the M.M College Wairaka site</Link>
             </div>
@@ -1758,10 +1760,10 @@ function AlumniPulsePage() {
           <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-400/15 ring-1 ring-amber-400/30 flex items-center justify-center mb-6">
             <Clock className="h-7 w-7 text-amber-300" />
           </div>
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300/90 mb-3">Under review</p>
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-white leading-tight">Thanks{alumnus.full_name ? `, ${alumnus.full_name.split(" ")[0]}` : ""} — your request is with the alumni admin</h1>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300/90 mb-3">Access recalled</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-white leading-tight">{alumnus.full_name ? `${alumnus.full_name.split(" ")[0]}, ` : ""}your Pulse access was recalled</h1>
           <p className="mt-4 text-white/55 font-body leading-relaxed">
-            New WACOS alumni registrations are verified by MMCWOSA before the Pulse opens up. You'll get an email alert the moment your profile is approved.
+            The alumni office recalled your profile for review.{(alumnus as any).rejected_notes ? ` Reason: ${(alumnus as any).rejected_notes}` : " Contact MMCWOSA if you think this is a mistake."}
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
             <button onClick={() => setPanel("edit")} className="flex-1 rounded-full border border-white/20 bg-white/[0.05] px-6 py-3.5 font-bold text-white hover:bg-white/[0.1] transition-all">
