@@ -138,10 +138,14 @@ async function uploadFileToBucket(bucket: string, folder: string, file: File): P
 /* Alumni auth: OTP sign-in via Supabase Auth (Resend email)           */
 /* ------------------------------------------------------------------ */
 
-function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
+function OtpJoinFlow({ onDone, onClose, initialMode = "login", onHold }: {
   onDone: (p: Alumnus) => void;
   onClose: () => void;
   initialMode?: "login" | "signup";
+  /** Called while a sign-up is mid-flight so the parent keeps the gate mounted
+   *  (profile resolves on code verification, which would otherwise unmount the
+   *  gate and skip the create-password step). */
+  onHold?: (hold: boolean) => void;
 }) {
   const { user, requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
   const resend = useOtpResend();
@@ -168,6 +172,7 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
     setPassword("");
     setConfirmPassword("");
     setUseCode(false);
+    onHold?.(false);
   };
 
   const sendOtp = async (em: string) => {
@@ -248,6 +253,11 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
     const em = (pendingProfile?.email || email).trim();
     if (code.trim().length < 6 || busy) return;
     setError("");
+    const signupPath = mode === "signup";
+    // Hold the gate open BEFORE verification: profiles are auto-approved, so
+    // the moment the code verifies the hook resolves the profile and the gate
+    // would unmount, skipping the create-password step below.
+    if (signupPath) onHold?.(true);
     setBusy(true);
     try {
       await verifyOtp(em, code.trim());
@@ -255,7 +265,7 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
       if (p) {
         // New sign-ups always create a password, then go straight in —
         // profiles are auto-approved (the alumni office can recall later).
-        if (mode === "signup") setStep("password");
+        if (signupPath) setStep("password");
         else onDone(p as Alumnus);
       } else {
         // Verified email but no profile — finish it via the signup form rather
@@ -264,6 +274,7 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
         setStep("profile");
       }
     } catch (err: any) {
+      onHold?.(false);
       setError(err.message || "That code didn't work. Try again.");
     }
     setBusy(false);
@@ -1275,6 +1286,11 @@ function AlumniPulsePage() {
   // here so they never need to sign up again.
   const [bridged, setBridged] = useState<Alumnus | null>(null);
   const [bridgeState, setBridgeState] = useState<"idle" | "checking" | "none">("idle");
+  const bridgeStarted = useRef(false);
+  // While a new sign-up is verifying its code + creating a password, the OTP
+  // profile resolves immediately (auto-approved), which would normally unmount
+  // the gate. Holding the gate keeps the create-password step on screen.
+  const [joinHold, setJoinHold] = useState(false);
   const alumnus = ((profile ?? bridged) as Alumnus | null) ?? null;
   const gateSearch = useRouterState({ select: (s) => s.location.searchStr });
   const channelRef = useRef<ChannelKey>(channel);
@@ -1283,25 +1299,38 @@ function AlumniPulsePage() {
   useEffect(() => { alumnusRef.current = alumnus; }, [alumnus]);
   // Runs once per mount when there is no alumni profile yet. Regular guests get
   // a fast "no staff session" answer; staff are unlocked straight into the Pulse.
+  // NOTE: bridgeState is deliberately NOT a dependency. Updating it while the
+  // request is in flight would re-render and run this effect's cleanup, which
+  // used to discard the response and strand everyone on the "Checking staff
+  // access…" spinner forever. bridgeStarted guards the single kick-off; a
+  // watchdog guarantees a guest can never be stuck if the server stalls.
   useEffect(() => {
-    if (authLoading || profile || bridged || bridgeState !== "idle") return;
-    let alive = true;
+    if (authLoading || profile || bridged || bridgeStarted.current) return;
+    bridgeStarted.current = true;
     setBridgeState("checking");
+    let cancelled = false;
+    const settle = (fn: () => void) => { if (!cancelled) fn(); };
+    const watchdog = window.setTimeout(() => settle(() => setBridgeState("none")), 12000);
     staffPulseAccess()
       .then((res: any) => {
-        if (!alive) return;
-        if (res?.ok && res.profile) {
-          setBridged(res.profile as Alumnus);
-          // If a Supabase session exists for the same account, refresh so the
-          // hook's own profile picks the linked row up as well.
-          refreshProfile().then((p) => { if (alive && p) setBridged(null); });
-        } else {
-          setBridgeState("none");
-        }
+        window.clearTimeout(watchdog);
+        settle(() => {
+          if (res?.ok && res.profile) {
+            setBridged(res.profile as Alumnus);
+            // If a Supabase session exists for the same account, refresh so the
+            // hook's own profile picks the linked row up as well.
+            refreshProfile().then((p) => { if (!cancelled && p) setBridged(null); });
+          } else {
+            setBridgeState("none");
+          }
+        });
       })
-      .catch(() => { if (alive) setBridgeState("none"); });
-    return () => { alive = false; };
-  }, [authLoading, profile, bridged, bridgeState, refreshProfile]);
+      .catch(() => {
+        window.clearTimeout(watchdog);
+        settle(() => setBridgeState("none"));
+      });
+    return () => { cancelled = true; window.clearTimeout(watchdog); };
+  }, [authLoading, profile, bridged, refreshProfile]);
   useEffect(() => {
     try { localStorage.setItem(UNREAD_KEY, JSON.stringify(unread)); } catch { /* noop */ }
   }, [unread]);
@@ -1650,6 +1679,7 @@ function AlumniPulsePage() {
 
   const handleRegistered = (p: Alumnus) => {
     setPanel("none");
+    setJoinHold(false);
     refreshProfile().then((fresh) => {
       const approved = !!(fresh || p).approved;
       if (approved) {
@@ -1777,7 +1807,7 @@ function AlumniPulsePage() {
     );
   }
 
-  if (!alumnus) {
+  if (!alumnus || joinHold) {
     const wantSignup = /signup/.test(gateSearch);
     return (
       <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto bg-[#0A0D14] text-white flex items-center justify-center px-4 py-10">
@@ -1804,7 +1834,7 @@ function AlumniPulsePage() {
               </p>
 
               <div className="mt-7 text-left">
-                <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} initialMode={wantSignup ? "signup" : "login"} />
+                <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} initialMode={wantSignup ? "signup" : "login"} onHold={setJoinHold} />
                 <p className="text-center text-[11px] text-white/30 mt-4 font-body">
                   Already registered on this email? Entering the same email signs you straight back in.
                 </p>
