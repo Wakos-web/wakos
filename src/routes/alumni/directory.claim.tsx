@@ -302,8 +302,8 @@ function ClaimContent() {
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-stone-700 mb-2">Profile Photo</label>
-                <div className="flex items-center gap-4">
-                  <label className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-4 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="min-w-0 flex-1 basis-full sm:basis-1/2 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-4 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
                     {avatar ? avatar.name : "Choose a photo"}
                     <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatar(f); setAvatarPreview(URL.createObjectURL(f)); } }} className="hidden" />
@@ -383,8 +383,8 @@ function ClaimContent() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-stone-700 mb-2">Business Logo</label>
-                  <div className="flex items-center gap-4">
-                    <label className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-3 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="min-w-0 flex-1 basis-full sm:basis-1/2 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-3 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
                       {bizLogo ? bizLogo.name : "Logo (optional)"}
                       <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setBizLogo(f); setBizLogoPreview(URL.createObjectURL(f)); } }} className="hidden" />

@@ -602,18 +602,20 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
         </p>
       )}
 
-      <div className="flex items-center gap-4">
+      {/* Photo row: on phones it stacks (photo circle on top, upload button
+          full-width below) so the control is never squeezed or clipped. */}
+      <div className="flex flex-wrap items-center gap-4">
         {avatarUrl ? (
           <Avatar name={name} url={avatarUrl} size="w-20 h-20" text="text-2xl" />
         ) : (
-          <div className="w-20 h-20 rounded-full bg-emerald-400/15 flex items-center justify-center ring-1 ring-white/10">
+          <div className="w-20 h-20 shrink-0 rounded-full bg-emerald-400/15 flex items-center justify-center ring-1 ring-white/10">
             <UserCircle2 className="h-10 w-10 text-emerald-300" />
           </div>
         )}
-        <div>
-          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-white/[0.05] text-sm font-medium text-white/70 hover:border-emerald-400/60 hover:text-emerald-300 transition-colors">
-            <ImagePlus className="h-4 w-4" />
-            {isEdit ? "Change photo" : "Upload your photo"}
+        <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+          <label className="cursor-pointer inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-white/[0.05] text-sm font-medium text-white/70 hover:border-emerald-400/60 hover:text-emerald-300 transition-colors">
+            <ImagePlus className="h-4 w-4 shrink-0" />
+            <span>{isEdit ? "Change photo" : "Upload your photo"}</span>
             <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </label>
           <p className="text-xs text-white/35 mt-2">Your photo appears on your posts and in the directory.</p>
