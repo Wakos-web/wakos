@@ -109,7 +109,7 @@ function BusinessesPage() {
                 {businesses.length} businesses listed by WACOS alumni
               </p>
             </div>
-            <Link to="/alumni/directory/claim" className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-6 py-3 rounded-full font-bold text-sm hover:brightness-110 transition-all">
+            <Link to="/alumni/directory/register" className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-[#06110d] px-6 py-3 rounded-full font-bold text-sm hover:brightness-110 transition-all">
               <Plus className="h-4 w-4" /> List your business
             </Link>
           </div>

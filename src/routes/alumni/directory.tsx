@@ -261,15 +261,15 @@ function DirectoryContent() {
               </p>
             </Link>
             <Link
-              to="/alumni/directory/claim"
+              to="/alumni/directory/register"
               className="group rounded-2xl bg-stone-50 border border-stone-200 p-8 hover:border-green-800 hover:shadow-md transition-all"
             >
               <Plus className="h-8 w-8 text-green-800 mb-4" />
               <h3 className="font-display text-xl font-bold text-stone-900 group-hover:text-green-800 transition-colors">
-                Add Your Business
+                List Your Business
               </h3>
               <p className="text-stone-600 mt-2 font-body">
-                List your business in the directory. Connect with fellow alumni.
+                One form lists your business and creates your alumni &amp; Pulse account automatically.
               </p>
             </Link>
           </div>
