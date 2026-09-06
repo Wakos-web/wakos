@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyClubPatron } from "@/lib/club-notify";
+import { staffClubAccess, staffClubSignOut } from "@/lib/club-staff";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 import {
@@ -875,19 +876,59 @@ function StudioSocialPanel({ clubId }: { clubId: string }) {
 function ClubEditorPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const bridgedRef = useRef(false);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    if (startedRef.current) return;
+    startedRef.current = true;
+    let alive = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (alive) setUser(session?.user ?? null);
     });
-    return () => subscription.unsubscribe();
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!alive) return;
+      if (session?.user) {
+        setUser(session.user);
+        setLoading(false);
+        return;
+      }
+      // No Supabase session. If this visitor is staff signed in at /admin
+      // (httpOnly cookie, no client session), the server mints a real
+      // Supabase session so the editor opens without a second OTP sign-in.
+      // Non-staff (student co-editors) fall through to the OTP panel below.
+      staffClubAccess()
+        .then(async (res) => {
+          if (!alive) return;
+          if (res.ok && res.session) {
+            bridgedRef.current = true;
+            await supabase.auth.setSession({
+              access_token: res.session.access_token,
+              refresh_token: res.session.refresh_token,
+            });
+            if (alive) setLoading(false);
+            return;
+          }
+          if (alive) setLoading(false);
+        })
+        .catch(() => {
+          if (alive) setLoading(false);
+        });
+    });
+
+    return () => {
+      alive = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
+    if (bridgedRef.current) {
+      bridgedRef.current = false;
+      try { await staffClubSignOut(); } catch { /* cookie may already be gone */ }
+    }
     await supabase.auth.signOut();
     setUser(null);
   };
