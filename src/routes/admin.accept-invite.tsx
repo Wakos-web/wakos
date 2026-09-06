@@ -12,9 +12,13 @@ export const Route = createFileRoute("/admin/accept-invite")({
 
 function AcceptInvitePage() {
   const navigate = useNavigate();
-  const params = Route.useSearch() as { email?: string; code?: string };
-  const prefilledEmail = typeof params.email === "string" ? params.email : "";
-  const prefilledCode = typeof params.code === "string" ? params.code : "";
+  // Route search params: TanStack coerces numeric query values into numbers,
+  // so a `?code=123456` deep link arrives as 123456 (a number), not a string.
+  // Coerce defensively — otherwise the emailed accept link never prefills the
+  // code and the user has to retype it.
+  const params = Route.useSearch() as { email?: unknown; code?: unknown };
+  const prefilledEmail = params.email == null ? "" : String(params.email).trim();
+  const prefilledCode = String(params.code ?? "").replace(/\D/g, "").slice(0, 6);
 
   const [email, setEmail] = useState(prefilledEmail);
   const [code, setCode] = useState(prefilledCode);
