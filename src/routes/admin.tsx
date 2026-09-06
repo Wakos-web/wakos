@@ -3375,6 +3375,22 @@ function AdminPage() {
   // render ONLY the accept page — the dashboard is for /admin itself.
   // This check stays after every hook so SPA navigation keeps hook order.
   const isAcceptInvite = useMatch({ from: "/admin/accept-invite", shouldThrow: false });
+
+  // The accept page renders inside this component's <Outlet/>. When a visitor
+  // accepts an invite there, the staff cookie is set AFTER this component
+  // already booted (no cookie yet), so its session state is stale. Re-boot the
+  // moment we leave the accept page, or /admin opens on the login screen
+  // despite a valid session until the user reloads.
+  const wasOnAcceptInvite = useRef(!!isAcceptInvite);
+  useEffect(() => {
+    if (isAcceptInvite) {
+      wasOnAcceptInvite.current = true;
+    } else if (wasOnAcceptInvite.current) {
+      wasOnAcceptInvite.current = false;
+      boot();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAcceptInvite]);
   if (isAcceptInvite) return <Outlet />;
 
   const roleVisible: Record<string, Tab[]> = {
