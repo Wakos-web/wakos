@@ -14,7 +14,7 @@ import { readStaffSession } from "@/lib/staff-session";
  *   cookie, so only signed-in staff can trigger it.
  */
 
-const SITE_URL = "https://wacos-site-main.vercel.app";
+const SITE_URL = (process.env.SITE_URL || "https://wacos.alerotek.co.ke").replace(/\/$/, "");
 const FROM = "WACOS Club News <wacos@alerotek.co.ke>";
 
 function envVal(value: string | undefined): string {

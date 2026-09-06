@@ -14,7 +14,7 @@ import { readStaffSession } from "@/lib/staff-session";
  * cannot be abused to spam the approvers.
  */
 
-const SITE_URL = "https://wacos-site-main.vercel.app";
+const SITE_URL = (process.env.SITE_URL || "https://wacos.alerotek.co.ke").replace(/\/$/, "");
 const FROM = "WACOS Alumni <wacos@alerotek.co.ke>";
 
 function envVal(value: string | undefined): string {
