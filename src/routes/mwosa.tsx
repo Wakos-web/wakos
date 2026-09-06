@@ -33,7 +33,7 @@ const DEFAULT_STATS: MwosaStat[] = [
 
 const DEFAULT_QUICK_LINKS: MwosaLink[] = [
   { label: "Alumni Pulse", url: "/alumni", description: "A live chat and class-notes feed where WACOS alumni post updates, memories, reunions and achievements. The fastest way to hear what your classmates are doing today.", icon: "message", category: "quick" },
-  { label: "Alumni Directory", url: "/alumni/directory/register", description: "The verified register of old boys and old girls. Register your profile so classmates can find you, and search by graduation year, profession or location.", icon: "users", category: "quick" },
+  { label: "Alumni Directory", url: "/alumni/directory", description: "The verified register of old boys and old girls. Register your profile so classmates can find you, and search by graduation year, profession or location.", icon: "users", category: "quick" },
   { label: "Business Directory", url: "/alumni/directory/businesses", description: "The Wairaka Business Directory markets alumni products, services and businesses to one another and the wider public. Support your own — buy from an old student.", icon: "building", category: "quick" },
 ];
 

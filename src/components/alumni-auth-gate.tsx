@@ -25,19 +25,22 @@ export function AlumniAuthGate({ children }: { children: React.ReactNode }) {
           <p className="text-stone-600 text-lg font-body mb-8">
             Sign in to find fellow old students, update your profile, and connect with the WACOS community.
           </p>
+          <p className="text-stone-500 font-body mb-8 max-w-md mx-auto">
+            The Pulse and the directory share one registration — sign in or register once and both unlock together.
+          </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
-              to="/alumni/directory/login"
+              to="/alumni"
               className="inline-flex items-center gap-2 bg-green-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-800 transition-colors"
             >
               Sign In
             </Link>
-            <Link
-              to="/alumni/directory/register"
+            <a
+              href="/alumni?signup=1"
               className="inline-flex items-center gap-2 border border-green-900 text-green-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-green-50 transition-colors"
             >
               Register
-            </Link>
+            </a>
           </div>
         </div>
       </div>

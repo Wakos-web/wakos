@@ -133,10 +133,14 @@ async function uploadFileToBucket(bucket: string, folder: string, file: File): P
 /* Alumni auth: OTP sign-in via Supabase Auth (Resend email)           */
 /* ------------------------------------------------------------------ */
 
-function OtpJoinFlow({ onDone, onClose }: { onDone: (p: Alumnus) => void; onClose: () => void }) {
+function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
+  onDone: (p: Alumnus) => void;
+  onClose: () => void;
+  initialMode?: "login" | "signup";
+}) {
   const { requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
   const resend = useOtpResend();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [step, setStep] = useState<"email" | "code" | "profile" | "password">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -476,7 +480,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
         onDone(existing as Alumnus);
         return;
       }
-      throw new Error("This email is registered but access was suspended. Contact MMCWOSA to restore your profile.");
+      throw new Error("This email already has a registration pending review. The alumni admin will approve it soon — you'll get an email, then you can sign in.");
     }
     const uploadedAvatar = avatarFile ? await uploadFileToBucket("class-notes-photos", "avatars", avatarFile) : null;
     const { data, error: insertError } = await supabase.from("alumni_profiles").insert({
@@ -1687,6 +1691,8 @@ function AlumniPulsePage() {
   }
 
   if (!alumnus) {
+    const gateSearch = useRouterState({ select: (s) => s.location.searchStr });
+    const wantSignup = /signup/.test(gateSearch);
     return (
       <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto bg-[#0A0D14] text-white flex items-center justify-center px-4 py-10">
         {/* Pillar faded behind the dark navy */}
@@ -1712,7 +1718,7 @@ function AlumniPulsePage() {
               </p>
 
               <div className="mt-7 text-left">
-                <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} />
+                <OtpJoinFlow onDone={handleRegistered} onClose={closePanel} initialMode={wantSignup ? "signup" : "login"} />
                 <p className="text-center text-[11px] text-white/30 mt-4 font-body">
                   Already registered on this email? Entering the same email signs you straight back in.
                 </p>
