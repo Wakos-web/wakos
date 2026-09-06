@@ -141,7 +141,7 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
   const { requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
   const resend = useOtpResend();
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
-  const [step, setStep] = useState<"email" | "code" | "profile" | "password">("email");
+  const [step, setStep] = useState<"email" | "code" | "profile" | "password">(initialMode === "signup" ? "profile" : "email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
