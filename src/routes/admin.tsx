@@ -3387,10 +3387,21 @@ function AdminPage() {
       wasOnAcceptInvite.current = true;
     } else if (wasOnAcceptInvite.current) {
       wasOnAcceptInvite.current = false;
+      // The mount-time boot ran BEFORE the accept page set the cookie, so
+      // session is still the stale { authed: false }. Drop back to the
+      // "checking" state so /admin shows the loading spinner — not a flash
+      // of the login screen — while the re-boot verifies the fresh cookie.
+      setSession(null);
       boot();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAcceptInvite]);
+  // On the render right after leaving /admin/accept-invite, the effect above
+  // hasn't run yet, so session can still read the stale { authed: false } and
+  // the login gate would flash for a frame. The ref still says we came from
+  // the accept page at that instant — treat it as "checking", not "logged out".
+  const checkingAfterAccept =
+    wasOnAcceptInvite.current && !isAcceptInvite && session !== null && !session.authed;
   if (isAcceptInvite) return <Outlet />;
 
   const roleVisible: Record<string, Tab[]> = {
@@ -3434,7 +3445,7 @@ function AdminPage() {
   const primaryTabs = tabs.filter((t) => primaryKeys.includes(t.key) && visibleTabs.has(t.key));
   const moreTabs = tabs.filter((t) => visibleTabs.has(t.key) && !primaryKeys.includes(t.key));
 
-  if (session === null) {
+  if (session === null || checkingAfterAccept) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
