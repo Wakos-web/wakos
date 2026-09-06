@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyAlumniApprover } from "@/lib/alumni-notify";
+import { staffPulseAccess, staffPulseSignOut } from "@/lib/alumni-staff";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
 import {
@@ -86,6 +87,10 @@ const readUnread = (): Record<string, number> => {
 };
 const BASE_TITLE = "Alumni Pulse — M.M College Wairaka";
 
+// Staff-bridged profiles have graduation_year 0 until the member completes
+// their details, so never print a bogus "Class of 0".
+const yearTag = (y?: number | null) => (y && y > 0) ? `Class of ${y}` : "Staff member";
+
 // Subtle two-note ping synthesized with the Web Audio API (no audio assets).
 let audioCtx: AudioContext | null = null;
 function ensureAudio(): AudioContext | null {
@@ -138,8 +143,12 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
   onClose: () => void;
   initialMode?: "login" | "signup";
 }) {
-  const { requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
+  const { user, requestOtp, verifyOtp, refreshProfile } = useAlumniAuth();
   const resend = useOtpResend();
+  // A user who is already signed in (e.g. an invited staff member) has a
+  // verified email, so the OTP dance is unnecessary — they can finish their
+  // alumni profile and set a password directly.
+  const signedInEmail = user?.email?.trim().toLowerCase() || null;
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [step, setStep] = useState<"email" | "code" | "profile" | "password">(initialMode === "signup" ? "profile" : "email");
   const [email, setEmail] = useState("");
@@ -181,6 +190,16 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
 
   const sendCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    const em = email.trim().toLowerCase();
+    if (signedInEmail && em === signedInEmail) {
+      // Already authenticated on this email but no alumni profile yet —
+      // skip the code and finish the profile instead (email is verified).
+      setMode("signup");
+      setStep("profile");
+      setUseCode(false);
+      setError("");
+      return;
+    }
     await sendOtp(email);
   };
 
@@ -212,8 +231,16 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
 
   const handleFormDone = async (p: Alumnus) => {
     setPendingProfile(p);
-    setEmail((p.email || email).trim());
-    await sendOtp(p.email || email);
+    const em = (p.email || email).trim().toLowerCase();
+    setEmail(em);
+    if (signedInEmail && em === signedInEmail) {
+      // Signed in on this email already (staff invite / existing session) —
+      // email ownership was proven at sign-in, so go straight to setting a
+      // password. No code send that can silently fail.
+      setStep("password");
+      return;
+    }
+    await sendOtp(em);
   };
 
   const verify = async (e: React.FormEvent) => {
@@ -231,6 +258,9 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
         if (mode === "signup") setStep("password");
         else onDone(p as Alumnus);
       } else {
+        // Verified email but no profile — finish it via the signup form rather
+        // than leaving a blank card (login-mode OTP on a profile-less user).
+        setMode("signup");
         setStep("profile");
       }
     } catch (err: any) {
@@ -359,6 +389,8 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login" }: {
           alumnus={null}
           mode="join"
           onDone={handleFormDone}
+          {...(signedInEmail ? { lockedEmail: signedInEmail } : {})}
+          {...(user?.id ? { userId: user.id } : {})}
         />
       )}
 
@@ -820,7 +852,7 @@ function ChannelList({ channels, active, counts, unread, onSelect, members, onJo
             <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-9 h-9" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-white truncate">{alumnus.full_name}</p>
-              <p className="text-[11px] text-white/40">Class of {alumnus.graduation_year} · edit profile</p>
+              <p className="text-[11px] text-white/40">{yearTag(alumnus.graduation_year)} · edit profile</p>
             </div>
           </button>
         ) : (
@@ -866,7 +898,7 @@ function NoteBubble({ note, mine, likes, comments, alumnus, onLike, onComment, o
       <div className={`max-w-[78%] md:max-w-[70%] min-w-0 ${mine ? "text-right" : ""}`}>
         <div className={`flex items-center gap-2 mb-1 px-1 ${mine ? "flex-row-reverse" : ""}`}>
           <span className="text-sm font-semibold text-white/85">{mine ? "You" : note.author_name}</span>
-          <span className="text-[11px] text-white/30">Class of {note.graduation_year}</span>
+          <span className="text-[11px] text-white/30">{yearTag(note.graduation_year)}</span>
           <span className="text-[11px] text-white/30">· {timeLabel(note.created_at)}</span>
         </div>
         <div className={`rounded-2xl px-4 py-3 ${mine
@@ -903,7 +935,7 @@ function NoteBubble({ note, mine, likes, comments, alumnus, onLike, onComment, o
               <div key={c.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 <Avatar name={c.author_name} url={null} size="w-6 h-6" text="text-[10px]" />
                 <div className="bg-white/[0.04] border border-white/[0.05] rounded-xl px-3 py-2 text-left">
-                  <p className="text-xs font-semibold text-white/75">{c.author_name} <span className="font-normal text-white/30">· Class of {c.graduation_year}</span></p>
+                  <p className="text-xs font-semibold text-white/75">{c.author_name} <span className="font-normal text-white/30">· {yearTag(c.graduation_year)}</span></p>
                   <p className="text-sm text-white/70 mt-0.5">{c.content}</p>
                 </div>
               </div>
@@ -1037,7 +1069,7 @@ function ComposerBar({ alumnus, channelKey, sending, text, setText, onSend, onPi
         <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-7 h-7" text="text-xs" />
         <p className="text-xs text-white/50">
           Posting as <span className="font-semibold text-white/80">{alumnus.full_name}</span>
-          <span className="text-white/30"> · Class of {alumnus.graduation_year}</span> in <span className="text-emerald-300">{label}</span>
+          <span className="text-white/30"> · {yearTag(alumnus.graduation_year)}</span> in <span className="text-emerald-300">{label}</span>
         </p>
         <button onClick={onEditProfile} className="ml-auto text-[11px] text-white/35 hover:text-white/70">edit profile</button>
       </div>
@@ -1237,12 +1269,39 @@ function AlumniPulsePage() {
   const [readsReady, setReadsReady] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const { profile, signOut, refreshProfile, loading: authLoading } = useAlumniAuth();
-  const alumnus = (profile as Alumnus | null) ?? null;
+  // Staff bridge: staff sign in through /admin (httpOnly cookie, not a Supabase
+  // client session), so opening the Pulse normally shows the guest gate. When a
+  // signed-in staff member has no alumni profile yet, resolve/auto-create it
+  // here so they never need to sign up again.
+  const [bridged, setBridged] = useState<Alumnus | null>(null);
+  const [bridgeState, setBridgeState] = useState<"idle" | "checking" | "none">("idle");
+  const alumnus = ((profile ?? bridged) as Alumnus | null) ?? null;
   const gateSearch = useRouterState({ select: (s) => s.location.searchStr });
   const channelRef = useRef<ChannelKey>(channel);
   const alumnusRef = useRef(alumnus);
   useEffect(() => { channelRef.current = channel; }, [channel]);
   useEffect(() => { alumnusRef.current = alumnus; }, [alumnus]);
+  // Runs once per mount when there is no alumni profile yet. Regular guests get
+  // a fast "no staff session" answer; staff are unlocked straight into the Pulse.
+  useEffect(() => {
+    if (authLoading || profile || bridged || bridgeState !== "idle") return;
+    let alive = true;
+    setBridgeState("checking");
+    staffPulseAccess()
+      .then((res: any) => {
+        if (!alive) return;
+        if (res?.ok && res.profile) {
+          setBridged(res.profile as Alumnus);
+          // If a Supabase session exists for the same account, refresh so the
+          // hook's own profile picks the linked row up as well.
+          refreshProfile().then((p) => { if (alive && p) setBridged(null); });
+        } else {
+          setBridgeState("none");
+        }
+      })
+      .catch(() => { if (alive) setBridgeState("none"); });
+    return () => { alive = false; };
+  }, [authLoading, profile, bridged, bridgeState, refreshProfile]);
   useEffect(() => {
     try { localStorage.setItem(UNREAD_KEY, JSON.stringify(unread)); } catch { /* noop */ }
   }, [unread]);
@@ -1578,6 +1637,17 @@ function AlumniPulsePage() {
   };
   const closePanel = () => { setPanel("none"); setNotice(""); };
 
+  const handleSignOut = () => {
+    // A staff-bridged member has no Supabase session to drop — their Pulse
+    // access rides on the staff portal cookie, so leave clears that too.
+    if (!profile && bridged) {
+      staffPulseSignOut().then(() => {}).catch(() => {});
+    }
+    signOut();
+    setBridged(null);
+    closePanel();
+  };
+
   const handleRegistered = (p: Alumnus) => {
     setPanel("none");
     refreshProfile().then((fresh) => {
@@ -1592,7 +1662,10 @@ function AlumniPulsePage() {
   };
 
   const handleProfileSaved = (p: Alumnus) => {
-    refreshProfile().then(() => {
+    refreshProfile().then((fresh) => {
+      // Staff-bridged members have no Supabase session, so refreshProfile finds
+      // nothing — apply the edited profile they just saved instead.
+      if (!fresh && !profile && bridged) setBridged(p);
       setNotice("Your profile has been updated.");
       setPanel("none");
     });
@@ -1693,6 +1766,17 @@ function AlumniPulsePage() {
     );
   }
 
+  // Resolving the staff bridge (sign-in card appears only once we know this
+  // visitor has no staff session that should unlock the Pulse directly).
+  if (bridgeState === "checking" && !alumnus) {
+    return (
+      <div className="h-screen supports-[height:100dvh]:h-[100dvh] flex flex-col items-center justify-center gap-4 bg-[#0A0D14]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+        <p className="text-sm text-white/40 font-body">Checking staff access…</p>
+      </div>
+    );
+  }
+
   if (!alumnus) {
     const wantSignup = /signup/.test(gateSearch);
     return (
@@ -1769,7 +1853,7 @@ function AlumniPulsePage() {
             <button onClick={() => setPanel("edit")} className="flex-1 rounded-full border border-white/20 bg-white/[0.05] px-6 py-3.5 font-bold text-white hover:bg-white/[0.1] transition-all">
               Edit my profile
             </button>
-            <button onClick={() => { signOut(); closePanel(); }} className="flex-1 rounded-full border border-white/10 text-white/50 px-6 py-3.5 font-semibold hover:text-red-300 hover:border-red-300/30 transition-all">
+            <button onClick={handleSignOut} className="flex-1 rounded-full border border-white/10 text-white/50 px-6 py-3.5 font-semibold hover:text-red-300 hover:border-red-300/30 transition-all">
               Sign out
             </button>
           </div>
@@ -1777,7 +1861,7 @@ function AlumniPulsePage() {
         </div>
         {panel === "edit" && (
           <SlidePanel title="Edit your alumni profile" subtitle="Your photo appears on your posts once you're approved" onClose={closePanel}>
-            <RegistrationForm alumnus={alumnus} mode="edit" onDone={handleProfileSaved} onSignOut={() => { signOut(); closePanel(); }} />
+            <RegistrationForm alumnus={alumnus} mode="edit" onDone={handleProfileSaved} onSignOut={handleSignOut} />
           </SlidePanel>
         )}
         {noticeToast}
@@ -1841,7 +1925,7 @@ function AlumniPulsePage() {
                 <Avatar name={alumnus.full_name} url={alumnus.avatar_url} size="w-8 h-8" text="text-xs" />
                 <div className="text-left hidden sm:block">
                   <p className="text-xs font-semibold text-white leading-tight">{alumnus.full_name}</p>
-                  <p className="text-[10px] text-white/35 leading-tight">{alumnus.profession || `Class of ${alumnus.graduation_year}`}</p>
+                  <p className="text-[10px] text-white/35 leading-tight">{alumnus.profession || yearTag(alumnus.graduation_year)}</p>
                 </div>
               </button>
             ) : (
@@ -2025,7 +2109,7 @@ function AlumniPulsePage() {
       {/* Edit profile slide panel */}
       {panel === "edit" && alumnus && (
         <SlidePanel title="Edit your alumni profile" subtitle="Your photo appears on your posts and in the directory" onClose={closePanel}>
-          <RegistrationForm alumnus={alumnus} mode="edit" onDone={handleProfileSaved} onSignOut={() => { signOut(); closePanel(); }} />
+          <RegistrationForm alumnus={alumnus} mode="edit" onDone={handleProfileSaved} onSignOut={handleSignOut} />
         </SlidePanel>
       )}
 
