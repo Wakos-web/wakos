@@ -37,8 +37,12 @@ function DirectoryContent() {
   const [professionFilter, setProfessionFilter] = useState("");
 
   useEffect(() => {
-    const y = new URLSearchParams(searchStr.replace(/^\?/, "")).get("year");
-    setDecadeFilter(y && /^\d{4}$/.test(y) ? y : "");
+    // Read the raw query defensively: TanStack may deliver a value as a
+    // number (?year=2020), a JSON-quoted string (?year=%222020%22), or a
+    // plain string — coerce instead of dropping, then validate digits only.
+    const raw = new URLSearchParams(searchStr.replace(/^\?/, "")).get("year") || "";
+    const y = raw.replace(/^"+|\"+$/g, "").trim();
+    setDecadeFilter(/^\d{4}$/.test(y) ? y : "");
   }, [searchStr]);
 
   useEffect(() => {
