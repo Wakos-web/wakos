@@ -559,13 +559,21 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
     const { data: session } = await supabase.auth.getSession();
     const u = session.session?.user;
     if (!u) { setState("none"); return; }
-    // First visit with an invite: link this auth user to the pending invite (email was verified by the OTP).
+    // First visit with an invite: link this auth user to the pending invite
+    // (email was verified by the OTP). Fail loudly if the activation write
+    // errors — silently ignoring it would strand the invitee on the empty
+    // "No club editorship yet" card with no explanation.
     if (u.email) {
-      await supabase
+      const { error: linkErr } = await supabase
         .from("club_editors")
         .update({ user_id: u.id, status: "active", updated_at: new Date().toISOString() })
         .eq("email", u.email.toLowerCase())
         .eq("status", "pending");
+      if (linkErr) {
+        setError("Your invite could not be activated: " + (linkErr.message || "unknown error") + ". Ask your patron to resend the invite.");
+        setState("none");
+        return;
+      }
     }
     const { data, error: err } = await supabase
       .from("club_editors")

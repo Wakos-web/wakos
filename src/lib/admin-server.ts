@@ -61,7 +61,18 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /** Activate any pending staff invites for a verified auth user. */
-async function activatePendingInvites(supabase: ReturnType<typeof getServiceClient>, user: { id: string; email: string }) {
+/**
+ * Activate any pending staff invites for a verified auth user. Mirrors the
+ * accept-invite activation: role + club scope must attach BEFORE the invite
+ * is marked active, and any failure is reported instead of silently passing
+ * (a session whose account has no role is auto-cleared — false success would
+ * strand the invitee on the login screen). Returns { ok, reason } so callers
+ * can surface the exact failure.
+ */
+async function activatePendingInvites(
+  supabase: ReturnType<typeof getServiceClient>,
+  user: { id: string; email: string },
+): Promise<{ ok: boolean; reason?: string }> {
   const email = user.email.toLowerCase();
   const { data: invites } = await supabase
     .from("staff_invites")
@@ -82,12 +93,32 @@ async function activatePendingInvites(supabase: ReturnType<typeof getServiceClie
         .insert({ user_id: user.id, role: invite.role, created_by: invite.created_by })
         .select()
         .single();
-      if (!roleErr && newRole?.id && invite.club_id) {
-        await supabase.from("role_scopes").insert({
+      if (roleErr || !newRole?.id) {
+        console.error("activatePendingInvites user_roles:", roleErr?.message || "no row returned");
+        return {
+          ok: false as const,
+          reason: "Your invite verified but the role could not be attached. Ask your super admin for help.",
+        };
+      }
+      if (invite.club_id) {
+        const { error: scopeErr } = await supabase.from("role_scopes").insert({
           user_role_id: newRole.id,
           scope_type: "club",
           scope_id: invite.club_id,
         });
+        if (scopeErr) {
+          // Roll the role back so a retry can rebuild it cleanly with its scope.
+          try {
+            await supabase.from("user_roles").delete().eq("id", newRole.id);
+          } catch {
+            // best-effort cleanup only
+          }
+          console.error("activatePendingInvites role_scopes:", scopeErr.message);
+          return {
+            ok: false as const,
+            reason: "Your role was added but its club scope could not be attached. Ask your super admin for help.",
+          };
+        }
       }
     }
     await supabase
@@ -95,7 +126,7 @@ async function activatePendingInvites(supabase: ReturnType<typeof getServiceClie
       .update({ status: "active", user_id: user.id, updated_at: new Date().toISOString() })
       .eq("id", invite.id);
   }
-
+  return { ok: true as const };
 }
 
 /**
@@ -120,7 +151,10 @@ export const adminLogin = createServerFn({ method: "POST" })
     return { ok: false as const, reason: "Session could not be verified" };
   }
 
-  await activatePendingInvites(supabase, { id: user.id, email: user.email });
+  const activation = await activatePendingInvites(supabase, { id: user.id, email: user.email });
+  if (!activation.ok) {
+    return { ok: false as const, reason: activation.reason || "Your invite could not be activated." };
+  }
 
   const roles = await rolesForUid(user.id);
   if (roles.length === 0) {
@@ -297,7 +331,10 @@ export const adminPasscodeLogin = createServerFn({ method: "POST" })
 
   // The passcode is reserved for the super admin — refuse any other role even
   // with a correct passcode, so a leaked passcode cannot unlock lower accounts.
-  await activatePendingInvites(supabase, { id: user.id, email: user.email });
+  const activation = await activatePendingInvites(supabase, { id: user.id, email: user.email });
+  if (!activation.ok) {
+    return { ok: false as const, reason: activation.reason || "Your invite could not be activated." };
+  }
   const roles = await rolesForUid(user.id);
   if (!roles.includes("super_admin")) {
     return { ok: false as const, reason: "The passcode is reserved for the super admin account." };
