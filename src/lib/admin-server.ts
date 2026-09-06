@@ -893,6 +893,107 @@ export const adminInviteStaff = createServerFn({ method: "POST" })
   return { ok: true as const, emailed };
 });
 
+/** Human-readable label for a staff role key. */
+function roleLabelFor(role: string): string {
+  return role === "super_admin"
+    ? "Super Admin"
+    : role === "admin"
+      ? "Admin"
+      : role === "club_patron"
+        ? "Club Patron"
+        : "Alumni Patron";
+}
+
+/**
+ * Tell the super admin who invited a staff member what happened to the
+ * invite: accepted, or activation failed (with the reason). Best-effort —
+ * never throws, so a notification hiccup can never block the accept flow.
+ */
+async function notifyInvitingAdmin(
+  supabase: ReturnType<typeof getServiceClient>,
+  invite: any,
+  outcome: "accepted" | "failed",
+  reason?: string,
+): Promise<void> {
+  try {
+    // Resolve the inviting admin's email: created_by uid first (robust), then
+    // fall back to the "Invited by <email>" note recorded at invite time.
+    let inviterEmail = "";
+    if (invite.created_by) {
+      const { data: inviter } = await supabase.auth.admin.getUserById(invite.created_by);
+      inviterEmail = inviter?.user?.email || "";
+    }
+    if (!inviterEmail) {
+      const m = /Invited by\s+(\S+@\S+)/i.exec(invite.notes || "");
+      if (m?.[1]) inviterEmail = m[1].toLowerCase();
+    }
+    if (!inviterEmail) {
+      console.error("notifyInvitingAdmin: no inviter email for invite", invite.id);
+      return;
+    }
+
+    const apiKey = envVal(process.env.RESEND_API_KEY);
+    if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
+    const portalBase = (process.env.PORTAL_URL || "https://wacos.alerotek.co.ke").replace(/\/$/, "");
+    const roleLabel = roleLabelFor(invite.role || "");
+    const invitee = invite.name || invite.email;
+
+    const accepted = outcome === "accepted";
+    const subject = accepted
+      ? `Invite accepted: ${invitee} is now ${roleLabel}`
+      : `Invite activation failed: ${invitee}`;
+    const html = accepted
+      ? `
+    <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #1c1917;">
+      <p style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #166534; margin-bottom: 4px;">
+        M.M College Wairaka · Staff Portal
+      </p>
+      <h1 style="font-size: 22px; margin: 0 0 12px;">Invite accepted 🎉</h1>
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">
+        <strong>${invitee}</strong> (${invite.email}) accepted their invite and is now
+        <strong>${roleLabel}</strong> on the dashboard. They can sign in at
+        <a href="${portalBase}/admin" style="color: #166534; font-weight: 700;">${portalBase}/admin</a>.
+      </p>
+      <p style="font-size: 13px; color: #57534e; line-height: 1.6; margin: 0;">
+        You can review their access any time under Staff &amp; Roles.
+      </p>
+    </div>`
+      : `
+    <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #1c1917;">
+      <p style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #b91c1c; margin-bottom: 4px;">
+        M.M College Wairaka · Staff Portal
+      </p>
+      <h1 style="font-size: 22px; margin: 0 0 12px;">Invite activation failed</h1>
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">
+        <strong>${invitee}</strong> (${invite.email}) verified their code and tried to set up
+        their <strong>${roleLabel}</strong> account, but activation did not complete.
+      </p>
+      ${reason ? `<p style="font-size: 14px; line-height: 1.6; margin: 0 0 12px;">Reason: ${reason}</p>` : ""}
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">
+        The invite is still pending, so the code can be retried once the issue is
+        fixed — or resend a fresh code from Staff &amp; Roles.
+      </p>
+    </div>`;
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "WACOS Staff <wacos@alerotek.co.ke>",
+        to: [inviterEmail],
+        subject,
+        html,
+      }),
+      // Never let a slow mail API delay the accept response past 8s.
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) throw new Error(`Resend replied ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    console.log(`notifyInvitingAdmin: ${outcome} email sent to ${inviterEmail}`);
+  } catch (e: any) {
+    console.error("notifyInvitingAdmin:", e?.message || e);
+  }
+}
+
 /**
  * Accept a staff invite with the emailed one-time code: verifies the code
  * server-side, sets the chosen password on the auth account, activates the
@@ -944,6 +1045,7 @@ export const adminAcceptInvite = createServerFn({ method: "POST" })
   const { error: pwdErr } = await supabase.auth.admin.updateUserById(uid, { password });
   if (pwdErr) {
     console.error("adminAcceptInvite updateUserById:", pwdErr.message);
+    await notifyInvitingAdmin(supabase, invite, "failed", `Could not set the password: ${pwdErr.message}`);
     return { ok: false as const, reason: "Could not set the password. Try again." };
   }
 
@@ -965,6 +1067,7 @@ export const adminAcceptInvite = createServerFn({ method: "POST" })
       // no role (the session boot clears a role-less cookie). Leave the invite
       // pending so the code can be retried once the cause is fixed.
       console.error("adminAcceptInvite user_roles:", roleErr?.message || "no row returned");
+      await notifyInvitingAdmin(supabase, invite, "failed", `Role could not be attached: ${roleErr?.message || "no row returned"}`);
       return {
         ok: false as const,
         reason: "Your invite verified but the account could not be activated. Ask your super admin for help.",
@@ -984,6 +1087,7 @@ export const adminAcceptInvite = createServerFn({ method: "POST" })
           // best-effort cleanup only
         }
         console.error("adminAcceptInvite role_scopes:", scopeErr.message);
+        await notifyInvitingAdmin(supabase, invite, "failed", `Club scope could not be attached: ${scopeErr.message}`);
         return {
           ok: false as const,
           reason: "Your role was added but its club scope could not be attached. Ask your super admin for help.",
@@ -997,6 +1101,7 @@ export const adminAcceptInvite = createServerFn({ method: "POST" })
     .eq("id", invite.id);
 
   issueStaffSession(uid, cleanEmail);
+  await notifyInvitingAdmin(supabase, invite, "accepted");
   return { ok: true as const, user: { id: uid, email: cleanEmail } };
 });
 
