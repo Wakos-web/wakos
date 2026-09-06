@@ -1238,6 +1238,7 @@ function AlumniPulsePage() {
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const { profile, signOut, refreshProfile, loading: authLoading } = useAlumniAuth();
   const alumnus = (profile as Alumnus | null) ?? null;
+  const gateSearch = useRouterState({ select: (s) => s.location.searchStr });
   const channelRef = useRef<ChannelKey>(channel);
   const alumnusRef = useRef(alumnus);
   useEffect(() => { channelRef.current = channel; }, [channel]);
@@ -1693,7 +1694,6 @@ function AlumniPulsePage() {
   }
 
   if (!alumnus) {
-    const gateSearch = useRouterState({ select: (s) => s.location.searchStr });
     const wantSignup = /signup/.test(gateSearch);
     return (
       <div className="relative h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto bg-[#0A0D14] text-white flex items-center justify-center px-4 py-10">
