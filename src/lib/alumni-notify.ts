@@ -285,3 +285,115 @@ export const notifyAlumniApplicant = createServerFn({ method: "POST" })
 
     return { ok: true as const, notified: 1 };
   });
+
+/**
+ * Notifies the OWNER when the alumni admin decides on their business listing.
+ * The listing-approved email goes to the alumnus's primary email, with a
+ * COPY sent to the business contact email on the listing (the address behind
+ * the envelope button). Rejections include the admin's note and go to both
+ * addresses too, matching the profile flow. Gated on the httpOnly staff
+ * session cookie, and the listing's DB state must already match the verdict.
+ */
+export const notifyBusinessApplicant = createServerFn({ method: "POST" })
+  .validator((d: unknown) => (d ?? {}) as { businessId?: unknown; verdict?: unknown; note?: unknown })
+  .handler(async ({ data }) => {
+    const { businessId, verdict, note } = data;
+
+    const session = readStaffSession();
+    if (!session) {
+      return { ok: false as const, reason: "Staff session required." };
+    }
+    if (typeof businessId !== "string" || !businessId) {
+      return { ok: false as const, reason: "Missing business id." };
+    }
+    if (verdict !== "approved" && verdict !== "rejected") {
+      return { ok: false as const, reason: "Verdict must be approved or rejected." };
+    }
+
+    const supabase = getServiceClient();
+    const { data: biz } = await supabase
+      .from("alumni_businesses")
+      .select("id, name, email, approved, rejected_notes, owner_id")
+      .eq("id", businessId)
+      .maybeSingle();
+    if (!biz) return { ok: false as const, reason: "Business not found." };
+
+    // Only notify after the decision is actually recorded in the DB.
+    const expected = verdict === "approved";
+    if (biz.approved !== expected) {
+      return { ok: false as const, reason: "Business listing has not been decided yet." };
+    }
+
+    const { data: owner } = await supabase
+      .from("alumni_profiles")
+      .select("full_name, email")
+      .eq("id", biz.owner_id)
+      .maybeSingle();
+    if (!owner?.email) {
+      return { ok: false as const, reason: "No owner email on file for this listing." };
+    }
+
+    // Copy to the business contact email behind the envelope button when it
+    // differs from the owner's primary email (dedupe otherwise).
+    const recipients = [
+      owner.email,
+      typeof biz.email === "string" && biz.email.trim() ? biz.email.trim() : null,
+    ].filter((e): e is string => !!e && typeof e === "string");
+    const to = [...new Set(recipients.map((e) => e.toLowerCase()))];
+
+    const approved = verdict === "approved";
+    const cleanNote =
+      typeof note === "string" && note.trim()
+        ? note.trim()
+        : (biz.rejected_notes || "").trim() || null;
+    const businessName = biz.name || "your business";
+    const html = `
+      <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #1c1917;">
+        <p style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #166534; margin-bottom: 4px;">
+          M.M College Wairaka · Business Directory
+        </p>
+        <h1 style="font-size: 24px; margin: 0 0 12px;">
+          ${approved ? "Your business listing is live 🎉" : "Your business listing was not approved"}
+        </h1>
+        <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+          ${approved
+            ? `<strong>${businessName}</strong> is now visible in the WACOS Alumni Business Directory. Customers can browse it, email you through the envelope button, and chat on WhatsApp.`
+            : `<strong>${businessName}</strong> could not be published to the directory at this time.`}
+        </p>
+        ${!approved && cleanNote
+          ? `<div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 14px 16px; margin: 0 0 16px;">
+               <p style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #b91c1c; margin: 0 0 6px;">Reason</p>
+               <p style="font-size: 14px; line-height: 1.6; color: #7f1d1d; margin: 0;">${cleanNote}</p>
+             </div>`
+          : ""}
+        ${!approved && !cleanNote
+          ? `<p style="font-size: 14px; color: #57534e; margin: 0 0 16px;">You can edit the listing and resubmit it from your alumni profile.</p>`
+          : ""}
+        <p style="margin: 0;">
+          <a href="${SITE_URL}/alumni/directory/businesses"
+             style="display: inline-block; background: ${approved ? "#166534" : "#57534e"}; color: #ffffff; text-decoration: none;
+                    padding: 12px 22px; border-radius: 12px; font-size: 14px; font-weight: 600;">
+            ${approved ? "View the Business Directory" : "Back to the site"}
+          </a>
+        </p>
+        <p style="font-size: 12px; color: #a8a29e; margin-top: 24px;">
+          You are receiving this because a business listing was submitted on the M.M College Wairaka alumni portal.
+        </p>
+      </div>
+    `;
+
+    try {
+      await sendResendEmail(
+        to,
+        approved
+          ? `Your WACOS business listing is live: ${businessName}`
+          : `Your WACOS business listing was not approved: ${businessName}`,
+        html,
+      );
+    } catch (e: any) {
+      console.error("notifyBusinessApplicant:", e?.message || e);
+      return { ok: false as const, reason: "Email could not be sent." };
+    }
+
+    return { ok: true as const, notified: to.length };
+  });

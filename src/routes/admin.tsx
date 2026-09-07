@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useMatch, useNavigate } from "@tanstack/
 import { useState, useEffect, useRef } from "react";
 import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff, adminSendLoginCode, adminVerifyLoginCode } from "@/lib/supabase";
 import { notifyClubEditor } from "@/lib/club-notify";
-import { notifyAlumniApplicant } from "@/lib/alumni-notify";
+import { notifyAlumniApplicant, notifyBusinessApplicant } from "@/lib/alumni-notify";
 import { LOGO_URL } from "@/lib/content";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -57,14 +57,19 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
 
   if (!item) return null;
 
-  // Alumni registration decisions get an email to the applicant (server fn is
-  // gated on the staff session cookie; DB state must already match the verdict).
+  // Registration and business-listing decisions get an email to the applicant
+  // (server fns are gated on the staff session cookie; DB state must already
+  // match the verdict). Business emails go to the owner's primary address with
+  // a copy to the listing's business contact email.
   const notifyApplicant = async (verdict: "approved" | "rejected") => {
-    if (item.table !== "alumni_profiles") return;
     try {
-      await notifyAlumniApplicant({ data: { profileId: item.id, verdict, note: rejectNotes.trim() } });
+      if (item.table === "alumni_profiles") {
+        await notifyAlumniApplicant({ data: { profileId: item.id, verdict, note: rejectNotes.trim() } });
+      } else if (item.table === "alumni_businesses") {
+        await notifyBusinessApplicant({ data: { businessId: item.id, verdict, note: rejectNotes.trim() } });
+      }
     } catch (e: any) {
-      console.warn("notifyAlumniApplicant:", e?.message || e);
+      console.warn("notifyApplicant:", e?.message || e);
     }
   };
 
