@@ -185,11 +185,18 @@ function RegisterBusinessPage() {
       // Existing registrations for this email (an alumnus returning to list
       // another business): no duplicate alumni profile is created — we attach
       // the new business to their existing profile after email verification.
-      const { data: existing } = await supabase
+      // Fail loudly if the existence check errors: a dropped read used to
+      // fall through to INSERT and duplicate the profile (now also blocked by
+      // the unique email index from migration 025).
+      const { data: existing, error: lookErr } = await supabase
         .from("alumni_profiles")
         .select("id, full_name, email, graduation_year, approved")
         .ilike("email", email.trim())
         .maybeSingle();
+      if (lookErr) {
+        setError("Could not check your email before registering. Try again.");
+        return;
+      }
       const found = (existing as BusProfile | null) || null;
       if (found && found.approved === false) {
         setError("An account for this email was recalled by the alumni office. Contact MMCWOSA if you think this is a mistake.");

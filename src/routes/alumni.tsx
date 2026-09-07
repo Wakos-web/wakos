@@ -515,11 +515,19 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
   };
 
   const submitJoin = async () => {
-    const { data: existing } = await supabase
+    // Fail loudly if the existence check itself errors — silently treating a
+    // failed read as "no existing profile" used to fall through to INSERT and
+    // create a duplicate row (no unique constraint backstop until migration
+    // 025). The unique email index now also blocks the duplicate, but the
+    // read error must still be surfaced instead of misreported as success.
+    const { data: existing, error: lookErr } = await supabase
       .from("alumni_profiles")
       .select("*")
       .ilike("email", email.trim())
       .maybeSingle();
+    if (lookErr) {
+      throw new Error("Could not check your email before registering. Try again.");
+    }
     if (existing) {
       if (existing.approved) {
         onDone(existing as Alumnus);
