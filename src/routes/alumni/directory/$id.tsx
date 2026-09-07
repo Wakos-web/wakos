@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
-import { MapPin, Briefcase, GraduationCap, Building2, ArrowLeft } from "lucide-react";
+import { MapPin, Briefcase, GraduationCap, Building2, ArrowLeft, Mail, MessageCircle } from "lucide-react";
 
 type AlumniBusiness = {
   id: string;
@@ -11,7 +11,22 @@ type AlumniBusiness = {
   category?: string;
   description?: string;
   location?: string;
+  email?: string | null;
+  whatsapp?: string | null;
 };
+
+/** Same normalisation as the Business Directory cards: strip formatting,
+ *  drop a leading 0/00 and assume a Ugandan (+256) number so the button
+ *  opens the right wa.me chat. */
+function toWhatsAppLink(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return null;
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  if (!digits.startsWith("256")) digits = "256" + digits;
+  return digits.length >= 12 ? "https://wa.me/" + digits : null;
+}
 
 export const Route = createFileRoute("/alumni/directory/$id")({
   head: () => ({
@@ -167,6 +182,23 @@ function ProfileContent() {
                           <p className="text-xs text-stone-500 mt-2 flex items-center gap-1">
                             <MapPin className="h-3 w-3" /> {b.location}
                           </p>
+                        )}
+                        {(b.email || b.whatsapp) && (
+                          <div className="mt-2 flex items-center gap-2">
+                            {b.email && (
+                              <a href={`mailto:${b.email}`} title="Email this business"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
+                                <Mail className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                            {b.whatsapp && toWhatsAppLink(b.whatsapp) && (
+                              <a href={toWhatsAppLink(b.whatsapp)!} target="_blank" rel="noopener noreferrer"
+                                title="Chat on WhatsApp"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
+                                <MessageCircle className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}
