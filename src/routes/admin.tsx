@@ -1505,7 +1505,23 @@ function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[];
                   <p className="text-sm text-stone-500">{biz.owner_name} · {biz.category}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setReviewItem({ id: biz.id, title: biz.business_name, author: biz.owner_name, details: { category: biz.category, description: biz.description, website: biz.website, phone: biz.phone, email: biz.email }, approved: biz.approved, rejected_notes: biz.rejected_notes, table: "alumni_businesses" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
+                  <button onClick={() => {
+                    const details: Record<string, any> = {
+                      Category: biz.category,
+                      Description: biz.description,
+                      Website: biz.website,
+                      Phone: biz.phone,
+                      Location: biz.location,
+                      "Business email": biz.email,
+                      "WhatsApp": biz.whatsapp,
+                    };
+                    // Don't litter the review with "null" for optional fields.
+                    Object.keys(details).forEach((k) => {
+                      const v = details[k];
+                      if (v === null || v === undefined || v === "") delete details[k];
+                    });
+                    setReviewItem({ id: biz.id, title: biz.business_name || biz.name, author: biz.owner_name, details, approved: biz.approved, rejected_notes: biz.rejected_notes, table: "alumni_businesses" });
+                  }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
                     <Eye className="h-4 w-4 text-blue-600" />
                   </button>
                   <button onClick={() => remove(biz.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
@@ -3337,12 +3353,20 @@ function AdminPage() {
     const a = alumniRes.data || [];
     const art = articlesRes.data || [];
     const pc = pagesRes.data || [];
+    // The Businesses tab reads `business_name`/`owner_name`, so enrich the raw
+    // rows with the owner's profile (raw rows only carry owner_id + name).
+    const alumniById = new Map((a || []).map((p: any) => [p.id, p]));
+    const bEnriched = (b || []).map((x: any) => ({
+      ...x,
+      business_name: x.name,
+      owner_name: x.owner_id ? alumniById.get(x.owner_id)?.full_name || null : null,
+    }));
     setClubs(c);
     setMembers(m);
     setEvents(e);
     setNotes(n);
     setInquiries(i);
-    setBusinesses(b);
+    setBusinesses(bEnriched);
     setAlumni(a);
     setArticles(art);
     setPageContent(pc);
