@@ -2549,7 +2549,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
       { label: "icon" }, { label: "category" }, { label: "sort_order", type: "number" },
     ],
     updates: [
-      { label: "title" }, { label: "body" }, { label: "update_date" }, { label: "sort_order", type: "number" },
+      { label: "title" }, { label: "body" }, { label: "caption" }, { label: "update_date" }, { label: "sort_order", type: "number" },
     ],
     socials: [],
   };

@@ -22,7 +22,7 @@ export const Route = createFileRoute("/mwosa")({
 
 type MwosaStat = { value: string; label: string };
 type MwosaLink = { label: string; url: string; description: string | null; icon: string; category: string };
-type MwosaUpdate = { id?: string; title: string; body: string; update_date: string | null; image_url?: string | null };
+type MwosaUpdate = { id?: string; title: string; body: string; update_date: string | null; image_url?: string | null; caption?: string | null };
 
 const DEFAULT_STATS: MwosaStat[] = [
   { value: "2020", label: "Wairaka Trust Fund launched by the alumni executive" },
@@ -47,10 +47,10 @@ const DEFAULT_CHANNELS: MwosaLink[] = [
 ];
 
 const DEFAULT_UPDATES: MwosaUpdate[] = [
-  { title: "Wairaka Trust Fund established", body: "The alumni executive founded the Wairaka Trust Fund after rehabilitation projects, including the college library, were put on hold for lack of funds before COVID-19. The agreed minimum contribution is UGX 10,000 per old student per month.", update_date: "September 2020" },
-  { title: "Physics Laboratory renovated", body: "Through the Trust Fund, the alumni renovated the Physics Laboratory — a core requirement for science students at WACOS.", update_date: "" },
-  { title: "Chemistry Laboratory renovated", body: "The Chemistry Laboratory was renovated and equipped to support practical learning for both O-Level and A-Level students.", update_date: "" },
-  { title: "Student washrooms renovated", body: "The Trust Fund renovated the student washrooms, restoring dignity and cleanliness to daily boarding life.", update_date: "" },
+  { title: "Wairaka Trust Fund established", body: "The alumni executive founded the Wairaka Trust Fund after rehabilitation projects, including the college library, were put on hold for lack of funds before COVID-19. The agreed minimum contribution is UGX 10,000 per old student per month.", update_date: "September 2020", caption: "The alumni executive meets to launch the Wairaka Trust Fund" },
+  { title: "Physics Laboratory renovated", body: "Through the Trust Fund, the alumni renovated the Physics Laboratory — a core requirement for science students at WACOS.", update_date: "", caption: "A modern physics laboratory, fitted and equipped by old students" },
+  { title: "Chemistry Laboratory renovated", body: "The Chemistry Laboratory was renovated and equipped to support practical learning for both O-Level and A-Level students.", update_date: "", caption: "Chemistry practicals back in a fully renovated laboratory" },
+  { title: "Student washrooms renovated", body: "The Trust Fund renovated the student washrooms, restoring dignity and cleanliness to daily boarding life.", update_date: "", caption: "Renovated washrooms restore dignity to daily boarding life" },
 ];
 
 const LINK_ICONS: Record<string, any> = {
@@ -212,6 +212,11 @@ function UpdatesSection({ updates, loading }: { updates: MwosaUpdate[]; loading?
                   <span className="absolute left-3 top-3 rounded-full bg-black/60 backdrop-blur px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                     {u.update_date || "Completed"}
                   </span>
+                  {u.caption && (
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-3 pt-8 pb-2 text-[11px] font-medium leading-snug text-white">
+                      {u.caption}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-1 flex-col p-4">
                   <h3 className="font-display text-base font-bold text-stone-900 mb-1.5 group-hover:text-green-800 transition-colors line-clamp-2">{u.title}</h3>
@@ -421,7 +426,7 @@ function MwosaPage() {
           if (quick.length) setQuickLinks(quick);
           if (chan.length) setChannels(chan);
         }
-        if (u.data?.length) setUpdates(u.data.map((x: any) => ({ id: x.id, title: x.title, body: x.body, update_date: x.update_date, image_url: x.image_url })));
+        if (u.data?.length) setUpdates(u.data.map((x: any) => ({ id: x.id, title: x.title, body: x.body, update_date: x.update_date, image_url: x.image_url, caption: x.caption })));
         const s2 = await supabase.from("social_links").select("*").eq("entity_type", "mwosa").eq("active", true).order("sort_order", { ascending: true });
         if (s2.data?.length) setSocials(s2.data);
       } finally {

@@ -29,6 +29,7 @@ type Story = {
   body: string;
   update_date: string | null;
   image_url: string | null;
+  caption?: string | null;
 };
 
 /* Reveal-on-scroll wrapper: content fades/rises into view as it enters the
@@ -159,6 +160,11 @@ function UpdateStoryPage() {
           </p>
           <h1 className="font-display text-3xl md:text-4xl font-bold text-stone-900 tracking-tight mb-3">{story.title}</h1>
           {story.body && <p className="text-base text-stone-600 font-body leading-relaxed max-w-3xl">{story.body}</p>}
+          {story.caption && (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-lg bg-green-50 px-3 py-1.5 text-sm italic text-green-900 font-body">
+              <ImageIcon className="h-4 w-4 shrink-0" /> {story.caption}
+            </p>
+          )}
           <p className="mt-5 text-sm text-stone-400">
             {videos.length + images.length} {videos.length + images.length === 1 ? "photo or video" : "photos & videos"} in this story
           </p>
