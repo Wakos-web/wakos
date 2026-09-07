@@ -19,7 +19,10 @@ import newsRobotics from "@/assets/news-robotics.jpg";
 import newsBasketball from "@/assets/news-basketball.jpg";
 import newsService from "@/assets/news-service.jpg";
 import newsGraduation from "@/assets/news-graduation.jpg";
-import { ImageCarousel } from "@/components/image-carousel";
+import scholarshipHero from "@/assets/scholarship-hero.jpg";
+import ourMission from "@/assets/ourmission.jpg";
+import { JournalGallery } from "@/components/journal-gallery";
+import { usePageContent } from "@/hooks/usePageContent";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -195,7 +198,11 @@ const CAMPUS_IMAGES = [
   { src: newsGraduation, alt: "Class of 2026", caption: "312 candidates sent off" },
 ];
 function CampusCarousel() {
-  return <ImageCarousel images={CAMPUS_IMAGES} title="Life at WACOS" />;
+  // "Life at WACOS" gallery images come from the CMS (Admin > Page Content >
+  // Life at WACOS Gallery, with real file uploads). Empty -> bundled defaults.
+  const { content } = usePageContent("home");
+  const images = (content.gallery?.images?.length ? content.gallery.images : CAMPUS_IMAGES) as { src: string; alt: string; caption?: string }[];
+  return <JournalGallery images={images} title="Life at WACOS" />;
 }
 
 function StatsSection() {
@@ -329,8 +336,8 @@ function MissionSection() {
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
         <div className="overflow-hidden rounded-[2rem]">
           <img
-            src={IMAGES.campus}
-            alt="M.M College Wairaka campus"
+            src={ourMission}
+            alt="M.M College Wairaka mission"
             width={1600}
             height={900}
             loading="lazy"
@@ -361,7 +368,7 @@ function MissionSection() {
 
 function GivingCta() {
   const [schTitle, setSchTitle] = useState('The Scholarship Fund');
-  const [schText, setSchText] = useState('M.M College Wairaka scholarship fund is sustained entirely by alumni and friends who believe the next generation deserves the same chance they were given.');
+  const [schText, setSchText] = useState('M.M College Wairaka scholarship fund is sustained by alumni and friends who believe the next generation deserves the same chance they were given.');
 
   useEffect(() => {
     getSettings().then(s => {
@@ -373,8 +380,8 @@ function GivingCta() {
   return (
     <section className="relative overflow-hidden">
       <img
-        src={IMAGES.giving}
-        alt="Alumni gathered at M.M College Wairaka"
+        src={scholarshipHero}
+        alt="WACOS scholarship students"
         width={1200}
         height={800}
         loading="lazy"
@@ -404,6 +411,7 @@ function HomePage() {
     <main>
       <HeroSection />
       <StatsSection />
+      <CampusCarousel />
       <NewsSection />
       <MissionSection />
       <GivingCta />

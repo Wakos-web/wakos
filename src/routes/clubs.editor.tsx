@@ -3,8 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyClubPatron } from "@/lib/club-notify";
 import { staffClubAccess, staffClubSignOut } from "@/lib/club-staff";
+import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
+import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import {
   LogOut, Send, ImagePlus, Trash2, PenLine, X, ArrowLeft, Mail, Clock, Eye,
   Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, ListChecks,
@@ -79,7 +81,10 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState<Record<string, { caption: string; sort: string }>>({});
   const [addCaption, setAddCaption] = useState("");
+  const [ytUrl, setYtUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
 
@@ -157,6 +162,50 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
     }
   };
 
+  /* YouTube in-play videos: paste a link, it renders as an inline embed on
+   * the story page. Counts against the 2-video cap just like uploads. */
+  const addYouTube = async () => {
+    const id = youtubeId(ytUrl.trim());
+    if (!id) {
+      notice("Paste a valid YouTube link (watch, youtu.be or shorts URL).", "err");
+      return;
+    }
+    const videoCount = items.filter((m: any) => m.media_type === "video").length;
+    if (videoCount >= 2) {
+      notice("Stories allow a maximum of 2 videos. Remove one before adding another.", "err");
+      return;
+    }
+    if (items.length >= 6) {
+      notice("Stories hold a maximum of 6 media items (5 photos + 2 videos).", "err");
+      return;
+    }
+    const captionWords = addCaption.trim().split(/\s+/).filter(Boolean).length;
+    if (captionWords > 55) {
+      notice("Captions are limited to 55 words. Shorten this caption first.", "err");
+      return;
+    }
+    setUploading(true);
+    try {
+      const { error } = await supabase.from("club_post_media").insert({
+        post_id: postId,
+        media_type: "video",
+        media_url: youtubeWatchUrl(id),
+        youtube_url: youtubeWatchUrl(id),
+        caption: addCaption.trim() || null,
+        sort_order: items.length + 1,
+      });
+      if (error) throw error;
+      setYtUrl("");
+      setAddCaption("");
+      notice("YouTube video added — it plays inline on the story page", "ok");
+      load();
+    } catch (e: any) {
+      notice(e?.message || "Could not add the YouTube video", "err");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const saveRow = async (id: string) => {
     const e = edits[id];
     if (!e) return;
@@ -181,11 +230,54 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
     load();
   };
 
+  /* Drag-to-reorder (same pattern as the MWOSA media manager): on drop the
+   * whole list's sort_order is rewritten in one batch, then reloaded so the
+   * UI matches the DB — a stray click can't lose the new order. */
+  const onDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+    setDragId(id);
+  };
+  const onDragOverRow = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (id !== dragId) setDragOverId(id);
+  };
+  const onDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!dragId || dragId === targetId) {
+      setDragId(null); setDragOverId(null);
+      return;
+    }
+    const next = [...items];
+    const from = next.findIndex((m) => m.id === dragId);
+    const to = next.findIndex((m) => m.id === targetId);
+    if (from === -1 || to === -1) {
+      setDragId(null); setDragOverId(null);
+      return;
+    }
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setItems(next);
+    setEdits((prev) => {
+      const upd = { ...prev };
+      next.forEach((m, i) => { const cur = upd[m.id]; if (cur) upd[m.id] = { ...cur, sort: String(i + 1) }; });
+      return upd;
+    });
+    setDragId(null); setDragOverId(null);
+    const updates = next.map((m, i) =>
+      supabase.from("club_post_media").update({ sort_order: i + 1 }).eq("id", m.id),
+    );
+    await Promise.all(updates);
+    notice("Order saved", "ok");
+    load();
+  };
+
   return (
     <div className="rounded-xl bg-stone-50 border border-stone-200 p-4">
       <p className="text-sm font-semibold text-stone-700 mb-1">Story media (photos & videos with captions)</p>
       <p className="text-xs text-stone-400 mb-4">
-        These appear on the post's detailed page as a captioned gallery. Upload a photo or video, give it a caption, and reorder.
+        These appear on the post's detailed page as a captioned gallery: photos bundle into one swipeable carousel under a single caption, and videos play inline (upload a file or paste a YouTube link). Reorder with the order field.
       </p>
 
       <div className="rounded-xl bg-white border border-stone-200 p-3 mb-4 space-y-3">
@@ -218,6 +310,13 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
           <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "image")} />
           <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "video")} />
         </div>
+        <YoutubeLinkInput
+          value={ytUrl}
+          onChange={setYtUrl}
+          onSave={addYouTube}
+          disabled={uploading}
+          placeholder="…or paste a YouTube link (watch / youtu.be / shorts) — plays inline on the story page"
+        />
       </div>
 
       {loading ? (
@@ -228,12 +327,32 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
         </div>
       ) : (
         <div className="space-y-2">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 rounded-lg bg-white border border-stone-200 p-2.5">
+          {items.map((item, idx) => (
+            <div
+              key={item.id}
+              draggable
+              onDragStart={(e) => onDragStart(e, item.id)}
+              onDragOver={(e) => onDragOverRow(e, item.id)}
+              onDrop={(e) => onDrop(e, item.id)}
+              onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+              className={`flex items-start gap-3 rounded-lg border p-2.5 cursor-grab active:cursor-grabbing transition-all ${dragId === item.id ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverId === item.id && dragId !== item.id ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
+            >
+              <div className="flex flex-col items-center gap-1 shrink-0 pt-1">
+                <GripVertical className="h-4 w-4 text-stone-400" />
+                <span className="text-[10px] font-bold text-stone-400">{idx + 1}</span>
+              </div>
               {item.media_type === "video" ? (
-                <div className="w-16 h-12 shrink-0 rounded-md bg-black flex items-center justify-center">
-                  <PlayCircle className="h-5 w-5 text-white/80" />
-                </div>
+                youtubeId(item.youtube_url || item.media_url) ? (
+                  <img
+                    src={youtubeThumbUrl(youtubeId(item.youtube_url || item.media_url)!)}
+                    alt=""
+                    className="w-16 h-12 shrink-0 rounded-md object-cover border border-stone-200"
+                  />
+                ) : (
+                  <div className="w-16 h-12 shrink-0 rounded-md bg-black flex items-center justify-center">
+                    <PlayCircle className="h-5 w-5 text-white/80" />
+                  </div>
+                )
               ) : (
                 <img src={item.media_url} alt="" className="w-16 h-12 shrink-0 rounded-md object-cover border border-stone-200" />
               )}
@@ -244,8 +363,16 @@ function PostMediaManager({ postId, notice }: { postId: string; notice: (text: s
                   placeholder="Caption"
                   className="w-full p-1.5 border border-stone-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-green-800"
                 />
+                {/* Live preview of how this caption appears on the story page */}
+                <div className="flex items-baseline gap-1.5 rounded-md bg-stone-50 border border-stone-200 px-2 py-1">
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-stone-400 shrink-0">On the page</span>
+                  {(edits[item.id]?.caption ?? "").trim() ? (
+                    <span className="font-display italic text-[11px] text-stone-700 truncate">{edits[item.id]?.caption.trim()}</span>
+                  ) : (
+                    <span className="font-display italic text-[11px] text-stone-400 truncate">no caption yet — shown untitled</span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
-                  <GripVertical className="h-3 w-3 text-stone-300" />
                   <input
                     type="number"
                     value={edits[item.id]?.sort ?? "0"}

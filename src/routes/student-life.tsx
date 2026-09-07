@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { IMAGES, SCHOOL_NAME, SCHOOL_MOTTO } from "@/lib/content";
-import { ImageCarousel } from "@/components/image-carousel";
+import { JournalGallery } from "@/components/journal-gallery";
 import { usePageContent } from "@/hooks/usePageContent";
 
 export const Route = createFileRoute("/student-life")({
@@ -52,9 +52,12 @@ function CTASection() {  return (    <section className="bg-green-900 py-20">   
       />
       <div className="relative max-w-6xl mx-auto px-6">        <div className="text-center mb-10">          <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Daily Life</p>          <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">A day at Wairaka</h2>        </div>        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">          {items.map((item) => (            <div key={item.name} className="rounded-2xl bg-white p-6 border border-stone-200">              <h3 className="font-display text-lg font-bold text-stone-900 mb-2">{item.name}</h3>              <p className="text-stone-600 text-sm leading-relaxed font-body">{item.description}</p>            </div>          ))}        </div>      </div>    </section>  );}
 function StudentLifePage() {  const { content } = usePageContent("student-life");
+  // Campus Life gallery images come from the CMS (Admin > Page Content >
+  // Campus Life Gallery, with real file uploads). Empty -> bundled defaults.
+  const galleryImages = (content.gallery?.images?.length ? content.gallery.images : SL_IMAGES) as { src: string; alt: string; caption?: string }[];
   const heroDesc = content.hero?.description;
   const philoPs = content.overview?.paragraphs?.length ? content.overview.paragraphs : ["At {SCHOOL_NAME}, student life is grounded in our core values: Discipline, Hard work, and Self-reliance. Our motto ,  \"{SCHOOL_MOTTO}\" ,  is not decoration. It is an instruction. Through house-parent mentoring, 10 active clubs, 8 sports, community service, and practical skills programmes, students are encouraged to take responsibility, explore their potential, and build character that lasts well beyond graduation.", "Parents send us children. We send back leaders. That is the WACOS promise."];
   const resiPs = content.residential?.paragraphs?.length ? content.residential.paragraphs : ["Boarding students at {SCHOOL_NAME} live, study, and grow together in supervised dormitories. House parents who mentor and support students through their secondary school years create a second family environment ,  one built on structure, accountability, and genuine care.", "Throughout the year, conversations in the dorm ,  both formal and informal ,  provide moments for students to reflect on core values, health and wellness, and their relationships with peers. Faculty residents guide students through discussions and activities at moments in the year when the content is most relevant.", "More than anything, our residential community gives students the space to discover who they are and who they want to become. With adults who care about them nearby, students flourish."];
   const activities = content.activities?.items || [];
-  return (    <div>      <HeroSection desc={heroDesc} />      <PhilosophySection ps={philoPs} />      <ImageCarousel images={SL_IMAGES} title="Campus Life" />
+  return (    <div>      <HeroSection desc={heroDesc} />      <PhilosophySection ps={philoPs} />      <JournalGallery images={galleryImages} title="Campus Life" />
       <QuickNavCards />      <main>        <ResidentialLife ps={resiPs} />        {activities.length > 0 && <ActivitiesStrip items={activities} />}        <ClubsSection />        <SportsSection />        <ServiceSection />        <ArtsSection />        <WellnessSection />      </main>      <CTASection />    </div>  );}

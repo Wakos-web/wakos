@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Calendar, Image as ImageIcon, Video as VideoIcon, PlayCircle } from "lucide-react";
-import { Lightbox, LightboxHint } from "@/components/lightbox";
+import { ArrowLeft, Calendar, Image as ImageIcon, PlayCircle } from "lucide-react";
+import { JournalGallery } from "@/components/journal-gallery";
+import { YouTubeEmbed } from "@/components/lightbox";
+import { youtubeId } from "@/lib/youtube";
 
 export const Route = createFileRoute("/mwosa/update/$id")({
   head: ({ params }) => ({
@@ -18,6 +20,7 @@ type MediaItem = {
   caption: string | null;
   sort_order: number;
   poster_url?: string | null;
+  youtube_url?: string | null;
 };
 
 type Story = {
@@ -63,22 +66,27 @@ function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; 
   );
 }
 
-function MediaCard({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
-  if (item.media_type === "video") {
-    return (
+function MediaCard({ item }: { item: MediaItem }) {
+  const ytId = youtubeId(item.youtube_url || item.media_url);
+  return (
       <figure className="group mb-8 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
-        <div className="relative aspect-[4/3] overflow-hidden">
-          <video
-            src={item.media_url}
-            poster={item.poster_url || undefined}
-            controls
-            playsInline
-            preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover bg-black"
-          />
+        <div className="relative aspect-video overflow-hidden bg-black">
+          {ytId ? (
+            /* YouTube in-play: poster frame, click plays the embed inline */
+            <YouTubeEmbed fill key={item.id} id={ytId} caption={item.caption} />
+          ) : (
+            <video
+              src={item.media_url}
+              poster={item.poster_url || undefined}
+              controls
+              playsInline
+              preload="metadata"
+              className="absolute inset-0 h-full w-full object-cover bg-black"
+            />
+          )}
           {/* Glossy bubble highlight */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent" />
-          <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition-all duration-500 group-hover:bg-green-800 group-hover:scale-105">
+          <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition-all duration-500 group-hover:bg-green-800 group-hover:scale-105">
             <PlayCircle className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-12" /> Video
           </span>
         </div>
@@ -86,38 +94,6 @@ function MediaCard({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
           <figcaption className="line-clamp-2 px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">{item.caption}</figcaption>
         )}
       </figure>
-    );
-  }
-  return (
-    <figure
-      onClick={onOpen}
-      role="button"
-      tabIndex={0}
-      aria-label={item.caption ? `View photo: ${item.caption}` : "View photo"}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className="group mb-8 break-inside-avoid cursor-zoom-in overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700">
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          src={item.media_url}
-          alt={item.caption || ""}
-          loading="lazy"
-          className="kenburns absolute inset-0 h-full w-full object-cover"
-        />
-        {/* Glossy bubble highlight */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-transparent" />
-        <LightboxHint />
-      </div>
-      {item.caption && (
-        <figcaption className="line-clamp-2 px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">
-          {item.caption}
-        </figcaption>
-      )}
-    </figure>
   );
 }
 
@@ -126,7 +102,6 @@ function UpdateStoryPage() {
   const [story, setStory] = useState<Story | null>(null);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -140,6 +115,9 @@ function UpdateStoryPage() {
       setLoading(false);
     })();
   }, [id]);
+
+  const videos = media.filter((m) => m.media_type === "video" && (youtubeId(m.youtube_url || m.media_url) || m.media_url));
+  const images = media.filter((m) => m.media_type === "image");
 
   if (loading) {
     return (
@@ -182,13 +160,14 @@ function UpdateStoryPage() {
           <h1 className="font-display text-3xl md:text-4xl font-bold text-stone-900 tracking-tight mb-3">{story.title}</h1>
           {story.body && <p className="text-base text-stone-600 font-body leading-relaxed max-w-3xl">{story.body}</p>}
           <p className="mt-5 text-sm text-stone-400">
-            {media.length} {media.length === 1 ? "photo or video" : "photos & videos"} in this story
+            {videos.length + images.length} {videos.length + images.length === 1 ? "photo or video" : "photos & videos"} in this story
           </p>
         </div>
       </section>
 
-      {/* Masonry gallery of animated, captioned media */}
-      <section className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14">
+      {/* Gallery: video placeholder(s) on top, then the story's photos as
+          journal pages with their captions below */}
+      <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14">
         <img
           src="/hero-poster.png"
           alt=""
@@ -202,25 +181,32 @@ function UpdateStoryPage() {
             <p className="text-stone-500 font-body">Media for this story is being prepared. Check back soon.</p>
           </div>
         ) : (
-          <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 [column-fill:_balance]">
-            {media.map((item, i) => (
-              <Reveal key={item.id} delay={(i % 3) * 90}>
-                <MediaCard item={item} onOpen={() => setLightboxIndex(i)} />
+          <>
+            {videos.length > 0 && (
+              <div className="mb-10 mx-auto w-full max-w-4xl">
+                {videos.map((v, vi) => (
+                  <Reveal key={v.id} delay={(vi % 2) * 90} className={videos.length > 1 ? "mb-8 last:mb-0" : ""}>
+                    <MediaCard item={v} />
+                  </Reveal>
+                ))}
+              </div>
+            )}
+            {images.length > 0 && (
+              <Reveal>
+                <JournalGallery
+                  title="The story in pictures"
+                  images={images.map((m) => ({
+                    src: m.media_url,
+                    alt: m.caption || "Project photo",
+                    ...(m.caption ? { caption: m.caption } : {}),
+                  }))}
+                />
               </Reveal>
-            ))}
-          </div>
+            )}
+          </>
         )}
         </div>
       </section>
-
-      {lightboxIndex !== null && media.length > 0 && (
-        <Lightbox
-          items={media}
-          index={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-          onNavigate={(next) => setLightboxIndex(next)}
-        />
-      )}
 
       {/* CTA */}
       <section className="bg-white border-t border-stone-200">

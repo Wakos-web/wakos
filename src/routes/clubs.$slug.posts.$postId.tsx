@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Calendar, Image as ImageIcon, Video as VideoIcon, PlayCircle } from 'lucide-react';
-import { Lightbox, LightboxHint } from '@/components/lightbox';
+import { ArrowLeft, Calendar, PlayCircle } from 'lucide-react';
+import { Lightbox, YouTubeEmbed } from '@/components/lightbox';
+import { JournalGallery } from '@/components/journal-gallery';
+import { youtubeId } from '@/lib/youtube';
 
 export const Route = createFileRoute('/clubs/$slug/posts/$postId')({
   head: ({ params }) => ({
@@ -17,6 +19,7 @@ type MediaItem = {
   media_url: string;
   caption: string | null;
   sort_order: number;
+  youtube_url?: string | null;
 };
 
 type Story = {
@@ -75,62 +78,40 @@ function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; 
 }
 
 function MediaCard({ item, onOpen }: { item: MediaItem; onOpen: () => void }) {
-  if (item.media_type === 'video') {
-    return (
-      <figure className="group mb-8 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
-        <div className="relative aspect-[4/3] overflow-hidden">
-          <video
-            src={item.media_url}
-            controls
-            playsInline
-            preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover bg-black"
-          />
+  const ytId = youtubeId(item.youtube_url || item.media_url);
+  return (
+      <figure className="group mb-0 break-inside-avoid overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500">
+        <div className="relative aspect-video overflow-hidden bg-black">
+          {ytId ? (
+            /* YouTube in-play: poster frame, click plays the embed inline */
+            <YouTubeEmbed fill key={item.id} id={ytId} caption={item.caption} />
+          ) : (
+            <video
+              src={item.media_url}
+              controls
+              playsInline
+              preload="metadata"
+              className="absolute inset-0 h-full w-full object-cover bg-black"
+            />
+          )}
           {/* Glossy bubble highlight */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent" />
-          <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition-all duration-500 group-hover:bg-green-800 group-hover:scale-105">
+          <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition-all duration-500 group-hover:bg-green-800 group-hover:scale-105">
             <PlayCircle className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-12" /> Video
           </span>
         </div>
         {item.caption && (
-          <figcaption className="line-clamp-2 px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">{item.caption}</figcaption>
+          <figcaption className="line-clamp-2 px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">
+            {item.caption}
+          </figcaption>
         )}
       </figure>
-    );
-  }
-  return (
-    <figure
-      onClick={onOpen}
-      role="button"
-      tabIndex={0}
-      aria-label={item.caption ? `View photo: ${item.caption}` : 'View photo'}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className="group mb-8 break-inside-avoid cursor-zoom-in overflow-hidden rounded-[1.75rem] bg-white border border-stone-200/70 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.10),0_16px_32px_-16px_rgba(0,0,0,0.28)] hover:-translate-y-1.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.12),0_28px_56px_-20px_rgba(0,0,0,0.38)] transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700">
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          src={item.media_url}
-          alt={item.caption || ''}
-          loading="lazy"
-          className="kenburns absolute inset-0 h-full w-full object-cover"
-        />
-        {/* Glossy bubble highlight */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-transparent" />
-        <LightboxHint />
-      </div>
-      {item.caption && (
-        <figcaption className="line-clamp-2 px-4 py-3.5 text-sm text-stone-600 font-body leading-relaxed border-t border-stone-100 transition-colors duration-500 group-hover:text-stone-800">
-          {item.caption}
-        </figcaption>
-      )}
-    </figure>
   );
 }
 
+/* Photo bundle: every photo of the story (up to 5) lives in ONE framed card as
+ * a swipeable carousel under a single shared caption. Tapping any frame opens
+ * the full-screen view where each photo's own caption comes forward. */
 function PostDetailPage() {
   const { slug, postId } = Route.useParams();
   const [post, setPost] = useState<Story | null>(null);
@@ -219,30 +200,51 @@ function PostDetailPage() {
           )}
           {media.length > 0 && (
             <p className="mt-5 text-sm text-stone-400">
-              {media.length} {media.length === 1 ? 'photo or video' : 'photos & videos'} in this story
+              {media.filter((m) => m.media_type === 'image' || m.media_url || m.youtube_url).length} media in this story
             </p>
           )}
         </div>
       </section>
 
-      {/* Masonry gallery of animated, captioned media */}
-      {media.length > 0 && (
-        <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14">
-          <img
-            src="/hero-poster.png"
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.12]"
-          />
-          <div className="relative columns-1 sm:columns-2 lg:columns-3 gap-8 [column-fill:_balance]">
-            {media.map((item, i) => (
-              <Reveal key={item.id} delay={(i % 3) * 90}>
-                <MediaCard item={item} onOpen={() => setLightboxIndex(i)} />
+      {/* Gallery: the video placeholder(s) on top, then the story's photos
+          as journal pages with their captions below */}
+      {media.length > 0 && (() => {
+        const images = media.filter((m) => m.media_type === 'image');
+        const videos = media.filter((m) => m.media_type === 'video' && (youtubeId(m.youtube_url || m.media_url) || m.media_url));
+        return (
+          <>
+            {videos.length > 0 && (
+              <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14">
+                <img
+                  src="/hero-poster.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.12]"
+                />
+                <div className="relative mx-auto w-full max-w-4xl">
+                  {videos.map((v, vi) => (
+                    <Reveal key={v.id} delay={(vi % 2) * 90} className={videos.length > 1 ? "mb-8 last:mb-0" : ""}>
+                      <MediaCard item={v} onOpen={() => setLightboxIndex(media.indexOf(v))} />
+                    </Reveal>
+                  ))}
+                </div>
+              </section>
+            )}
+            {images.length > 0 && (
+              <Reveal>
+                <JournalGallery
+                  title="The story in pictures"
+                  images={images.map((m) => ({
+                    src: m.media_url,
+                    alt: m.caption || 'Club story photo',
+                    ...(m.caption ? { caption: m.caption } : {}),
+                  }))}
+                />
               </Reveal>
-            ))}
-          </div>
-        </section>
-      )}
+            )}
+          </>
+        );
+      })()}
 
       {lightboxIndex !== null && media.length > 0 && (
         <Lightbox

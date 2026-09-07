@@ -6,6 +6,8 @@ import { notifyAlumniApplicant, notifyBusinessApplicant } from "@/lib/alumni-not
 import { LOGO_URL } from "@/lib/content";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
+import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
@@ -562,6 +564,35 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
   const [memberYear, setMemberYear] = useState("");
   const [memberJoined, setMemberJoined] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState<string | null>(null);
+
+  // Club page cover image: uploads to the public `club-images` bucket and
+  // stores the URL in clubs.hero_image_url — the detail-page hero uses it
+  // (falling back to the bundled club image when unset).
+  const uploadHero = async (club: any, file?: File | null) => {
+    if (!file) return;
+    setUploadingHero(club.id);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `club-heroes/${club.slug}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("club-images")
+        .upload(path, file, { contentType: file.type || "image/jpeg" });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("club-images").getPublicUrl(path);
+      const { error: dbErr } = await supabase
+        .from("clubs")
+        .update({ hero_image_url: pub.publicUrl })
+        .eq("id", club.id);
+      if (dbErr) throw dbErr;
+      setToast({ message: "Hero image updated", type: "success" });
+      onRefresh();
+    } catch (e: any) {
+      setToast({ message: e?.message || "Hero upload failed", type: "error" });
+    } finally {
+      setUploadingHero(null);
+    }
+  };
 
   const resetClub = () => { setName(""); setSlug(""); setTagline(""); setOverview(""); setEditClub(null); setShowAddClub(false); };
   const resetMember = () => { setMemberName(""); setMemberRole("Member"); setMemberYear(""); setMemberJoined(""); setShowAddMember(null); };
@@ -651,6 +682,25 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
               </div>
 
               <ClubEditorTools club={club} reviewerName={reviewerName} />
+
+              {/* Hero image (the club page cover) */}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-stone-300 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  {uploadingHero === club.id ? "Uploading..." : club.hero_image_url ? "Replace hero image" : "Upload hero image"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingHero === club.id}
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; uploadHero(club, f); }}
+                  />
+                </label>
+                {club.hero_image_url && (
+                  <img src={club.hero_image_url} alt="" className="h-10 w-16 rounded object-cover ring-1 ring-stone-200" />
+                )}
+                <span className="text-[11px] text-stone-400">Cover image on the club's public page.</span>
+              </div>
 
               {/* Social links for this club */}
               <div className="mt-4">
@@ -1628,18 +1678,34 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
   );
 }
 
-function ImageUpload({ value, onChange, label }: { value: string; onChange: (url: string) => void; label?: string }) {
+function ImageUpload({ value, onChange, label, setToast }: { value: string; onChange: (url: string) => void; label?: string; setToast?: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Loud validation — a failed upload must never fail silently.
+    if (!file.type.startsWith("image/")) {
+      setToast?.({ message: `"${file.name}" is not an image file. Use JPG, PNG, WebP, or GIF.`, type: "error" });
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setToast?.({ message: `"${file.name}" is larger than 10MB. Compress or resize it first.`, type: "error" });
+      e.target.value = "";
+      return;
+    }
     setUploading(true);
     const fileName = `uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
     const { error } = await supabase.storage.from("uploads").upload(fileName, file, { contentType: file.type });
-    if (error) { console.error(error); setUploading(false); return; }
+    if (error) {
+      setToast?.({ message: `Image upload failed: ${error.message}`, type: "error" });
+      setUploading(false);
+      return;
+    }
     const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(fileName);
     onChange(urlData.publicUrl);
+    setToast?.({ message: "Image uploaded", type: "success" });
     setUploading(false);
   };
 
@@ -1681,7 +1747,19 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
   const [authorAvatar, setAuthorAvatar] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setTitle(""); setSlug(""); setCategory(""); setExcerpt(""); setBody(""); setImageUrl(""); setAuthorName(""); setAuthorRole(""); setAuthorAvatar(""); setEditItem(null); setShowAdd(false); };
+  const [slugTouched, setSlugTouched] = useState(false);
+
+  // Auto-generate the slug from the title until the admin edits it manually —
+  // the placeholder promises "auto-generated", so Save must never fail on an
+  // empty slug.
+  const slugify = (t: string) => t.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const handleTitle = (t: string) => {
+    setTitle(t);
+    if (!slugTouched) setSlug(slugify(t));
+  };
+  const handleSlug = (s: string) => { setSlugTouched(true); setSlug(s); };
+
+  const reset = () => { setTitle(""); setSlug(""); setSlugTouched(false); setCategory(""); setExcerpt(""); setBody(""); setImageUrl(""); setAuthorName(""); setAuthorRole(""); setAuthorAvatar(""); setEditItem(null); setShowAdd(false); };
 
   const save = async () => {
     const trimmedTitle = title.trim();
@@ -1690,9 +1768,11 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
     setSaving(true);
     const bodyArray = body.split("\n").filter((p: string) => p.trim());
     const authorData = {
-        author_name: authorName.trim() || "M.M College Wairaka",
-        author_role: authorRole.trim() || "School Communications",
-        author_avatar: authorAvatar.trim() || null
+        // On edit, blank fields keep the article's existing author instead of
+        // silently overwriting it with the defaults.
+        author_name: authorName.trim() || editItem?.author_name || "M.M College Wairaka",
+        author_role: authorRole.trim() || editItem?.author_role || "School Communications",
+        author_avatar: authorAvatar.trim() || editItem?.author_avatar || null
       };
       if (editItem) {
       const { error } = await supabase.from("articles").update({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || editItem.image, ...authorData }).eq("id", editItem.id);
@@ -1710,13 +1790,15 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
 
   const remove = async (id: string) => {
     if (!confirm("Delete this article?")) return;
-    await supabase.from("articles").delete().eq("id", id);
+    const { error } = await supabase.from("articles").delete().eq("id", id);
+    if (error) { setToast({ message: `Delete failed: ${error.message}`, type: "error" }); return; }
     setToast({ message: "Article deleted", type: "success" });
     onRefresh();
   };
 
   const togglePublish = async (id: string, currentStatus: boolean) => {
-    await supabase.from("articles").update({ published: !currentStatus }).eq("id", id);
+    const { error } = await supabase.from("articles").update({ published: !currentStatus }).eq("id", id);
+    if (error) { setToast({ message: `Could not update: ${error.message}`, type: "error" }); return; }
     setToast({ message: currentStatus ? "Article unpublished" : "Article published", type: "success" });
     onRefresh();
   };
@@ -1734,16 +1816,16 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
         <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
           <h4 className="font-display text-lg font-bold text-stone-900">{editItem ? "Edit Article" : "New Article"}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="Slug (auto-generated)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input value={title} onChange={(e) => handleTitle(e.target.value)} placeholder="Title" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input value={slug} onChange={(e) => handleSlug(e.target.value)} placeholder="Slug (auto-generated from title)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category (STEM, Athletics, etc.)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
-          <ImageUpload value={imageUrl} onChange={setImageUrl} label="Article Image" />
+          <ImageUpload value={imageUrl} onChange={setImageUrl} label="Article Image" setToast={setToast} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input value={authorName} onChange={(e) => setAuthorName(e.target.value)} placeholder="Author Name (default: M.M College Wairaka)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <input value={authorRole} onChange={(e) => setAuthorRole(e.target.value)} placeholder="Author Role (default: School Communications)" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
-          <ImageUpload value={authorAvatar} onChange={setAuthorAvatar} label="Author Avatar (optional)" />
+          <ImageUpload value={authorAvatar} onChange={setAuthorAvatar} label="Author Avatar (optional)" setToast={setToast} />
           <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Excerpt (short summary)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[60px]" />
           <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Body (one paragraph per line)" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[150px]" />
           <div className="flex gap-3">
@@ -1782,7 +1864,7 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
                   <button onClick={() => togglePublish(article.id, article.published)} className={`p-2.5 rounded-lg border transition-colors ${article.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={article.published ? "Unpublish" : "Publish"}>
                     {article.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
                   </button>
-                  <button onClick={() => { setEditItem(article); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                  <button onClick={() => { setEditItem(article); setSlugTouched(true); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); setAuthorName(article.author_name || ""); setAuthorRole(article.author_role || ""); setAuthorAvatar(article.author_avatar || ""); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
                     <Settings className="h-4 w-4 text-blue-600" />
                   </button>
                   <button onClick={() => remove(article.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
@@ -1798,9 +1880,136 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
   );
 }
 
+/**
+ * Dedicated editor for the About page's Campus Gallery journal section
+ * (page_content about/gallery). Photos are real file uploads to the `uploads`
+ * storage bucket — never pasted URLs — with captions and manual ordering.
+ */
+function GallerySectionEditor({ row, onClose, onRefresh, setToast }: { row: any; onClose: () => void; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [images, setImages] = useState<any[]>(Array.isArray(row.content?.images) ? row.content.images : []);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    const added: any[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `gallery/about-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("uploads").upload(path, file, { contentType: file.type });
+      if (error) { setToast({ message: `Upload failed: ${error.message}`, type: "error" }); continue; }
+      const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+      added.push({ src: data.publicUrl, alt: file.name.replace(/\.[^.]+$/, ""), caption: "" });
+    }
+    if (added.length) setImages(prev => [...prev, ...added]);
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  /* Drag-to-reorder (same pattern as the MWOSA media manager): on drop the new
+   * order persists immediately, so a stray click can't lose it. */
+  const persist = async (next: any[]) => {
+    const { error } = await supabase.from("page_content").update({ content: { images: next } }).eq("id", row.id);
+    if (error) { setToast({ message: error.message, type: "error" }); return false; }
+    onRefresh();
+    return true;
+  };
+
+  const onDragStart = (e: React.DragEvent, idx: number) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(idx));
+    setDragIdx(idx);
+  };
+
+  const onDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (idx !== dragIdx) setDragOverIdx(idx);
+  };
+
+  const onDrop = async (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    const from = dragIdx;
+    setDragIdx(null); setDragOverIdx(null);
+    if (from === null || from === targetIdx) return;
+    const next = [...images];
+    const [moved] = next.splice(from, 1);
+    next.splice(targetIdx, 0, moved);
+    setImages(next);
+    if (await persist(next)) setToast({ message: "Order saved", type: "success" });
+  };
+
+  const remove = (i: number) => setImages(prev => prev.filter((_, k) => k !== i));
+
+  const save = async () => {
+    setSaving(true);
+    const ok = await persist(images);
+    setSaving(false);
+    if (ok) { setToast({ message: "Gallery updated", type: "success" }); onClose(); }
+  };
+
+  return (
+    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="font-display text-lg font-bold text-stone-900">Edit: {row.title || "Gallery"} (journal pages)</h4>
+        <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
+      </div>
+      <p className="text-xs text-stone-500">Upload photos (multiple allowed), give each a caption, and drag the handle to reorder — the order is saved as you drop. They appear as the paper pages in the Campus Gallery on the About page.</p>
+      <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => uploadFiles(e.target.files)} />
+      <button onClick={() => fileRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
+        <Upload className="h-4 w-4" />{uploading ? "Uploading..." : "+ Upload photos"}
+      </button>
+      {images.length === 0 && <p className="text-sm text-stone-400 py-4">No photos yet. The page shows its bundled defaults until you upload at least one.</p>}
+      <div className="space-y-3">
+        {images.map((img, i) => (
+          <div
+            key={i}
+            draggable
+            onDragStart={(e) => onDragStart(e, i)}
+            onDragOver={(e) => onDragOver(e, i)}
+            onDrop={(e) => onDrop(e, i)}
+            onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+            className={`flex flex-wrap items-start gap-3 rounded-xl border p-3 cursor-grab active:cursor-grabbing transition-all ${dragIdx === i ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverIdx === i && dragIdx !== null && dragIdx !== i ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
+          >
+            <GripVertical className="h-5 w-5 text-stone-400 shrink-0 mt-6" />
+            <div className="relative shrink-0">
+              <img src={img.src} alt={img.alt || ""} className="w-28 h-20 rounded-lg object-cover border border-stone-200" />
+              <span className="absolute -left-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-800 text-[10px] font-bold text-white">{i + 1}</span>
+            </div>
+            <div className="flex-1 min-w-[180px] space-y-2">
+              <input value={img.caption || ""} onChange={(e) => setImages(prev => prev.map((x, k) => k === i ? { ...x, caption: e.target.value } : x))} placeholder="Caption (shown under the photo)" className="w-full p-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <input value={img.alt || ""} onChange={(e) => setImages(prev => prev.map((x, k) => k === i ? { ...x, alt: e.target.value } : x))} placeholder="Alt text (for accessibility)" className="w-full p-2.5 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              {/* Live preview of how this caption appears on the journal page */}
+              <div className="flex items-baseline gap-2 rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-stone-400">On the page</span>
+                <span className="truncate font-display text-sm italic text-stone-700">
+                  {String(img.caption || "").trim() || img.alt || "No caption yet — the alt text shows instead"}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => remove(i)} className="p-2 rounded-lg hover:bg-red-100 transition-colors" title="Remove"><Trash2 className="h-4 w-4 text-red-400" /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3">
+        <button onClick={save} disabled={saving || uploading} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save gallery"}</button>
+        <button onClick={onClose} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [selectedPage, setSelectedPage] = useState<string>("");
   const [editItem, setEditItem] = useState<any>(null);
+  const [galleryEdit, setGalleryEdit] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [contentFields, setContentFields] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -1811,8 +2020,16 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
     'athletics': 'Athletics',
     'giving': 'Giving',
     'academics': 'Academics',
-    'mwosa': 'MWOSA Alumni'
+    'mwosa': 'MWOSA Alumni',
+    'home': 'Homepage'
   };
+  // Every CMS-backed journal gallery (page/section rows the gallery editor opens).
+  const galleryPages: { page: string; label: string }[] = [
+    { page: 'about', label: 'Add Campus Gallery' },
+    { page: 'student-life', label: 'Add Campus Life Gallery' },
+    { page: 'home', label: 'Add Life at WACOS Gallery' },
+  ];
+  const missingGalleries = galleryPages.filter(g => !pages.some(p => p.page === g.page && p.section === 'gallery'));
 
   const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
   const uniquePages = [...new Set(pages.map(p => p.page))];
@@ -1833,7 +2050,7 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
     return result;
   };
 
-  const reset = () => { setTitle(""); setContentFields({}); setEditItem(null); };
+  const reset = () => { setTitle(""); setContentFields({}); setEditItem(null); setGalleryEdit(null); };
 
   const save = async () => {
     if (!editItem) return;
@@ -1877,6 +2094,20 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-bold text-stone-900">Page Content ({pages.length} sections)</h3>
         <div className="flex gap-2">
+          {missingGalleries.map(g => (
+            <button
+              key={g.page}
+              onClick={async () => {
+                const { error } = await supabase.from("page_content").insert({ page: g.page, section: 'gallery', title: g.label.replace('Add ', ''), content: { images: [] }, published: true });
+                if (error) { setToast({ message: error.message, type: "error" }); return; }
+                setToast({ message: g.label.replace('Add ', '') + " section added", type: "success" });
+                onRefresh();
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-xs font-semibold transition-colors"
+            >
+              <ImageIcon className="h-3.5 w-3.5" /> {g.label}
+            </button>
+          ))}
           <select value={selectedPage} onChange={(e) => setSelectedPage(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
             <option value="">All Pages</option>
             {uniquePages.map(p => <option key={p} value={p}>{pageNames[p] || p}</option>)}
@@ -1884,6 +2115,9 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
           <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
         </div>
       </div>
+      {galleryEdit && (
+        <GallerySectionEditor row={galleryEdit} onClose={() => setGalleryEdit(null)} onRefresh={onRefresh} setToast={setToast} />
+      )}
       {editItem && (
         <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -1943,7 +2177,7 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
                   <button onClick={() => togglePublish(item.id, item.published)} className={`p-2.5 rounded-lg border transition-colors ${item.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={item.published ? "Hide" : "Publish"}>
                     {item.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
                   </button>
-                  <button onClick={() => { setEditItem(item); setTitle(item.title || ""); setContentFields(flattenContent(item.content)); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                  <button onClick={() => { if (item.section === 'gallery') { setEditItem(null); setGalleryEdit(item); } else { setGalleryEdit(null); setEditItem(item); setTitle(item.title || ""); setContentFields(flattenContent(item.content)); } }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
                     <Settings className="h-4 w-4 text-blue-600" />
                   </button>
                 </div>
@@ -2416,7 +2650,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
           )}
           {section === "updates" && (
             <div>
-              <ImageUpload value={imageUrl} onChange={setImageUrl} label="Card cover photo (optional)" />
+              <ImageUpload value={imageUrl} onChange={setImageUrl} label="Card cover photo (optional)" setToast={setToast} />
               <p className="text-xs text-stone-400 mt-1">This photo leads the card on the public page. Leave empty to remove.</p>
             </div>
           )}
@@ -2498,8 +2732,9 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
 function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [edits, setEdits] = useState<Record<string, { caption: string; sort: string; poster: string }>>({});
+  const [edits, setEdits] = useState<Record<string, { caption: string; sort: string; poster: string; youtube: string }>>({});
   const [addCaption, setAddCaption] = useState("");
+  const [addYoutube, setAddYoutube] = useState("");
   const [uploading, setUploading] = useState(false);
   const [posterUploading, setPosterUploading] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -2511,8 +2746,8 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
     setLoading(true);
     const { data } = await supabase.from("mwosa_update_media").select("*").eq("update_id", updateId).order("sort_order", { ascending: true });
     setItems(data || []);
-    const e: Record<string, { caption: string; sort: string; poster: string }> = {};
-    (data || []).forEach((m: any) => { e[m.id] = { caption: m.caption || "", sort: String(m.sort_order ?? 0), poster: m.poster_url || "" }; });
+    const e: Record<string, { caption: string; sort: string; poster: string; youtube: string }> = {};
+    (data || []).forEach((m: any) => { e[m.id] = { caption: m.caption || "", sort: String(m.sort_order ?? 0), poster: m.poster_url || "", youtube: m.youtube_url || "" }; });
     setEdits(e);
     setLoading(false);
   };
@@ -2592,6 +2827,11 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
       caption: e.caption.trim() || null,
       sort_order: parseInt(e.sort) || 0,
       poster_url: e.poster.trim() || null,
+      // A video row holds EITHER an uploaded file OR a YouTube link — never
+      // both. Saving a link replaces the uploaded file.
+      ...(youtubeId(e.youtube.trim())
+        ? { youtube_url: youtubeWatchUrl(youtubeId(e.youtube.trim())!), media_url: youtubeWatchUrl(youtubeId(e.youtube.trim())!) }
+        : { youtube_url: null }),
     }).eq("id", id);
     if (error) { setToast({ message: error.message, type: "error" }); return; }
     setToast({ message: "Saved", type: "success" });
@@ -2603,12 +2843,53 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
     setPosterUploading(id);
     try {
       const url = await uploadFile(file);
-      setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || { caption: "", sort: "0", poster: "" }), poster: url } }));
+      setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || { caption: "", sort: "0", poster: "", youtube: "" }), poster: url } }));
       setToast({ message: "Poster uploaded — press Save on the row to keep it", type: "success" });
     } catch (e: any) {
       setToast({ message: e?.message || "Poster upload failed", type: "error" });
     } finally {
       setPosterUploading(null);
+    }
+  };
+
+  /* Add a YouTube in-play video row: URL is stored on the row (never the
+   * public page) and counts against the 2-video cap like uploads. */
+  const addYoutubeVideo = async () => {
+    const url = addYoutube.trim();
+    if (!url) return;
+    if (!youtubeId(url)) {
+      setToast({ message: "That doesn't look like a YouTube link. Use a watch, youtu.be, or shorts URL.", type: "error" });
+      return;
+    }
+    const videoCount = items.filter((m: any) => m.media_type === "video").length;
+    if (videoCount >= 2) {
+      setToast({ message: "Stories allow a maximum of 2 videos. Remove one before adding another.", type: "error" });
+      return;
+    }
+    const captionWords = addCaption.trim().split(/\s+/).filter(Boolean).length;
+    if (captionWords > 55) {
+      setToast({ message: "Captions are limited to 55 words. Shorten this caption first.", type: "error" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const { error } = await supabase.from("mwosa_update_media").insert({
+        update_id: updateId,
+        media_type: "video",
+        media_url: url,
+        youtube_url: url,
+        caption: addCaption.trim() || null,
+        sort_order: items.length + 1,
+      });
+      if (error) throw error;
+      setAddYoutube("");
+      setAddCaption("");
+      setToast({ message: "YouTube video added", type: "success" });
+      load();
+    } catch (e: any) {
+      setToast({ message: e?.message || "Could not add the video", type: "error" });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -2696,6 +2977,13 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
           <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "image")} />
           <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => addMedia(e.target.files?.[0], "video")} />
         </div>
+        <YoutubeLinkInput
+          value={addYoutube}
+          onChange={setAddYoutube}
+          onSave={addYoutubeVideo}
+          disabled={uploading}
+          placeholder="…or paste a YouTube link (watch, youtu.be, or shorts)"
+        />
       </div>
 
       {loading ? (
@@ -2719,7 +3007,11 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
               <GripVertical className="h-5 w-5 text-stone-400 shrink-0" />
               <div className="w-28 h-20 shrink-0 rounded-lg overflow-hidden bg-stone-100 border border-stone-200 flex items-center justify-center">
                 {m.media_type === "video" ? (
-                  <video src={m.media_url} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+                  youtubeId(m.youtube_url || m.media_url) ? (
+                    <img src={youtubeThumbUrl(youtubeId(m.youtube_url || m.media_url)!)} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <video src={m.media_url} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+                  )
                 ) : (
                   <img src={m.media_url} alt="" className="w-full h-full object-cover" />
                 )}
@@ -2728,18 +3020,30 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
                 <div className="flex items-center gap-2">
                   <input
                     value={edits[m.id]?.caption ?? ""}
-                    onChange={(e) => setEdits({ ...edits, [m.id]: { caption: e.target.value, sort: edits[m.id]?.sort ?? "0", poster: edits[m.id]?.poster ?? "" } })}
+                    onChange={(e) => setEdits({ ...edits, [m.id]: { caption: e.target.value, sort: edits[m.id]?.sort ?? "0", poster: edits[m.id]?.poster ?? "", youtube: edits[m.id]?.youtube ?? "" } })}
                     placeholder="Caption"
                     className="flex-1 min-w-0 p-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                   />
                   <input
                     value={edits[m.id]?.sort ?? "0"}
-                    onChange={(e) => setEdits({ ...edits, [m.id]: { caption: edits[m.id]?.caption ?? "", sort: e.target.value, poster: edits[m.id]?.poster ?? "" } })}
+                    onChange={(e) => setEdits({ ...edits, [m.id]: { caption: edits[m.id]?.caption ?? "", sort: e.target.value, poster: edits[m.id]?.poster ?? "", youtube: edits[m.id]?.youtube ?? "" } })}
                     title="Order (1, 2, 3…)"
                     className="w-16 p-2 border border-stone-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                   />
                   <span className="text-[10px] uppercase tracking-wide text-stone-400">{m.media_type}</span>
                 </div>
+                {m.media_type === "video" && (
+                  <div>
+                    <YoutubeLinkInput
+                      value={edits[m.id]?.youtube ?? ""}
+                      onChange={(next) => setEdits({ ...edits, [m.id]: { caption: edits[m.id]?.caption ?? "", sort: edits[m.id]?.sort ?? "0", poster: edits[m.id]?.poster ?? "", youtube: next } })}
+                      placeholder="YouTube link (optional — makes it play inline)"
+                    />
+                    {m.media_url && !youtubeId(m.media_url) && (edits[m.id]?.youtube ?? "").trim() !== "" && (
+                      <p className="mt-1 text-[11px] text-amber-700">Saving a link will replace the uploaded video file — a video holds one or the other.</p>
+                    )}
+                  </div>
+                )}
                 {m.media_type === "video" && (
                   <div className="flex items-center gap-2">
                     {edits[m.id]?.poster ? (
@@ -2753,7 +3057,7 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
                     </label>
                     {edits[m.id]?.poster && (
                       <button
-                        onClick={() => setEdits({ ...edits, [m.id]: { caption: edits[m.id]?.caption ?? "", sort: edits[m.id]?.sort ?? "0", poster: "" } })}
+                        onClick={() => setEdits({ ...edits, [m.id]: { caption: edits[m.id]?.caption ?? "", sort: edits[m.id]?.sort ?? "0", poster: "", youtube: edits[m.id]?.youtube ?? "" } })}
                         className="text-[11px] text-stone-400 hover:text-red-500 underline"
                       >
                         Remove

@@ -624,17 +624,21 @@ function ClubDetailPage() {
   return (
     <div>
       {/* 1. Hero with stat chips */}
-      <section className='relative h-[50vh] min-h-[360px] flex items-end overflow-hidden'>
+      <section className='relative h-[62vh] min-h-[440px] flex items-end overflow-hidden'>
         <div className='absolute inset-0'>
-          <img src={club.img} alt={club.name} className='h-full w-full object-cover object-center' />
-          <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent' />
+          {/* Cover image is backend-replaceable: clubs.hero_image_url (admin
+              Clubs tab upload) wins; the bundled club image is the fallback. */}
+          <img src={club.hero_image_url || club.img} alt={club.name} className='h-full w-full object-cover object-center' />
+          <div className='absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10' />
+          <div className='absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent' />
         </div>
         <Link to='/clubs/editor' className='absolute top-5 right-5 z-20 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 px-4 py-1.5 text-xs font-medium text-white/85 hover:bg-black/60 hover:text-white transition-colors'>
           Club editors sign in
         </Link>
         <div className='relative z-10 w-full max-w-6xl mx-auto px-6 pb-12'>
-          <p className='text-xs font-semibold uppercase tracking-wider text-white/60 mb-2'>{club.tagline}</p>
-          <h1 className='font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold tracking-tight mb-4'>{club.name}</h1>
+          <span className='inline-flex items-center rounded-full border border-white/25 bg-white/10 backdrop-blur-sm px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.25em] text-white/85 mb-4'>{club.tagline}</span>
+          <h1 className='font-display text-5xl md:text-7xl text-white font-bold tracking-tight mb-4'>{club.name}</h1>
+          <div className='h-1 w-28 rounded-full bg-gradient-to-r from-emerald-400 via-lime-300 to-amber-300 mb-5' />
           {socials.length > 0 && (
             <div className='mb-4'>
               <SocialLinksRow links={socials} tone='dark' className='justify-start' />

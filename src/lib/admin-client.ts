@@ -77,22 +77,37 @@ const adminFetch: typeof fetch = async (input, init) => {
   const headers = new Headers(init?.headers || {});
   const prefer = headers.get("Prefer") || undefined;
 
-  // Binary storage uploads (images etc.) cannot be JSON-serialized, so encode
-  // them as base64 and let the server forward the raw bytes with the service key.
-  if (url.includes("/storage/v1/") && init?.body instanceof Blob) {
-    const buf = new Uint8Array(await init.body.arrayBuffer());
+  // Binary storage uploads (images etc.) cannot be JSON-serialized. supabase-js
+  // may send the body as a raw Blob OR as FormData wrapping the file — handle
+  // both, and always forward the file's real MIME type so bucket policies
+  // (jpeg/png/webp only) accept the upload instead of rejecting octet-stream.
+  const rawBody = init?.body;
+  if (url.includes("/storage/v1/") && rawBody && typeof rawBody !== "string") {
+    let blob: Blob;
+    if (rawBody instanceof Blob) {
+      blob = rawBody;
+    } else if (typeof FormData !== "undefined" && rawBody instanceof FormData) {
+      let filePart: FormDataEntryValue | null = null;
+      rawBody.forEach((v) => {
+        if (!filePart && typeof v !== "string") filePart = v;
+      });
+      blob = (filePart as Blob | null) ?? new Blob([]);
+    } else {
+      blob = new Blob([rawBody as unknown as BlobPart]);
+    }
+    const buf = new Uint8Array(await blob.arrayBuffer());
     const result = await adminProxy({
       data: {
         url,
         method,
         base64: bytesToBase64(buf),
-        contentType: headers.get("Content-Type") || "application/octet-stream",
+        contentType:
+          headers.get("Content-Type") || blob.type || "application/octet-stream",
       },
     });
     return toResponse(result);
   }
 
-  const rawBody = init?.body;
   const result = await adminProxy({
     data: {
       url,
