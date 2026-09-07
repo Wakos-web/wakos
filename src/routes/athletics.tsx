@@ -39,11 +39,11 @@ const HIGHLIGHTS = [
   { title: "4,000", text: "Tree seedlings planted in a single Saturday ,  the motto in action through community outreach." },
 ];
 
-function HeroSection({ desc }: { desc: string }) {
+function HeroSection({ desc, img }: { desc: string; img?: string }) {
   return (
     <section className="relative h-[60vh] min-h-[420px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src={IMAGES.athletics} alt="WACOS athletes in action" className="h-full w-full object-cover object-center" />
+        <img src={img || IMAGES.athletics} alt="WACOS athletes in action" className="h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
@@ -319,7 +319,7 @@ function AthleticsPage() {
     : HIGHLIGHTS;
   return (
     <div>
-      <HeroSection desc={heroDesc} />
+      <HeroSection desc={heroDesc} img={content.hero?.heroImage} />
       <QuickNav />
       <PhilosophySection paragraphs={paragraphs} />
       <SportsGrid sports={sports} />

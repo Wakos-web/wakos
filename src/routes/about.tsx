@@ -31,6 +31,7 @@ function AboutPage() {
   const V2 = content.mission?.values?.length ? content.mission.values.map((x: any) => ({ n: x, d: x })) : V;
   const F2 = content.facilities?.items?.length ? content.facilities.items : F;
   const heroDesc = content.hero?.description || "A government-aided boarding school in Wairaka, Jinja ,  where discipline, hard work, and self-reliance have produced leaders, athletes, and citizens since 1953.";
+  const heroImage = content.hero?.heroImage || "/wacos-3d-logo-hero-about.png";
   const histIntro = (content.history?.paragraphs || [])[0] || "Born in 1953 to produce technical skills for Uganda's industrial growth. It became a farm school, evolved into a secondary school, produced an Olympic champion, and is now being rebuilt by the alumni it created. This is not just a school. It is a living institution.";
   // Campus Gallery images come from the CMS (Admin > Page Content > Campus
   // Gallery, with real file uploads). Empty or missing section -> bundled defaults.
@@ -39,7 +40,7 @@ function AboutPage() {
   const visionText = content.mission?.vision || "To expose students to quality all-round education and make our school a quality centre for excellence.";
   return (<main>
     <section className="relative flex min-h-[68vh] items-end bg-foreground pb-16 pt-32">
-      <img src="/wacos-3d-logo-hero-about.png" alt="M.M College Wairaka" className="absolute inset-0 h-full w-full object-cover object-center" width={1600} height={900} />
+      <img src={heroImage} alt="M.M College Wairaka" className="absolute inset-0 h-full w-full object-cover object-center" width={1600} height={900} />
       {/* Darker from the left so the left-aligned text always reads cleanly */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/10" />
       <div className="relative mx-auto w-full max-w-6xl px-6">

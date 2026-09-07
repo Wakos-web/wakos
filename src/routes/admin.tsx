@@ -2034,6 +2034,15 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
   const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
   const uniquePages = [...new Set(pages.map(p => p.page))];
 
+  // A content field is an image when its key says so (heroImage, cover,
+  // background, gallery src...) or its value already points at an image URL —
+  // such fields get a real file-upload control instead of a raw text input.
+  const isImageField = (key: string, value: string): boolean => {
+    if (/image|photo|img|background|hero|cover|poster|thumbnail|src/i.test(key)) return true;
+    const v = value.trim();
+    return /^(https?:)?\/\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(v) || /^\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(v);
+  };
+
   // Flatten content object to string fields for editing
   const flattenContent = (obj: any, prefix = ''): Record<string, string> => {
     const result: Record<string, string> = {};
@@ -2131,7 +2140,13 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
             {Object.entries(contentFields).map(([key, value]) => (
               <div key={key}>
                 <label className="block text-xs font-semibold text-stone-500 mb-1 capitalize">{key.replace(/[._]/g, ' ')}</label>
-                {value.includes('\n') || value.length > 100 ? (
+                {isImageField(key, value) ? (
+                  <ImageUpload
+                    value={value}
+                    onChange={(v) => setContentFields(prev => ({ ...prev, [key]: v }))}
+                    setToast={setToast}
+                  />
+                ) : value.includes('\n') || value.length > 100 ? (
                   <textarea
                     value={value}
                     onChange={(e) => setContentFields(prev => ({ ...prev, [key]: e.target.value }))}

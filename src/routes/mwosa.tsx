@@ -70,11 +70,11 @@ const LINK_ICONS: Record<string, any> = {
   grad: GraduationCap,
 };
 
-function HeroSection({ desc }: { desc: string }) {
+function HeroSection({ desc, img }: { desc: string; img?: string }) {
   return (
     <section className="relative h-[52vh] min-h-[380px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src="/mwosa-hero.png" alt="MWOSA alumni association" className="h-full w-full object-cover object-center" />
+        <img src={img || "/mwosa-hero.png"} alt="MWOSA alumni association" className="h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
@@ -441,7 +441,7 @@ function MwosaPage() {
 
   return (
     <div>
-      <HeroSection desc={heroDesc} />
+      <HeroSection desc={heroDesc} img={content.hero?.heroImage} />
       {socials.length > 0 && (
         <section className="bg-green-900 border-t border-white/10">
           <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between flex-wrap gap-3">

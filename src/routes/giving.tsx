@@ -63,11 +63,11 @@ const FAQ = [
 
 ];
 
-function HeroSection({ desc }: { desc: string }) {
+function HeroSection({ desc, img }: { desc: string; img?: string }) {
   return (
     <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src={IMAGES.giving} alt="Giving to WACOS" className="h-full w-full object-cover object-center" />
+        <img src={img || IMAGES.giving} alt="Giving to WACOS" className="h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
@@ -426,7 +426,7 @@ function GivingPage() {
   const shownStats = liveStats || stats;
   return (
     <div>
-      <HeroSection desc={heroDesc} />
+      <HeroSection desc={heroDesc} img={content.hero?.heroImage} />
       <WaysOfGiving ways={shownWays} accounts={accounts} mobile={mobile} contact={contact} />
       <ImpactSection stats={shownStats} />
       <ThankYouForm ways={shownWays} />
