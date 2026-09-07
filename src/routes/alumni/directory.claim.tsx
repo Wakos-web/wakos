@@ -51,6 +51,8 @@ function ClaimContent() {
   const [bizCategory, setBizCategory] = useState("Other");
   const [bizWebsite, setBizWebsite] = useState("");
   const [bizPhone, setBizPhone] = useState("");
+  const [bizEmail, setBizEmail] = useState("");
+  const [bizWhatsapp, setBizWhatsapp] = useState("");
   const [bizLocation, setBizLocation] = useState("");
   const [bizLogo, setBizLogo] = useState<File | null>(null);
   const [bizLogoPreview, setBizLogoPreview] = useState<string | null>(null);
@@ -146,6 +148,10 @@ function ClaimContent() {
       setError("Your alumni profile must be approved before you can list a business.");
       return;
     }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(bizEmail.trim())) {
+      setError("Enter a valid business email — customers reach you through the envelope button on your listing.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -158,6 +164,8 @@ function ClaimContent() {
         category: bizCategory,
         website: bizWebsite || null,
         phone: bizPhone || null,
+        email: bizEmail.trim().toLowerCase(),
+        whatsapp: bizWhatsapp.trim() || null,
         location: bizLocation || null,
         logo_url: logoUrl,
         approved: false,
@@ -172,7 +180,7 @@ function ClaimContent() {
         }
       }
       setBizName(""); setBizDesc(""); setBizCategory("Other");
-      setBizWebsite(""); setBizPhone(""); setBizLocation("");
+      setBizWebsite(""); setBizPhone(""); setBizEmail(""); setBizWhatsapp(""); setBizLocation("");
       setShowBusinessForm(false);
       await fetchBusinesses();
       setSuccess("Business submitted for approval!");
@@ -366,8 +374,7 @@ function ClaimContent() {
                   <textarea rows={2} value={bizDesc} onChange={e => setBizDesc(e.target.value)}
                     className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                     placeholder="What does your business do?" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                </div>                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-stone-700 mb-2">Phone</label>
                     <input type="tel" value={bizPhone} onChange={e => setBizPhone(e.target.value)}
@@ -379,6 +386,20 @@ function ClaimContent() {
                     <input type="url" value={bizWebsite} onChange={e => setBizWebsite(e.target.value)}
                       className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
                       placeholder="https://..." />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-stone-700 mb-2">Business Email *</label>
+                    <input type="email" required value={bizEmail} onChange={e => setBizEmail(e.target.value)}
+                      className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                      placeholder="orders@yourbusiness.com" />
+                    <p className="text-xs text-stone-400 mt-1">Customers email you through the envelope button on your listing — this address is never shown publicly.</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-stone-700 mb-2">WhatsApp number (optional)</label>
+                    <input type="tel" value={bizWhatsapp} onChange={e => setBizWhatsapp(e.target.value)}
+                      className="w-full rounded-xl border border-stone-300 px-4 py-3 text-stone-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                      placeholder="e.g. +256 700 123456" />
+                    <p className="text-xs text-stone-400 mt-1">A WhatsApp button appears on your listing that opens a chat with this number.</p>
                   </div>
                 </div>
                 <div>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { useOtpResend } from "@/hooks/useOtpResend";
@@ -73,6 +73,8 @@ function RegisterBusinessPage() {
   const [bizDesc, setBizDesc] = useState("");
   const [bizLocation, setBizLocation] = useState("");
   const [bizPhone, setBizPhone] = useState("");
+  const [bizEmail, setBizEmail] = useState("");
+  const [bizWhatsapp, setBizWhatsapp] = useState("");
   const [bizWebsite, setBizWebsite] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -83,6 +85,36 @@ function RegisterBusinessPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [done, setDone] = useState(false);
   const [existingProfile, setExistingProfile] = useState<BusProfile | null>(null);
+
+  // An alumnus who is already signed in and on the Pulse gets their primary
+  // details (email, name, class year, ...) prefilled, so adding a business is
+  // just the business part — they verify nothing again for their identity.
+  const prefillDone = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (prefillDone.current) return;
+      const { data: s } = await supabase.auth.getSession();
+      const uid = s.session?.user?.id;
+      if (!uid) return;
+      const { data: prof } = await supabase
+        .from("alumni_profiles")
+        .select("full_name, nickname, email, graduation_year, programme, profession, current_location, company")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (cancelled || !prof) return;
+      prefillDone.current = true;
+      setName((v) => v || prof.full_name || "");
+      setNickname((v) => v || prof.nickname || "");
+      setEmail((v) => v || prof.email || "");
+      setYear((v) => v || (prof.graduation_year ? String(prof.graduation_year) : ""));
+      setProgramme((v) => (v === "O-Level" && prof.programme ? prof.programme : v));
+      setProfession((v) => v || prof.profession || "");
+      setLocation((v) => v || prof.current_location || "");
+      setCompany((v) => v || prof.company || "");
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 1952 }, (_, i) => currentYear - i);
@@ -162,6 +194,8 @@ function RegisterBusinessPage() {
         website: bizWebsite.trim() || null,
         phone: bizPhone.trim() || null,
         location: bizLocation.trim() || null,
+        email: bizEmail.trim().toLowerCase(),
+        whatsapp: bizWhatsapp.trim() || null,
         logo_url: logoUrl,
         approved: false, // the alumni admin approves listings
       })
@@ -180,6 +214,14 @@ function RegisterBusinessPage() {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setError("Enter a valid email address."); return; }
     if (!year) { setError("Pick your graduation year."); return; }
     if (!bizName.trim()) { setError("Enter your business name."); return; }
+    // Business email is the public-facing contact: it is NEVER shown as text
+    // on the listing — customers reach it through the envelope button. It is
+    // mandatory because without it a buyer has no way to contact the business.
+    const bizEmailClean = bizEmail.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(bizEmailClean)) {
+      setError("Enter a valid business email — customers reach you through the envelope button on your listing.");
+      return;
+    }
     setBusy(true);
     try {
       // Existing registrations for this email (an alumnus returning to list
@@ -435,8 +477,18 @@ function RegisterBusinessPage() {
                         <input type="tel" value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} className={inputCls} placeholder="e.g. 0700 123 456" />
                       </div>
                       <div className="md:col-span-2">
+                        <label className={labelCls}>Business email *</label>
+                        <input type="email" required value={bizEmail} onChange={(e) => setBizEmail(e.target.value)} className={inputCls} placeholder="orders@yourbusiness.com" />
+                        <p className="text-xs text-white/35 mt-1">Customers email you through the envelope button on your listing — this address is never shown publicly.</p>
+                      </div>
+                      <div>
                         <label className={labelCls}>Website (optional)</label>
                         <input type="url" value={bizWebsite} onChange={(e) => setBizWebsite(e.target.value)} className={inputCls} placeholder="https://…" />
+                      </div>
+                      <div>
+                        <label className={labelCls}>WhatsApp number (optional)</label>
+                        <input type="tel" value={bizWhatsapp} onChange={(e) => setBizWhatsapp(e.target.value)} className={inputCls} placeholder="e.g. +256 700 123456" />
+                        <p className="text-xs text-white/35 mt-1">A WhatsApp button appears on your listing that opens a chat with this number.</p>
                       </div>
                       <div className="md:col-span-2">
                         <label className={labelCls}>What does your business do?</label>

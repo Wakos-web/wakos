@@ -198,6 +198,23 @@ test(
         { timeout: 30000 },
       );
 
+      // Signed-in alumnus -> their primary email (and details) prefill from
+      // their alumni profile; the business contact fields below are separate.
+      const prefillDeadline = Date.now() + 10000;
+      let prefilledEmail = "";
+      while (Date.now() < prefillDeadline) {
+        prefilledEmail = await page.eval(
+          "(() => { const el = Array.from(document.querySelectorAll('input')).find(i => (i.placeholder || '').includes('you@example.com')); return el ? el.value : ''; })()",
+        );
+        if (prefilledEmail.toLowerCase() === EMAIL.toLowerCase()) break;
+        await sleep(300);
+      }
+      assert.equal(
+        prefilledEmail.toLowerCase(),
+        EMAIL.toLowerCase(),
+        "a signed-in alumnus should find their primary email prefilled on the register form",
+      );
+
       // Fill every required field (idempotent — safe to repeat on retry).
       const fillAllFields = async () => {
         await fillByPlaceholder(page, "Your full name", NAME);
@@ -213,6 +230,9 @@ test(
         })()`);
         if (yr !== "ok") throw new Error("graduation-year select not found on the register form");
         await fillByPlaceholder(page, "e.g. Green Valley Farms", BIZ);
+        // Business contact email is mandatory on the listing (never shown as text).
+        await fillByPlaceholder(page, "orders@yourbusiness.com", "orders." + stamp + "@example.com");
+        await fillByPlaceholder(page, "e.g. +256 700 123456", "+256 700 123456");
       };
 
       await fillAllFields();
@@ -261,10 +281,13 @@ test(
       // ---- 5. the business row exists and references that single profile ----
       const { data: biz } = await service
         .from("alumni_businesses")
-        .select("id, owner_id, name, approved")
+        .select("id, owner_id, name, approved, email, whatsapp")
         .eq("owner_id", profileId);
-      assert.ok((biz || []).some((b) => b.name === BIZ), "business should be attached to the kept profile");
-      assert.equal((biz || []).filter((b) => b.name === BIZ).length, 1, "business should not be duplicated");
+      const mine = (biz || []).filter((b) => b.name === BIZ);
+      assert.equal(mine.length, 1, "business should not be duplicated");
+      assert.equal(mine[0].owner_id, profileId, "business should attach to the kept profile");
+      assert.equal(mine[0].email, "orders." + stamp + "@example.com", "business contact email should persist (lowercased)");
+      assert.equal(mine[0].whatsapp, "+256 700 123456", "whatsapp number should persist as typed");
 
       // ---- 6. DB backstop: a direct second insert of the same email errors ----
       const dup = await service

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, MapPin, Globe, Phone, ArrowLeft, Mail, ExternalLink, Plus } from "lucide-react";
+import { Search, MapPin, Globe, Phone, ArrowLeft, Mail, ExternalLink, Plus, MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/alumni/directory/businesses")({
   head: () => ({
@@ -27,11 +27,28 @@ type BusinessWithOwner = {
   twitter_url: string | null;
   instagram_url: string | null;
   email: string | null;
+  whatsapp: string | null;
   approved: boolean;
   owner_name?: string;
   owner_avatar?: string;
   owner_profession?: string;
 };
+
+/**
+ * Turn whatever the owner typed (e.g. "0700 123 456", "+256700123456",
+ * "256700123456", "(0700) 123456") into a wa.me link. Strips formatting,
+ * drops a leading 0 or 00, and assumes a Ugandan (+256) number when no
+ * country code was given — WhatsApp links need the full international form.
+ */
+function toWhatsAppLink(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return null;
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  if (!digits.startsWith("256")) digits = "256" + digits;
+  return digits.length >= 12 ? "https://wa.me/" + digits : null;
+}
 
 const CATEGORIES = [
   "All", "Education", "Technology", "Agriculture", "Health", "Finance",
@@ -248,10 +265,20 @@ function BusinessCard({ biz }: { biz: BusinessWithOwner }) {
             <ExternalLink className="h-3.5 w-3.5" /> Instagram
           </a>
         )}
+        {/* Business email is deliberately NOT shown as text — only the
+            envelope button reveals it via the visitor's own mail app. */}
         {biz.email && (
           <a href={`mailto:${biz.email}`}
+            title="Email this business"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 bg-stone-100 px-3 py-1.5 rounded-full hover:bg-stone-200 transition-colors">
             <Mail className="h-3.5 w-3.5" /> Send Email
+          </a>
+        )}
+        {biz.whatsapp && toWhatsAppLink(biz.whatsapp) && (
+          <a href={toWhatsAppLink(biz.whatsapp)!} target="_blank" rel="noopener noreferrer"
+            title="Chat on WhatsApp"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-800 bg-green-50 px-3 py-1.5 rounded-full hover:bg-green-100 transition-colors">
+            <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
           </a>
         )}
       </div>
