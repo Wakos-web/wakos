@@ -1,8 +1,10 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { useState, useEffect, useCallback } from 'react';
 import { IMAGES } from '@/lib/content';
+import { usePageContent } from '@/hooks/usePageContent';
 import { supabase } from '@/lib/supabase';
 import campusImg from '@/assets/campus.jpg';
+import clubsHeroImg from '@/assets/clubs-hero.jpg';
 import athleticsImg from '@/assets/athletics.jpg';
 import studentLifeImg from '@/assets/student-life.jpg';
 import academicsImg from '@/assets/academics.jpg';
@@ -32,11 +34,11 @@ export const Route = createFileRoute('/clubs')({
   component: ClubsPage,
 });
 
-function HeroSection() {
+function HeroSection({ img }: { img?: string }) {
   return (
     <section className='relative h-[50vh] min-h-[360px] flex items-end overflow-hidden'>
       <div className='absolute inset-0'>
-        <img src={IMAGES.studentLife} alt='WACOS clubs' className='h-full w-full object-cover object-center' />
+        <img src={img || clubsHeroImg} alt='WACOS clubs' className='h-full w-full object-cover object-center' />
         <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
       </div>
       <Link to='/clubs/editor' className='absolute top-5 right-5 z-20 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 px-4 py-1.5 text-xs font-medium text-white/85 hover:bg-black/60 hover:text-white transition-colors'>
@@ -258,11 +260,12 @@ function ClubsGrid() {
 function ClubsPage() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isRoot = pathname === '/clubs';
+  const { content } = usePageContent('clubs');
   return (
     <div>
       {isRoot && (
         <>
-          <HeroSection />
+          <HeroSection img={content.hero?.heroImage} />
           <ClubsOverview />
           <ClubsGrid />
         </>

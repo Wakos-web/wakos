@@ -5,6 +5,7 @@ import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { staffPulseAccess, staffPulseSignOut } from "@/lib/alumni-staff";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
+import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, validateImage } from "@/lib/upload-guide";
 import {
   Send, Calendar, BookOpen, Users, Heart, Award, Building2, Clock, ThumbsUp,
   MessageCircle, ChevronDown, ChevronUp, LogOut, UserCircle2, ImagePlus, Home,
@@ -509,6 +510,9 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Friendly guidance — reject bad photos here, not at the server.
+      const imgErr = validateImage(file);
+      if (imgErr) { setError(imgErr); e.target.value = ""; return; }
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
@@ -2111,7 +2115,7 @@ function AlumniPulsePage() {
         {/* Composer */}
         <ComposerBar alumnus={alumnus} channelKey={channel} sending={sending} text={composerText}
           setText={setComposerText} onSend={sendMessage}
-          onPickPhoto={(f) => { setComposerPhoto(f); setComposerPreview(f ? URL.createObjectURL(f) : null); }}
+          onPickPhoto={(f) => { if (f) { const imgErr = validateImage(f); if (imgErr) { window.alert(imgErr); return; } } setComposerPhoto(f); setComposerPreview(f ? URL.createObjectURL(f) : null); }}
           photoPreview={composerPreview} onClearPhoto={() => { setComposerPhoto(null); setComposerPreview(null); }}
           onJoin={openJoin} onEditProfile={openEdit} />
       </section>

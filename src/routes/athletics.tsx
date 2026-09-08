@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { IMAGES } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
@@ -83,7 +83,7 @@ function PhilosophySection({ paragraphs }: { paragraphs: string[] }) {
     </section>
   );
 }
-function SportsGrid({ sports }: { sports: typeof SPORTS }) {
+function SportsGrid({ sports }: { sports: { name: string; term?: string; badge?: string; description?: string; img: string }[] }) {
   return (
     <section id="sports" className="py-20">
       <div className="max-w-6xl mx-auto px-6">
@@ -98,7 +98,8 @@ function SportsGrid({ sports }: { sports: typeof SPORTS }) {
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-5">
                 <h3 className="font-display text-xl text-white font-bold">{sport.name}</h3>
-                <p className="text-sm text-white/60 mt-1">{sport.term}</p>
+                {sport.description && <p className="text-sm text-white/80 mt-1">{sport.description}</p>}
+                <p className="text-xs text-white/60 mt-1">{sport.term}</p>
                 {sport.badge && (
                   <span className="inline-block mt-2 rounded-full bg-green-600/80 px-3 py-1 text-xs font-semibold text-white">{sport.badge}</span>
                 )}
@@ -130,7 +131,20 @@ function HighlightsSection({ highlights }: { highlights: typeof HIGHLIGHTS }) {
     </section>
   );
 }
-function AthleteSection() {
+function AthleteSection({ images }: { images?: { src: string; alt?: string; caption?: string }[] }) {
+  // CMS-backed carousel (Admin > Page Content > Featured Athlete), max 5
+  // slides. Falls back to the bundled photo with the original caption.
+  const slides = (images?.length ? images : [{ src: IMAGES.athletics, alt: "Joshua Cheptegei", caption: "A-LEVEL STUDENT — Sports Scholarship Recipient" }]).slice(0, 5);
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused || slides.length <= 1) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % slides.length), 5000);
+    return () => clearInterval(t);
+  }, [paused, slides.length]);
+  const active = slides[Math.min(idx, slides.length - 1)]!;
+  const [kicker, ...rest] = (active.caption || "").split(" — ");
   return (
     <section id="athletes" className="py-20">
       <div className="max-w-6xl mx-auto px-6">
@@ -139,13 +153,51 @@ function AthleteSection() {
           <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">From Wairaka to the World</h2>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          <div className="relative overflow-hidden rounded-2xl aspect-[4/3]">
-            <img src={IMAGES.athletics} alt="Joshua Cheptegei" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <div
+            className="group relative overflow-hidden rounded-2xl aspect-[4/3] bg-stone-900"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+          >
+            {slides.map((s, i) => (
+              <img
+                key={s.src + i}
+                src={s.src}
+                alt={s.alt || "Featured athlete"}
+                loading="lazy"
+                className={`absolute inset-0 h-full w-full object-cover transition-all duration-1000 ${i === idx ? "opacity-100 scale-100" : "opacity-0 scale-105"}`}
+              />
+            ))}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 p-6">
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">A-Level Student</p>
-              <p className="mt-1 font-display text-lg font-semibold text-white">Sports Scholarship Recipient</p>
+              {rest.length > 0 && (
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/70">{kicker}</p>
+              )}
+              <p className="mt-1 font-display text-lg font-semibold text-white">{rest.length > 0 ? rest.join(" — ") : kicker}</p>
             </div>
+            {slides.length > 1 && (
+              <>
+                <button
+                  onClick={() => setIdx((i) => (i - 1 + slides.length) % slides.length)}
+                  aria-label="Previous photo"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                >‹</button>
+                <button
+                  onClick={() => setIdx((i) => (i + 1) % slides.length)}
+                  aria-label="Next photo"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                >›</button>
+                <div className="absolute right-4 bottom-4 flex gap-1.5">
+                  {slides.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setIdx(i)}
+                      aria-label={`Photo ${i + 1}`}
+                      className={`h-1.5 rounded-full transition-all ${i === idx ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <div className="flex flex-col justify-center">
             <h3 className="font-display text-2xl md:text-3xl text-stone-900 font-bold mb-4">Joshua Cheptegei</h3>
@@ -312,7 +364,7 @@ function AthleticsPage() {
   const heroDesc = content.hero?.description || "Busoga Champions. Regional competitors. Olympic alumni. Your child will compete here.";
   const paragraphs = content.overview?.paragraphs?.length ? content.overview.paragraphs : PHILOSOPHY;
   const sports = content.sports?.items?.length
-    ? content.sports.items.map((s: any) => ({ name: s.name, term: s.description || "", badge: "", img: IMAGES.athletics }))
+    ? content.sports.items.map((s: any) => ({ name: s.name, term: s.term || "", badge: s.badge || "", description: s.description || "", img: s.image || IMAGES.athletics }))
     : SPORTS;
   const highlights = content.achievements?.achievements?.length
     ? content.achievements.achievements.map((a: any) => ({ title: a.year, text: a.achievement }))
@@ -324,7 +376,7 @@ function AthleticsPage() {
       <PhilosophySection paragraphs={paragraphs} />
       <SportsGrid sports={sports} />
       <HighlightsSection highlights={highlights} />
-      <AthleteSection />
+      <AthleteSection images={content.athlete?.images} />
       <SportsScholarshipSection />
       <CTASection />
     </div>

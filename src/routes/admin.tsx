@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useMatch, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff, adminSendLoginCode, adminVerifyLoginCode } from "@/lib/supabase";
 import { notifyClubEditor } from "@/lib/club-notify";
 import { notifyAlumniApplicant, notifyBusinessApplicant } from "@/lib/alumni-notify";
@@ -7,14 +7,17 @@ import { LOGO_URL } from "@/lib/content";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
+import { normalizeImageFile } from "@/lib/image-convert";
+import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, VIDEO_ACCEPT, VIDEO_TYPES, VIDEO_MAX_MB, fileSizeMb, validateImage, validateMedia } from "@/lib/upload-guide";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
+import { ClubPostMediaManager } from "@/components/club-post-media-manager";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
   CalendarCheck, ChevronDown, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
   Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
-  Image as ImageIcon, Video as VideoIcon, Upload, GripVertical
+  Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 
@@ -211,13 +214,19 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
   const [rejectNoteFor, setRejectNoteFor] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
   const [msg, setMsg] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+  // Story-page editing: admins can open any post's detail page (published,
+  // pending or rejected) and edit its title/excerpt/content/cover + media.
+  const [editingPost, setEditingPost] = useState<any | null>(null);
+  const [postForm, setPostForm] = useState({ title: "", excerpt: "", content: "" });
+  const [postImage, setPostImage] = useState("");
+  const [postSaving, setPostSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
     (async () => {
       const [eRes, pRes] = await Promise.all([
         supabase.from("club_editors").select("*").eq("club_id", club.id).order("created_at", { ascending: true }),
-        supabase.from("club_posts").select("*").eq("club_id", club.id).in("status", ["pending", "rejected"]).order("created_at", { ascending: false }),
+        supabase.from("club_posts").select("*").eq("club_id", club.id).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       if (eRes.data) setEditors(eRes.data);
@@ -235,10 +244,50 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
   const reload = async () => {
     const [eRes, pRes] = await Promise.all([
       supabase.from("club_editors").select("*").eq("club_id", club.id).order("created_at", { ascending: true }),
-      supabase.from("club_posts").select("*").eq("club_id", club.id).in("status", ["pending", "rejected"]).order("created_at", { ascending: false }),
+      supabase.from("club_posts").select("*").eq("club_id", club.id).order("created_at", { ascending: false }),
     ]);
     if (eRes.data) setEditors(eRes.data);
     if (pRes.data) setPosts(pRes.data);
+  };
+
+  const openPostEditor = (post: any) => {
+    setEditingPost(post);
+    setPostForm({ title: post.title || "", excerpt: post.excerpt || "", content: post.content || "" });
+    setPostImage(post.image_url || "");
+  };
+
+  const savePost = async () => {
+    if (!editingPost) return;
+    if (!postForm.title.trim()) { flash("A title is required", "err"); return; }
+    setPostSaving(true);
+    const { error } = await supabase
+      .from("club_posts")
+      .update({
+        title: postForm.title.trim(),
+        excerpt: postForm.excerpt.trim() || null,
+        content: postForm.content.trim() || null,
+        image_url: postImage.trim() || null,
+      })
+      .eq("id", editingPost.id);
+    setPostSaving(false);
+    if (error) { flash(error.message || "Could not save the story", "err"); return; }
+    flash("Story page saved", "ok");
+    setEditingPost(null);
+    reload();
+  };
+
+  const unpublishPost = async (post: any) => {
+    const { error } = await supabase.from("club_posts").update({ published: false, status: "rejected", review_note: "Unpublished by admin" }).eq("id", post.id);
+    if (error) { flash(error.message || "Could not unpublish", "err"); return; }
+    flash("Story unpublished from the club page", "ok");
+    reload();
+  };
+
+  const republishPost = async (post: any) => {
+    const { error } = await supabase.from("club_posts").update({ published: true, status: "published", review_note: null, reviewed_by: reviewerName || "Admin", reviewed_at: new Date().toISOString() }).eq("id", post.id);
+    if (error) { flash(error.message || "Could not publish", "err"); return; }
+    flash("Story published to the club page", "ok");
+    reload();
   };
 
   const invite = async () => {
@@ -294,6 +343,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
 
   const pending = posts.filter((p: any) => p.status === "pending");
   const rejected = posts.filter((p: any) => p.status === "rejected");
+  const published = posts.filter((p: any) => p.status === "published");
   const activeEditors = editors.filter((e: any) => e.status !== "removed");
   const removedEditors = editors.filter((e: any) => e.status === "removed");
 
@@ -311,6 +361,41 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
       {msg && (
         <div className={`text-xs px-3 py-2 rounded-lg ${msg.kind === "ok" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {msg.text}
+        </div>
+      )}
+
+      {/* Story-page editor: full form + media manager for the post's detail page */}
+      {editingPost && (
+        <div className="rounded-xl bg-green-50/60 border border-green-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="font-display text-base font-bold text-stone-900">Edit story page: {editingPost.title}</p>
+            <button onClick={() => setEditingPost(null)} className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-400"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Title</label>
+              <input value={postForm.title} onChange={(e) => setPostForm({ ...postForm, title: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Excerpt (card preview)</label>
+              <textarea value={postForm.excerpt} onChange={(e) => setPostForm({ ...postForm, excerpt: e.target.value })} rows={2} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="Shown on the club's story cards" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Story text (blank line = new paragraph)</label>
+              <textarea value={postForm.content} onChange={(e) => setPostForm({ ...postForm, content: e.target.value })} rows={7} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="The full story shown on the detail page" />
+            </div>
+            <div>
+              <ImageUpload value={postImage} onChange={setPostImage} label="Cover image" setToast={(t) => flash(t?.message || "", t?.type === "error" ? "err" : "ok")} />
+              <p className="text-xs text-stone-400 mt-1">Leads the story card. Leave empty to remove.</p>
+            </div>
+          </div>
+          <div className="border-t border-green-200/70 pt-4">
+            <ClubPostMediaManager postId={editingPost.id} notice={(text, kind) => flash(text, kind)} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={savePost} disabled={postSaving} className="px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">{postSaving ? "Saving..." : "Save story"}</button>
+            <button onClick={() => setEditingPost(null)} className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+          </div>
         </div>
       )}
 
@@ -354,6 +439,28 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
             ))}
           </div>
         )}
+      </div>
+
+      {/* Published stories: edit the detail page or unpublish */}
+      <div>
+        <p className="text-xs font-semibold text-stone-500 uppercase mb-2">Published stories ({published.length}) — edit the detail page</p>
+        {published.length === 0 && <p className="text-xs text-stone-400">No published stories yet.</p>}
+        {published.map((post: any) => (
+          <div key={post.id} className="rounded-lg bg-white border border-stone-200 p-3 mb-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-stone-800">{post.title}</p>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {post.editor_name || post.author || "Club editor"} · {post.created_at ? new Date(post.created_at).toLocaleDateString() : ""}
+                </p>
+              </div>
+              <div className="flex gap-1.5 shrink-0">
+                <button onClick={() => openPostEditor(post)} className="px-2.5 py-1 rounded-lg border border-stone-300 text-stone-600 text-xs font-semibold hover:border-green-800 hover:text-green-800 inline-flex items-center gap-1"><PenSquare className="h-3 w-3" /> Edit page</button>
+                <button onClick={() => unpublishPost(post)} className="px-2.5 py-1 rounded-lg border border-amber-300 text-amber-700 text-xs font-semibold hover:bg-amber-50">Unpublish</button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Co-editors */}
@@ -573,11 +680,13 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
     if (!file) return;
     setUploadingHero(club.id);
     try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      // TIFF photos are converted to JPEG in the browser before upload.
+      const uploadable = await normalizeImageFile(file);
+      const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
       const path = `club-heroes/${club.slug}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("club-images")
-        .upload(path, file, { contentType: file.type || "image/jpeg" });
+        .upload(path, uploadable, { contentType: uploadable.type || "image/jpeg" });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("club-images").getPublicUrl(path);
       const { error: dbErr } = await supabase
@@ -1379,13 +1488,25 @@ function SettingsTab() {
   };
 
   const uploadFile = async (key: string, file: File) => {
+    // Friendly guidance before touching storage.
+    const imgErr = validateImage(file);
+    if (imgErr) { window.alert(imgErr); return; }
     setUploading(key);
-    const ext = file.name.split(".").pop();
-    const path = key + "/" + Date.now() + "." + ext;
-    const { error } = await supabase.storage.from("uploads").upload(path, file, { contentType: file.type });
-    if (!error) {
-      const { data } = supabase.storage.from("uploads").getPublicUrl(path);
-      update(key, data.publicUrl);
+    try {
+      // TIFF photos are converted to JPEG in the browser before upload.
+      const uploadable = await normalizeImageFile(file);
+      const ext = uploadable.name.split(".").pop();
+      const path = key + "/" + Date.now() + "." + ext;
+      const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
+      if (!error) {
+        const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+        update(key, data.publicUrl);
+      } else {
+        // SettingsTab has no toast — surface the failure loudly and helpfully.
+        window.alert(`Upload failed: ${error.message}. We accept ${IMAGE_TYPES} up to ${IMAGE_MAX_MB}MB.`);
+      }
+    } catch (err: any) {
+      window.alert(err?.message || `Image could not be processed. We accept ${IMAGE_TYPES} up to ${IMAGE_MAX_MB}MB.`);
     }
     setUploading(null);
   };
@@ -1598,6 +1719,13 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
   const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  // Detail-page editing: admins can fix any field that renders on the public
+  // profile page (name, nickname, class year, programme, profession, company,
+  // location, bio) and replace the avatar photo.
+  const [editProfile, setEditProfile] = useState<any | null>(null);
+  const [profileForm, setProfileForm] = useState<Record<string, string>>({});
+  const [profileAvatar, setProfileAvatar] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
   const filtered = alumni.filter(a => {
     if (filter === "pending" && (a.approved || a.rejected_notes)) return false;
     if (filter === "approved" && !a.approved) return false;
@@ -1612,6 +1740,47 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
     if (!confirm("Delete this alumni profile?")) return;
     await supabase.from("alumni_profiles").delete().eq("id", id);
     setToast({ message: "Profile deleted", type: "success" });
+    onRefresh();
+  };
+
+  const openProfileEditor = (a: any) => {
+    setEditProfile(a);
+    setProfileForm({
+      full_name: a.full_name || "",
+      nickname: a.nickname || "",
+      graduation_year: a.graduation_year ? String(a.graduation_year) : "",
+      programme: a.programme || "",
+      profession: a.profession || "",
+      company: a.company || "",
+      current_location: a.current_location || "",
+      bio: a.bio || "",
+    });
+    setProfileAvatar(a.avatar_url || "");
+  };
+
+  const saveProfile = async () => {
+    if (!editProfile) return;
+    if (!(profileForm.full_name || "").trim()) { setToast({ message: "Name is required", type: "error" }); return; }
+    setProfileSaving(true);
+    const { error } = await supabase
+      .from("alumni_profiles")
+      .update({
+        full_name: (profileForm.full_name || "").trim(),
+        nickname: (profileForm.nickname || "").trim() || null,
+        graduation_year: parseInt(profileForm.graduation_year || "") || null,
+        programme: (profileForm.programme || "").trim() || null,
+        profession: (profileForm.profession || "").trim() || null,
+        company: (profileForm.company || "").trim() || null,
+        current_location: (profileForm.current_location || "").trim() || null,
+        bio: (profileForm.bio || "").trim() || null,
+        avatar_url: profileAvatar.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", editProfile.id);
+    setProfileSaving(false);
+    if (error) { setToast({ message: error.message || "Could not save the profile", type: "error" }); return; }
+    setToast({ message: "Profile saved", type: "success" });
+    setEditProfile(null);
     onRefresh();
   };
   return (
@@ -1658,6 +1827,9 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
                   <button onClick={() => setReviewItem({ id: a.id, title: a.profession || "Alumni Profile", author: a.full_name, content: a.bio || a.about_me, details: { graduation_year: a.graduation_year, company: a.company, location: a.current_location, email: a.email, phone: a.phone, linkedin: a.linkedin_url, website: a.website_url }, approved: a.approved, rejected_notes: a.rejected_notes, table: "alumni_profiles" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
                     <Eye className="h-4 w-4 text-blue-600" />
                   </button>
+                  <button onClick={() => openProfileEditor(a)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Edit profile page">
+                    <Settings className="h-4 w-4 text-green-700" />
+                  </button>
                   <button onClick={() => remove(a.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
                     <Trash2 className="h-4 w-4 text-red-400" />
                   </button>
@@ -1673,6 +1845,57 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
           ))}
         </div>
       )}
+      {editProfile && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/50 p-4 py-10">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <p className="font-display text-lg font-bold text-stone-900">Edit alumni profile</p>
+              <button onClick={() => setEditProfile(null)} className="p-2 rounded-lg hover:bg-stone-100 text-stone-400"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Full name</label>
+                <input value={profileForm.full_name ?? ""} onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Nickname</label>
+                <input value={profileForm.nickname ?? ""} onChange={(e) => setProfileForm({ ...profileForm, nickname: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="As they're known on the Pulse" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Graduation year</label>
+                <input type="number" value={profileForm.graduation_year ?? ""} onChange={(e) => setProfileForm({ ...profileForm, graduation_year: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Programme</label>
+                <input value={profileForm.programme ?? ""} onChange={(e) => setProfileForm({ ...profileForm, programme: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. PCM, HEG" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Profession</label>
+                <input value={profileForm.profession ?? ""} onChange={(e) => setProfileForm({ ...profileForm, profession: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Company</label>
+                <input value={profileForm.company ?? ""} onChange={(e) => setProfileForm({ ...profileForm, company: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Current location</label>
+                <input value={profileForm.current_location ?? ""} onChange={(e) => setProfileForm({ ...profileForm, current_location: e.target.value })} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">About / bio</label>
+                <textarea value={profileForm.bio ?? ""} onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })} rows={4} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" />
+              </div>
+              <div className="md:col-span-2">
+                <ImageUpload value={profileAvatar} onChange={setProfileAvatar} label="Profile photo" setToast={setToast} />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={saveProfile} disabled={profileSaving} className="px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">{profileSaving ? "Saving..." : "Save profile"}</button>
+              <button onClick={() => setEditProfile(null)} className="px-5 py-2.5 bg-white border border-stone-300 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
     </div>
   );
@@ -1682,20 +1905,26 @@ function ImageUpload({ value, onChange, label, setToast }: { value: string; onCh
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
-    // Loud validation — a failed upload must never fail silently.
-    if (!file.type.startsWith("image/")) {
-      setToast?.({ message: `"${file.name}" is not an image file. Use JPG, PNG, WebP, or GIF.`, type: "error" });
-      e.target.value = "";
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setToast?.({ message: `"${file.name}" is larger than 10MB. Compress or resize it first.`, type: "error" });
+    // Loud, friendly validation — a failed upload must never fail silently.
+    const imgErr = validateImage(file);
+    if (imgErr) {
+      setToast?.({ message: imgErr, type: "error" });
       e.target.value = "";
       return;
     }
     setUploading(true);
+    // TIFF/HEIC photos are converted to JPEG in the browser (or rejected with
+    // a clear message) before they hit the bucket policy.
+    try {
+      file = await normalizeImageFile(file);
+    } catch (err: any) {
+      setToast?.({ message: err?.message || "Image could not be processed.", type: "error" });
+      setUploading(false);
+      e.target.value = "";
+      return;
+    }
     const fileName = `uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
     const { error } = await supabase.storage.from("uploads").upload(fileName, file, { contentType: file.type });
     if (error) {
@@ -1718,7 +1947,8 @@ function ImageUpload({ value, onChange, label, setToast }: { value: string; onCh
             <Megaphone className="h-5 w-5 text-stone-400" />
             <span className="text-sm text-stone-600">{uploading ? "Uploading..." : "Click to upload image"}</span>
           </div>
-          <input type="file" accept="image/*" onChange={handleUpload} className="hidden" disabled={uploading} />
+          <input type="file" accept={IMAGE_ACCEPT} onChange={handleUpload} className="hidden" disabled={uploading} />
+          <p className="text-[11px] text-stone-400 mt-1">We accept {IMAGE_TYPES} up to {IMAGE_MAX_MB}MB (TIFF is converted automatically).</p>
         </label>
         {value && (
           <div className="relative w-20 h-16 rounded-lg overflow-hidden border border-stone-200">
@@ -1885,7 +2115,7 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
  * (page_content about/gallery). Photos are real file uploads to the `uploads`
  * storage bucket — never pasted URLs — with captions and manual ordering.
  */
-function GallerySectionEditor({ row, onClose, onRefresh, setToast }: { row: any; onClose: () => void; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: { row: any; maxImages?: number | undefined; onClose: () => void; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [images, setImages] = useState<any[]>(Array.isArray(row.content?.images) ? row.content.images : []);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1895,18 +2125,34 @@ function GallerySectionEditor({ row, onClose, onRefresh, setToast }: { row: any;
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    if (maxImages && images.length >= maxImages) {
+      setToast({ message: `This section holds a maximum of ${maxImages} images. Remove one first.`, type: "error" });
+      return;
+    }
     setUploading(true);
     const added: any[] = [];
     for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      // Friendly format/size guidance instead of silently skipping files.
+      const imgErr = validateImage(file);
+      if (imgErr) { setToast({ message: imgErr, type: "error" }); continue; }
+      // TIFF photos are converted to JPEG in the browser before upload; HEIC
+      // is rejected with a clear message.
+      let uploadable: File;
+      try {
+        uploadable = await normalizeImageFile(file);
+      } catch (err: any) {
+        setToast({ message: err?.message || "Image could not be processed.", type: "error" });
+        continue;
+      }
+      const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
       const path = `gallery/about-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage.from("uploads").upload(path, file, { contentType: file.type });
+      const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
       if (error) { setToast({ message: `Upload failed: ${error.message}`, type: "error" }); continue; }
       const { data } = supabase.storage.from("uploads").getPublicUrl(path);
       added.push({ src: data.publicUrl, alt: file.name.replace(/\.[^.]+$/, ""), caption: "" });
     }
-    if (added.length) setImages(prev => [...prev, ...added]);
+    const capped = maxImages ? added.slice(0, Math.max(0, maxImages - images.length)) : added;
+    if (capped.length) setImages(prev => [...prev, ...capped]);
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -2006,10 +2252,387 @@ function GallerySectionEditor({ row, onClose, onRefresh, setToast }: { row: any;
   );
 }
 
-function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+function LeadershipEditor({ row, onClose, onRefresh, setToast }: { row: any; onClose: () => void; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [leaders, setLeaders] = useState<any[]>(Array.isArray(row.content?.leaders) ? row.content.leaders : []);
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+
+  const update = (idx: number, patch: any) => setLeaders(prev => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
+  const addLeader = () => { setLeaders(prev => [...prev, { name: "", role: "", description: "", avatar: "", email: "", phone: "", whatsapp: "" }]); setOpen(leaders.length); };
+  const removeLeader = (idx: number) => { setLeaders(prev => prev.filter((_, i) => i !== idx)); setOpen(null); };
+  const move = (idx: number, dir: -1 | 1) => setLeaders(prev => {
+    const next = [...prev];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return prev;
+    [next[idx], next[j]] = [next[j]!, next[idx]!];
+    return next;
+  });
+
+  const save = async () => {
+    setSaving(true);
+    const cleaned = leaders.map(l => ({
+      name: (l.name || "").trim(), role: (l.role || "").trim(), description: (l.description || "").trim(),
+      avatar: (l.avatar || "").trim() || null, email: (l.email || "").trim() || null,
+      phone: (l.phone || "").trim() || null, whatsapp: (l.whatsapp || "").trim() || null,
+    }));
+    const { error } = await supabase.from("page_content").update({ content: { leaders: cleaned } }).eq("id", row.id);
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Leadership saved", type: "success" });
+    onRefresh();
+    onClose();
+  };
+
+  return (
+    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="font-display text-lg font-bold text-stone-900">Edit: School Leadership</h4>
+        <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
+      </div>
+      <p className="text-xs text-stone-500">Each leader shows a headshot, role and story on the About page. Email, phone and WhatsApp are never displayed as text — they render as icon buttons visitors tap to reach the leader directly.</p>
+      <div className="space-y-3">
+        {leaders.map((l, idx) => (
+          <div key={idx} className="rounded-xl border border-stone-200 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <button onClick={() => setOpen(open === idx ? null : idx)} className="flex items-center gap-2 text-left">
+                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-stone-100 ring-1 ring-stone-200">
+                  {l.avatar ? <img src={l.avatar} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-xs font-bold text-stone-400">{(l.name || "?").slice(0, 2).toUpperCase()}</span>}
+                </div>
+                <span className="text-sm font-semibold text-stone-800">{l.name || "(unnamed leader)"}</span>
+                <span className="text-xs text-stone-400">— {l.role || "no role"}</span>
+              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => move(idx, -1)} disabled={idx === 0} className="p-1.5 rounded-lg hover:bg-stone-100 disabled:opacity-30" title="Move up"><ChevronRight className="h-4 w-4 -rotate-90 text-stone-500" /></button>
+                <button onClick={() => move(idx, 1)} disabled={idx === leaders.length - 1} className="p-1.5 rounded-lg hover:bg-stone-100 disabled:opacity-30" title="Move down"><ChevronRight className="h-4 w-4 rotate-90 text-stone-500" /></button>
+                <button onClick={() => removeLeader(idx)} className="p-1.5 rounded-lg hover:bg-red-50" title="Remove"><Trash2 className="h-4 w-4 text-red-500" /></button>
+                <button onClick={() => setOpen(open === idx ? null : idx)} className="p-1.5 rounded-lg hover:bg-stone-100" title="Expand"><ChevronRight className={`h-4 w-4 text-stone-400 transition-transform ${open === idx ? "rotate-90" : ""}`} /></button>
+              </div>
+            </div>
+            {open === idx && (
+              <div className="space-y-3 border-t border-stone-100 pt-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Name</label>
+                    <input value={l.name || ""} onChange={(e) => update(idx, { name: e.target.value })} placeholder="e.g. Samuel Balikowa" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Role / Title</label>
+                    <input value={l.role || ""} onChange={(e) => update(idx, { role: e.target.value })} placeholder="e.g. Head Teacher" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Story / Description</label>
+                  <textarea value={l.description || ""} onChange={(e) => update(idx, { description: e.target.value })} placeholder="What this leader does at the college..." className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[70px]" />
+                </div>
+                <ImageUpload value={l.avatar || ""} onChange={(v) => update(idx, { avatar: v })} label="Headshot / avatar" setToast={setToast} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Email</label>
+                    <input value={l.email || ""} onChange={(e) => update(idx, { email: e.target.value })} placeholder="leader@school.sc.ug" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Phone (tel)</label>
+                    <input value={l.phone || ""} onChange={(e) => update(idx, { phone: e.target.value })} placeholder="+256 7xx xxx xxx" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">WhatsApp number</label>
+                    <input value={l.whatsapp || ""} onChange={(e) => update(idx, { whatsapp: e.target.value })} placeholder="+256 7xx xxx xxx" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                </div>
+                <p className="text-xs text-stone-400">Leave any contact empty to hide its button. Local numbers starting with 0 are converted to +256 WhatsApp links automatically.</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={addLeader} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">+ Add leader</button>
+        <div className="flex-1" />
+        <button onClick={save} disabled={saving} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save leadership"}</button>
+        <button onClick={onClose} className="px-6 py-2 bg-white border border-stone-300 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+
+function SportsEditor({ row, onClose, onRefresh, setToast }: { row: any; onClose: () => void; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  const [items, setItems] = useState<any[]>(Array.isArray(row.content?.items) ? row.content.items : []);
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+
+  const update = (idx: number, patch: any) => setItems(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s));
+  const addSport = () => { setItems(prev => [...prev, { name: "", term: "", badge: "", description: "", image: "" }]); setOpen(items.length); };
+  const removeSport = (idx: number) => { setItems(prev => prev.filter((_, i) => i !== idx)); setOpen(null); };
+  const move = (idx: number, dir: -1 | 1) => setItems(prev => {
+    const next = [...prev];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return prev;
+    [next[idx], next[j]] = [next[j]!, next[idx]!];
+    return next;
+  });
+
+  const save = async () => {
+    setSaving(true);
+    const cleaned = items.map(s => ({
+      name: (s.name || "").trim(), term: (s.term || "").trim(), badge: (s.badge || "").trim(),
+      description: (s.description || "").trim(), image: (s.image || "").trim() || null,
+    }));
+    const { error } = await supabase.from("page_content").update({ content: { items: cleaned } }).eq("id", row.id);
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Sports saved", type: "success" });
+    onRefresh();
+    onClose();
+  };
+
+  return (
+    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="font-display text-lg font-bold text-stone-900">Edit: Our Sports</h4>
+        <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
+      </div>
+      <p className="text-xs text-stone-500">Each sport is a photo card on the Athletics page. Upload the team photo, add the season, a short description and an optional badge (e.g. “Busoga Champions”). Empty badge or term fields are hidden.</p>
+      <div className="space-y-3">
+        {items.map((s, idx) => (
+          <div key={idx} className="rounded-xl border border-stone-200 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <button onClick={() => setOpen(open === idx ? null : idx)} className="flex items-center gap-2 text-left">
+                <div className="h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-stone-100 ring-1 ring-stone-200">
+                  {s.image ? <img src={s.image} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-stone-400">NO IMG</span>}
+                </div>
+                <span className="text-sm font-semibold text-stone-800">{s.name || "(unnamed sport)"}</span>
+                <span className="text-xs text-stone-400">— {s.term || "no season"}</span>
+              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => move(idx, -1)} disabled={idx === 0} className="p-1.5 rounded-lg hover:bg-stone-100 disabled:opacity-30" title="Move up"><ChevronRight className="h-4 w-4 -rotate-90 text-stone-500" /></button>
+                <button onClick={() => move(idx, 1)} disabled={idx === items.length - 1} className="p-1.5 rounded-lg hover:bg-stone-100 disabled:opacity-30" title="Move down"><ChevronRight className="h-4 w-4 rotate-90 text-stone-500" /></button>
+                <button onClick={() => removeSport(idx)} className="p-1.5 rounded-lg hover:bg-red-50" title="Remove"><Trash2 className="h-4 w-4 text-red-500" /></button>
+                <button onClick={() => setOpen(open === idx ? null : idx)} className="p-1.5 rounded-lg hover:bg-stone-100" title="Expand"><ChevronRight className={`h-4 w-4 text-stone-400 transition-transform ${open === idx ? "rotate-90" : ""}`} /></button>
+              </div>
+            </div>
+            {open === idx && (
+              <div className="space-y-3 border-t border-stone-100 pt-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Sport name</label>
+                    <input value={s.name || ""} onChange={(e) => update(idx, { name: e.target.value })} placeholder="e.g. Football" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Season / term</label>
+                    <input value={s.term || ""} onChange={(e) => update(idx, { term: e.target.value })} placeholder="e.g. Term 1 & 2" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Badge (optional)</label>
+                    <input value={s.badge || ""} onChange={(e) => update(idx, { badge: e.target.value })} placeholder="e.g. Busoga Champions" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Short description</label>
+                  <textarea value={s.description || ""} onChange={(e) => update(idx, { description: e.target.value })} placeholder="e.g. Busoga Schools Champions 2026. Training every afternoon under floodlights." className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[60px]" />
+                </div>
+                <ImageUpload value={s.image || ""} onChange={(v) => update(idx, { image: v })} label="Team / action photo" setToast={setToast} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={addSport} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">+ Add sport</button>
+        <div className="flex-1" />
+        <button onClick={save} disabled={saving} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save sports"}</button>
+        <button onClick={onClose} className="px-6 py-2 bg-white border border-stone-300 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+/* Structured editor for page-content sections. Replaces the old form that
+ * dumped arrays/objects as raw JSON per line. Every array renders as a real
+ * list: add / remove / reorder rows, each row's fields as plain inputs, and
+ * nested string arrays (e.g. a combination's subjects) as one-per-line
+ * textareas. No JSON is ever shown to the editor. */
+function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: any; onClose: () => void; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+  // Flatten content into ordered scalar fields and array fields.
+  const collect = (obj: any) => {
+    const scalars: Record<string, string> = {};
+    const arrays: Record<string, any[]> = {};
+    const order: string[] = [];
+    const walk = (o: any, prefix = "") => {
+      for (const [k, v] of Object.entries(o || {})) {
+        const key = prefix ? prefix + "." + k : k;
+        if (Array.isArray(v)) {
+          arrays[key] = v;
+          order.push(key);
+        } else if (v && typeof v === "object") {
+          walk(v, key);
+        } else {
+          scalars[key] = v === null || v === undefined ? "" : String(v);
+          order.push(key);
+        }
+      }
+    };
+    walk(obj);
+    return { scalars, arrays, order };
+  };
+  const initial = useMemo(() => collect(row.content || {}), []);
+  const [scalars, setScalars] = useState<Record<string, string>>(initial.scalars);
+  const [arrays, setArrays] = useState<Record<string, any[]>>(initial.arrays);
+  const [order] = useState<string[]>(initial.order);
+  const [title, setTitle] = useState(row.title || "");
+  const [saving, setSaving] = useState(false);
+
+  const isImageField = (key: string, value: string): boolean => {
+    if (/image|photo|img|background|hero|cover|poster|thumbnail|src/i.test(key)) return true;
+    const v = value.trim();
+    return /^(https?:)?\/\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(v) || /^\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(v);
+  };
+  const isScalar = (v: any) => v === null || v === undefined || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+
+  const setScalar = (key: string, val: string) => setScalars(prev => ({ ...prev, [key]: val }));
+  const setArray = (key: string, next: any[] | ((prev: any[]) => any[])) => setArrays(prev => ({ ...prev, [key]: typeof next === "function" ? (next as (p: any[]) => any[])(prev[key] ?? []) : next }));
+
+  const updateItem = (key: string, idx: number, patch: any) => setArray(key, (arrays[key] ?? []).map((it, i) => i === idx ? (isScalar(it) ? patch : { ...it, ...patch }) : it));
+  const removeItem = (key: string, idx: number) => setArray(key, (arrays[key] ?? []).filter((_, i) => i !== idx));
+  const moveItem = (key: string, idx: number, dir: -1 | 1) => setArray(key, (prev) => {
+    const next = [...prev];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return prev;
+    [next[idx], next[j]] = [next[j]!, next[idx]!];
+    return next;
+  });
+
+  const save = async () => {
+    setSaving(true);
+    const content: any = {};
+    for (const key of order) {
+      const parts = key.split(".");
+      let cur = content;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i]!;
+        if (!cur[part] || typeof cur[part] !== "object" || Array.isArray(cur[part])) cur[part] = {};
+        cur = cur[part]!;
+      }
+      const last = parts[parts.length - 1]!;
+      if (arrays[key] !== undefined) {
+        // Rebuild each row: nested string arrays come from line-by-line text.
+        cur[last] = arrays[key].map((it) => {
+          if (isScalar(it)) return typeof it === "string" ? it.trim() : it;
+          const out: any = {};
+          for (const [k, v] of Object.entries(it || {})) {
+            if (Array.isArray(v)) out[k] = v.map((x: any) => String(x)).join("\n").split("\n").map((x: string) => x.trim()).filter(Boolean);
+            else if (isScalar(v)) out[k] = v === null || v === undefined ? null : String(v).trim();
+            else out[k] = v;
+          }
+          return out;
+        });
+      } else {
+        cur[last] = scalars[key] ?? "";
+      }
+    }
+    const { error } = await supabase.from("page_content").update({ title: title.trim() || row.title, content }).eq("id", row.id);
+    setSaving(false);
+    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    setToast({ message: "Content saved", type: "success" });
+    onRefresh();
+    onClose();
+  };
+
+  const label = (key: string) => key.split(".").pop()!.replace(/[._]/g, " ");
+
+  return (
+    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="font-display text-lg font-bold text-stone-900">Edit: {row.title}</h4>
+        <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Section title</label>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      {order.map((key) => {
+        if (arrays[key] !== undefined) {
+          const items = arrays[key] ?? [];
+          return (
+            <div key={key} className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">{label(key)} ({items.length})</p>
+              {items.map((item, idx) => (
+                <div key={idx} className="rounded-xl border border-stone-200 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-400">Item {idx + 1}</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => moveItem(key, idx, -1)} disabled={idx === 0} className="p-1.5 rounded-lg hover:bg-stone-100 disabled:opacity-30" title="Move up"><ChevronRight className="h-4 w-4 -rotate-90 text-stone-500" /></button>
+                      <button onClick={() => moveItem(key, idx, 1)} disabled={idx === items.length - 1} className="p-1.5 rounded-lg hover:bg-stone-100 disabled:opacity-30" title="Move down"><ChevronRight className="h-4 w-4 rotate-90 text-stone-500" /></button>
+                      <button onClick={() => removeItem(key, idx)} className="p-1.5 rounded-lg hover:bg-red-50" title="Remove"><Trash2 className="h-4 w-4 text-red-500" /></button>
+                    </div>
+                  </div>
+                  {isScalar(item) ? (
+                    <textarea value={String(item)} onChange={(e) => updateItem(key, idx, e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[60px]" />
+                  ) : (
+                    <div className="space-y-3">
+                      {Object.entries(item || {}).map(([k, v]) => {
+                        const fullKey = key + "." + k;
+                        if (Array.isArray(v)) {
+                          return (
+                            <div key={k}>
+                              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">{label(k)} (one per line)</label>
+                              <textarea
+                                value={(v as any[]).join("\n")}
+                                onChange={(e) => updateItem(key, idx, { [k]: e.target.value.split("\n") })}
+                                className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[80px]"
+                              />
+                            </div>
+                          );
+                        }
+                        if (isImageField(k, String(v ?? ""))) {
+                          return (
+                            <div key={k}>
+                              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">{label(k)}</label>
+                              <ImageUpload value={String(v ?? "")} onChange={(url) => updateItem(key, idx, { [k]: url })} setToast={setToast} />
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={k}>
+                            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">{label(k)}</label>
+                            <input value={String(v ?? "")} onChange={(e) => updateItem(key, idx, { [k]: e.target.value })} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <button onClick={() => setArray(key, [...(arrays[key] ?? []), isScalar((arrays[key] ?? [])[0]) ? "" : {}])} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">+ Add {label(key).replace(/s$/, "")}</button>
+            </div>
+          );
+        }
+        const value = scalars[key] ?? "";
+        return (
+          <div key={key}>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">{label(key)}</label>
+            {isImageField(key, value) ? (
+              <ImageUpload value={value} onChange={(v) => setScalar(key, v)} setToast={setToast} />
+            ) : value.includes("\n") || value.length > 100 ? (
+              <textarea value={value} onChange={(e) => setScalar(key, e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[80px]" />
+            ) : (
+              <input value={value} onChange={(e) => setScalar(key, e.target.value)} className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            )}
+          </div>
+        );
+      })}
+      <div className="flex gap-3">
+        <button onClick={save} disabled={saving} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save"}</button>
+        <button onClick={onClose} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+}function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [selectedPage, setSelectedPage] = useState<string>("");
   const [editItem, setEditItem] = useState<any>(null);
   const [galleryEdit, setGalleryEdit] = useState<any>(null);
+  const [leadershipEdit, setLeadershipEdit] = useState<any>(null);
+  const [sportsEdit, setSportsEdit] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [contentFields, setContentFields] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -2029,68 +2652,10 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
     { page: 'student-life', label: 'Add Campus Life Gallery' },
     { page: 'home', label: 'Add Life at WACOS Gallery' },
   ];
-  const missingGalleries = galleryPages.filter(g => !pages.some(p => p.page === g.page && p.section === 'gallery'));
-
-  const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
+  const missingGalleries = galleryPages.filter(g => !pages.some(p => p.page === g.page && p.section === 'gallery'));  const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
   const uniquePages = [...new Set(pages.map(p => p.page))];
 
-  // A content field is an image when its key says so (heroImage, cover,
-  // background, gallery src...) or its value already points at an image URL —
-  // such fields get a real file-upload control instead of a raw text input.
-  const isImageField = (key: string, value: string): boolean => {
-    if (/image|photo|img|background|hero|cover|poster|thumbnail|src/i.test(key)) return true;
-    const v = value.trim();
-    return /^(https?:)?\/\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(v) || /^\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(v);
-  };
-
-  // Flatten content object to string fields for editing
-  const flattenContent = (obj: any, prefix = ''): Record<string, string> => {
-    const result: Record<string, string> = {};
-    for (const [key, value] of Object.entries(obj || {})) {
-      const fullKey = prefix ? `${prefix}.${key}` : key;
-      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-        result[fullKey] = String(value);
-      } else if (Array.isArray(value)) {
-        result[fullKey] = value.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join('\n');
-      } else if (typeof value === 'object' && value !== null) {
-        Object.assign(result, flattenContent(value, fullKey));
-      }
-    }
-    return result;
-  };
-
-  const reset = () => { setTitle(""); setContentFields({}); setEditItem(null); setGalleryEdit(null); };
-
-  const save = async () => {
-    if (!editItem) return;
-    setSaving(true);
-    // Reconstruct content from flat fields
-    const content: any = {};
-    for (const [key, value] of Object.entries(contentFields)) {
-      const parts = key.split('.');
-      let current = content;
-      for (let i = 0; i < parts.length - 1; i++) {
-        const part = parts[i]!;
-        if (!current[part]) current[part] = {};
-        current = current[part];
-      }
-      const lastKey = parts[parts.length - 1]!;
-      // Try to parse arrays/objects
-      if (value.includes('\n')) {
-        const lines = value.split('\n').filter(l => l.trim());
-        const parsed = lines.map(l => { try { return JSON.parse(l); } catch { return l; } });
-        current[lastKey] = parsed;
-      } else {
-        current[lastKey] = value;
-      }
-    }
-    const { error } = await supabase.from("page_content").update({ title: title.trim(), content }).eq("id", editItem.id);
-    setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
-    setToast({ message: "Content updated", type: "success" });
-    reset();
-    onRefresh();
-  };
+  const reset = () => { setEditItem(null); setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(null); };
 
   const togglePublish = async (id: string, currentStatus: boolean) => {
     await supabase.from("page_content").update({ published: !currentStatus }).eq("id", id);
@@ -2125,48 +2690,16 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
         </div>
       </div>
       {galleryEdit && (
-        <GallerySectionEditor row={galleryEdit} onClose={() => setGalleryEdit(null)} onRefresh={onRefresh} setToast={setToast} />
+        <GallerySectionEditor row={galleryEdit} maxImages={galleryEdit.section === 'athlete' ? 5 : undefined} onClose={() => setGalleryEdit(null)} onRefresh={onRefresh} setToast={setToast} />
+      )}
+      {leadershipEdit && (
+        <LeadershipEditor row={leadershipEdit} onClose={() => setLeadershipEdit(null)} onRefresh={onRefresh} setToast={setToast} />
+      )}
+      {sportsEdit && (
+        <SportsEditor row={sportsEdit} onClose={() => setSportsEdit(null)} onRefresh={onRefresh} setToast={setToast} />
       )}
       {editItem && (
-        <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-display text-lg font-bold text-stone-900">Edit: {editItem.title}</h4>
-            <button onClick={reset} className="text-stone-400 hover:text-stone-600">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Section Title" className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-          <div className="space-y-3">
-            {Object.entries(contentFields).map(([key, value]) => (
-              <div key={key}>
-                <label className="block text-xs font-semibold text-stone-500 mb-1 capitalize">{key.replace(/[._]/g, ' ')}</label>
-                {isImageField(key, value) ? (
-                  <ImageUpload
-                    value={value}
-                    onChange={(v) => setContentFields(prev => ({ ...prev, [key]: v }))}
-                    setToast={setToast}
-                  />
-                ) : value.includes('\n') || value.length > 100 ? (
-                  <textarea
-                    value={value}
-                    onChange={(e) => setContentFields(prev => ({ ...prev, [key]: e.target.value }))}
-                    className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[100px]"
-                  />
-                ) : (
-                  <input
-                    value={value}
-                    onChange={(e) => setContentFields(prev => ({ ...prev, [key]: e.target.value }))}
-                    className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-3">
-            <button onClick={save} disabled={saving} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save"}</button>
-            <button onClick={reset} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
-          </div>
-        </div>
+        <StructuredContentEditor row={editItem} onClose={reset} onRefresh={onRefresh} setToast={setToast} />
       )}
       {filteredPages.length === 0 ? (
         <div className="text-center py-12 text-stone-400">
@@ -2192,7 +2725,7 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
                   <button onClick={() => togglePublish(item.id, item.published)} className={`p-2.5 rounded-lg border transition-colors ${item.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={item.published ? "Hide" : "Publish"}>
                     {item.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
                   </button>
-                  <button onClick={() => { if (item.section === 'gallery') { setEditItem(null); setGalleryEdit(item); } else { setGalleryEdit(null); setEditItem(item); setTitle(item.title || ""); setContentFields(flattenContent(item.content)); } }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                  <button onClick={() => { if (item.section === 'gallery' || item.section === 'athlete') { setEditItem(null); setLeadershipEdit(null); setSportsEdit(null); setGalleryEdit(item); } else if (item.section === 'leadership') { setEditItem(null); setGalleryEdit(null); setSportsEdit(null); setLeadershipEdit(item); } else if (item.section === 'sports') { setEditItem(null); setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(item); } else { setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(null); setEditItem(item); } }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
                     <Settings className="h-4 w-4 text-blue-600" />
                   </button>
                 </div>
@@ -2578,7 +3111,15 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
       payload[k] = fieldDefs[section].find(f => f.label === k)?.type === "number" ? parseInt(v) || 0 : v;
     });
     if (section === "links" && !payload.category) payload.category = "quick";
-    if (section === "updates") payload.image_url = imageUrl.trim() ? imageUrl.trim() : null;
+    if (section === "updates") {
+      payload.image_url = imageUrl.trim() ? imageUrl.trim() : null;
+      // body and sort_order are NOT NULL — never let an empty value drop out.
+      if (!payload.body) payload.body = payload.caption || payload.title || "";
+      if (!payload.caption && payload.body) payload.caption = payload.body;
+      if (payload.sort_order === undefined || payload.sort_order === null) {
+        payload.sort_order = (updates.length ? Math.max(...updates.map(u => u.sort_order || 0)) : 0) + 1;
+      }
+    }
     let error: any = null;
     if (edit?.id) {
       ({ error } = await supabase.from(table).update(payload).eq("id", edit.id));
@@ -2648,14 +3189,29 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
             {fieldDefs[section].map(f => (
               <div key={f.label} className="md:col-span-1">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">{f.label}</label>
-                <input
-                  type={f.type === "number" ? "number" : "text"}
-                  value={form[f.label] ?? ""}
-                  onChange={e => setForm({ ...form, [f.label]: e.target.value })}
-                  className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
-                />
+                {f.label === "body" || f.label === "caption" ? (
+                  <textarea
+                    rows={f.label === "body" ? 4 : 2}
+                    value={form[f.label] ?? ""}
+                    onChange={e => setForm({ ...form, [f.label]: e.target.value })}
+                    className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                  />
+                ) : (
+                  <input
+                    type={f.type === "number" ? "number" : "text"}
+                    value={form[f.label] ?? ""}
+                    onChange={e => setForm({ ...form, [f.label]: e.target.value })}
+                    className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-800 focus:border-transparent"
+                  />
+                )}
               </div>
             ))}
+            {section === "updates" && (
+              <p className="md:col-span-2 text-xs text-stone-500">
+                <strong>body</strong> is the main story text shown on the project page; <strong>caption</strong> is the short
+                line under the card. If only one is filled, the other is copied automatically.
+              </p>
+            )}
           </div>
           {section === "links" && (
             <p className="text-xs text-stone-500">
@@ -2770,8 +3326,10 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
   useEffect(() => { load(); }, [updateId]);
 
   const uploadFile = async (file: File): Promise<string> => {
-    const path = `mwosa-updates/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
-    const { error } = await supabase.storage.from("uploads").upload(path, file, { contentType: file.type });
+    // TIFF photos are converted to JPEG in the browser before upload.
+    const uploadable = await normalizeImageFile(file);
+    const path = `mwosa-updates/${Date.now()}-${uploadable.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
+    const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
     if (error) throw error;
     const { data } = supabase.storage.from("uploads").getPublicUrl(path);
     return data.publicUrl;
@@ -2779,10 +3337,18 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
 
   const addMedia = async (file: File | undefined, type: "image" | "video") => {
     if (!file) return;
+    // Friendly format + size guidance before anything touches storage.
+    const mediaErr = validateMedia(file);
+    if (mediaErr) {
+      setToast({ message: mediaErr.message, type: "error" });
+      if (type === "video" && videoRef.current) videoRef.current.value = "";
+      if (type === "image" && photoRef.current) photoRef.current.value = "";
+      return;
+    }
     const videoCount = items.filter((m: any) => m.media_type === "video").length;
     const imageCount = items.filter((m: any) => m.media_type === "image").length;
     if (type === "video" && videoCount >= 2) {
-      setToast({ message: "Stories allow a maximum of 2 videos. Remove one before adding another.", type: "error" });
+      setToast({ message: "Stories allow a maximum of 2 videos (" + VIDEO_TYPES + ", " + VIDEO_MAX_MB + "MB each). Remove one before adding another.", type: "error" });
       if (videoRef.current) videoRef.current.value = "";
       return;
     }

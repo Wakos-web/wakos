@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { useOtpResend } from "@/hooks/useOtpResend";
+import { IMAGE_ACCEPT, validateImage } from "@/lib/upload-guide";
 import {
   ArrowLeft, Mail, Send, ShieldCheck, Building2, ImagePlus, GraduationCap,
   CheckCircle2, Loader2, KeyRound, Store,
@@ -313,6 +314,9 @@ function RegisterBusinessPage() {
   const filePick = (e: React.ChangeEvent<HTMLInputElement>, setFile: (f: File | null) => void, setPreview: (v: string | null) => void) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    // Friendly guidance — bad photos are rejected here, not at the server.
+    const imgErr = validateImage(f);
+    if (imgErr) { window.alert(imgErr); e.target.value = ""; return; }
     setFile(f);
     setPreview(URL.createObjectURL(f));
   };
@@ -402,7 +406,7 @@ function RegisterBusinessPage() {
                         <label className="cursor-pointer inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-white/[0.05] text-sm font-medium text-white/70 hover:border-emerald-400/60 hover:text-emerald-300 transition-colors">
                           <ImagePlus className="h-4 w-4 shrink-0" />
                           <span>{avatarFile ? "Change photo" : "Your photo (optional)"}</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => filePick(e, setAvatarFile, setAvatarPreview)} />
+                          <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => filePick(e, setAvatarFile, setAvatarPreview)} />
                         </label>
                         <p className="text-xs text-white/35 mt-2">Shows on your directory profile and Pulse posts.</p>
                       </div>
@@ -500,7 +504,7 @@ function RegisterBusinessPage() {
                           <label className="min-w-0 flex-1 basis-full sm:basis-1/2 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 px-4 py-4 text-sm text-white/50 hover:border-emerald-400/50 hover:text-emerald-300 transition-colors cursor-pointer">
                             <ImagePlus className="h-5 w-5 shrink-0" />
                             <span>{logoFile ? logoFile.name : "Choose a logo"}</span>
-                            <input type="file" accept="image/*" className="hidden" onChange={(e) => filePick(e, setLogoFile, setLogoPreview)} />
+                            <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => filePick(e, setLogoFile, setLogoPreview)} />
                           </label>
                           {logoPreview && <img src={logoPreview} alt="" className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/20" />}
                         </div>
