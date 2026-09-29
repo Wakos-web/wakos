@@ -1,0 +1,35 @@
+// Cloudflare Workers config for WACOS (TanStack Start + Nitro cloudflare-module).
+// Deploys are run by GitHub Actions (see .github/workflows/deploy.yml) and by
+// `bun run deploy` / `bun run deploy:stg` locally.
+//
+// Environments:
+//   production → worker `wacos`      https://wacos.mmwosasocials.workers.dev
+//                (scripts/patch-wrangler.mjs copies vars into the Nitro build)
+//   preview    → worker `wacos-stg`  https://wacos-stg.mmwosasocials.workers.dev
+//                (patch-wrangler.mjs also writes .output/server/wrangler.stg.json)
+//
+// NOTE: Nitro regenerates .output/server/wrangler.json on every build (empties
+// `vars`), so never edit that file — edit here and let the patch script merge.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wacos",
+  "account_id": "7848bf441c61078241184be61e7413ae",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": {
+    "directory": ".output/public"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // Non-secret runtime config. Secrets (SUPABASE_SERVICE_ROLE_KEY,
+    // RESEND_API_KEY, ADMIN_SECRET, ADMIN_SESSION_KEY) are set with
+    // `bun run secrets:sync` / `bunx wrangler secret put` — never here.
+    "SITE_URL": "https://wacos.alerotek.co.ke",
+    "PORTAL_URL": "https://wacos.alerotek.co.ke",
+    "SUPABASE_URL": "https://cykaheepeqcgmveckuru.supabase.co"
+  }
+}

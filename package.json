@@ -10,6 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "node --test e2e/*.test.mjs",
     "preview": "vite preview",
+    "deploy": "vite build && node scripts/patch-wrangler.mjs && wrangler deploy -c .output/server/wrangler.json",
+    "deploy:stg": "vite build && node scripts/patch-wrangler.mjs && wrangler deploy -c .output/server/wrangler.stg.json",
+    "deploy:preview": "vite build && node scripts/patch-wrangler.mjs && wrangler versions upload -c .output/server/wrangler.json --message \"local preview deploy\"",
+    "secrets:sync": "node scripts/sync-cf-secrets.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -73,6 +77,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "wrangler": "^4.42.0",
     "@eslint/js": "^9.32.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
