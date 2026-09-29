@@ -18,7 +18,8 @@ import {
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
   CalendarCheck, ChevronDown, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
   Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
-  Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare
+  Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare,
+  ExternalLink, LayoutGrid, Inbox, Newspaper, AlertTriangle
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 
@@ -34,12 +35,67 @@ function scrollToEditForm() {
   }, 120);
 }
 
+/** Small labeled action button — replaces icon-only buttons so touch users and
+ *  newcomers can see what each action does without guessing from tooltips. */
+function ActionBtn({ onClick, icon: Icon, label, tone = "default", disabled }: {
+  onClick: () => void; icon: any; label: string; tone?: "default" | "edit" | "danger" | "publish" | "unpublish"; disabled?: boolean;
+}) {
+  const tones: Record<string, string> = {
+    default: "border-stone-200 text-stone-600 hover:bg-stone-50",
+    edit: "border-blue-200 text-blue-700 hover:bg-blue-50",
+    danger: "border-red-200 text-red-600 hover:bg-red-50",
+    publish: "border-green-200 text-green-700 hover:bg-green-50",
+    unpublish: "border-amber-200 text-amber-700 hover:bg-amber-50",
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} title={label} aria-label={label}
+      className={`inline-flex items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${tones[tone]}`}>
+      <Icon className="h-3.5 w-3.5" />
+      <span className="hidden lg:inline">{label}</span>
+    </button>
+  );
+}
+
+/** One row in the desktop grouped sidebar. */
+function SidebarTab({ active, onClick, icon: Icon, label, count }: { active: boolean; onClick: () => void; icon: any; label: string; count?: number | undefined }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+        active ? "bg-green-50 text-green-900" : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+      }`}
+    >
+      <Icon className={`h-4 w-4 shrink-0 ${active ? "text-green-800" : "text-stone-400"}`} />
+      <span className="flex-1 truncate text-left">{label}</span>
+      {count !== undefined && (
+        <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${active ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-500"}`}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 /** Friendly error for staff: plain headline, technical detail tucked after. */
 function errMsg(error: any, fallback: string): string {
   const friendly = friendlyError(error, fallback);
   const raw = error?.message || "";
   return raw && raw !== friendly ? friendly + " (" + raw + ")" : friendly;
 }
+/** Where each tab's content lives on the public site, for one-click "see the result" checks. */
+const VIEW_ROUTES: Partial<Record<Tab, string>> = {
+  clubs: "/clubs",
+  alumni: "/alumni",
+  events: "/calendar",
+  notes: "/alumni",
+  articles: "/campus-news",
+  businesses: "/alumni/directory",
+  giving: "/giving",
+  mwosa: "/mwosa",
+  pages: "/",
+  settings: "/contact",
+};
+
 /** Per-tab guidance shown at the top of the admin dashboard. */
 const TAB_HELP: Partial<Record<Tab, string>> = {
   clubs: "Add or edit clubs, manage member lists, upload each club's hero image, review student story submissions and manage co-editors.",
@@ -58,12 +114,103 @@ const TAB_HELP: Partial<Record<Tab, string>> = {
   comments: "Moderate comments left on class notes and posts.",
   giving: "Manage the Ways of Giving cards, donation accounts (bank and mobile money), impact stats and the contact person.",
   mwosa: "Manage the MWOSA alumni page: quick links, social channels, milestone stats and project updates with photo stories.",
-  settings: "Update school-wide site settings like contact details and map coordinates.",
-  staff: "Invite staff by email, assign roles (super admin, admin, club patron, alumni patron), resend invite codes and revoke access.",
+  settings: "Update school-wide site settings like contact details and map coordinates.",    staff: "Invite staff by email, assign roles (super admin, admin, club patron, alumni patron), resend invite codes and revoke access.",
 };
+
+/* ------------------------------------------------------------------ */
+/* Grouped navigation model. Every tab belongs to exactly one group;   */
+/* desktop (sidebar) and mobile ("More" sheet) both render from this   */
+/* so the two platforms teach the same mental model. Tabs the current  */
+/* role cannot see simply never appear — empty groups vanish too.      */
+/* ------------------------------------------------------------------ */
+type NavGroup = { key: string; label: string; tabs: Tab[] };
+const NAV_GROUPS: NavGroup[] = [
+  { key: "inbox", label: "Inbox & Approvals", tabs: ["applications", "mentorship", "scholarships", "donations", "comments"] },
+  { key: "community", label: "Community", tabs: ["clubs", "alumni", "businesses", "events", "rsvps"] },
+  { key: "content", label: "Content & Pages", tabs: ["articles", "notes", "pages", "giving", "mwosa"] },
+  { key: "site", label: "Site & Access", tabs: ["inquiries", "settings", "staff"] },
+];
+
+/** Every tab key in one place — used to validate ?tab= deep links. */
+const ALL_TABS: Tab[] = NAV_GROUPS.flatMap((g) => g.tabs);
+
+/** Shared tab metadata: one source of truth for labels/icons, used by the
+ *  desktop sidebar, the mobile bar, the More sheet and the Overview index. */
+function tabMeta(key: Tab): { label: string; icon: any } {
+  const meta: Record<string, { label: string; icon: any }> = {
+    overview: { label: "Overview", icon: LayoutDashboard },
+    clubs: { label: "Clubs", icon: Users },
+    alumni: { label: "Alumni", icon: GraduationCap },
+    events: { label: "Events", icon: Calendar },
+    rsvps: { label: "RSVPs", icon: CalendarCheck },
+    notes: { label: "Class Notes", icon: BookOpen },
+    articles: { label: "Campus News", icon: Newspaper },
+    pages: { label: "Page Content", icon: FileText },
+    inquiries: { label: "Inquiries", icon: MessageSquare },
+    businesses: { label: "Businesses", icon: Building2 },
+    applications: { label: "Club Apps", icon: Users },
+    mentorship: { label: "Mentorship", icon: Heart },
+    donations: { label: "Donations", icon: HandHeart },
+    giving: { label: "Giving Page", icon: Heart },
+    mwosa: { label: "MWOSA", icon: HandHeart },
+    scholarships: { label: "Scholarships", icon: GraduationCap },
+    comments: { label: "Comments", icon: MessageSquare },
+    settings: { label: "Site Settings", icon: Settings },
+    staff: { label: "Staff & Roles", icon: ShieldCheck },
+  };
+  return meta[key] || { label: key, icon: LayoutGrid };
+}
+
+/* ------------------------------------------------------------------ */
+/* In-app replacement for window.confirm(). Native dialogs look alien, */
+/* are easily mis-clicked on touch screens and cannot be restyled.     */
+/* ------------------------------------------------------------------ */
+type ConfirmRequest = { message: string; confirmLabel?: string; danger?: boolean; resolve: (ok: boolean) => void };
+
+// Module-level bridge: AdminPage mounts the dialog and registers its state
+// setter here, so every tab component can `await askConfirm(...)` without
+// prop-threading through 12 components.
+let askConfirmImpl: ((req: ConfirmRequest) => void) | null = null;
+function askConfirm(message: string, opts?: { confirmLabel?: string; danger?: boolean }): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (askConfirmImpl) askConfirmImpl({ message, resolve, ...opts });
+    else resolve(window.confirm(message)); // fallback if dialog not mounted
+  });
+}
+
+function ConfirmDialog({ request, onClose }: { request: ConfirmRequest | null; onClose: () => void }) {
+  if (!request) return null;
+  const finish = (ok: boolean) => { onClose(); request.resolve(ok); };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className={`h-10 w-10 rounded-full flex items-center justify-center mb-4 ${request.danger ? "bg-red-50" : "bg-stone-100"}`}>
+          <AlertTriangle className={`h-5 w-5 ${request.danger ? "text-red-600" : "text-stone-500"}`} />
+        </div>
+        <p className="text-sm text-stone-700 mb-5 whitespace-pre-line">{request.message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => finish(true)}
+            className={`flex-1 py-2.5 rounded-xl font-semibold text-sm text-white transition-colors ${request.danger ? "bg-red-600 hover:bg-red-700" : "bg-green-800 hover:bg-green-900"}`}
+          >
+            {request.confirmLabel || "Confirm"}
+          </button>
+          <button onClick={() => finish(false)} className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-sm transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 
 export const Route = createFileRoute("/admin")({
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => {
+    const tab = typeof search.tab === "string" ? search.tab : undefined;
+    return tab ? { tab } : {};
+  },
   head: () => ({
     meta: [{ title: "Admin Dashboard — M.M College Wairaka" }],
   }),
@@ -353,7 +500,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
   };
 
   const revoke = async (ed: any) => {
-    if (!window.confirm("Remove " + ed.name + " as co-editor? They will no longer be able to post for this club.")) return;
+    if (!(await askConfirm("Remove " + ed.name + " as co-editor? They will no longer be able to post for this club.", { confirmLabel: "Remove", danger: true }))) return;
     const { error } = await supabase.from("club_editors").update({ status: "removed", updated_at: new Date().toISOString() }).eq("id", ed.id);
     if (error) { flash(errMsg(error, "Couldn't remove that editor. Try again."), "err"); return; }
     flash("Co-editor removed", "ok");
@@ -554,20 +701,12 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
 /* role can actually use (the proxy enforces the same limits server-side). */
 /* ------------------------------------------------------------------ */
 function OverviewView({
-  stats, roles, onNavigate,
-}: { stats: Record<string, number>; roles: string[]; onNavigate: (t: Tab) => void }) {
+  stats, roles, onNavigate, pending, visible,
+}: { stats: Record<string, number>; roles: string[]; onNavigate: (t: Tab) => void; pending: { label: string; tab: Tab; count: number; hint?: string }[]; visible: string[] }) {
   const isSuper = roles.includes("super_admin");
   const isFull = isSuper || roles.includes("admin");
   const isClubPatron = roles.includes("club_patron") && !isFull;
   const isAlumniPatron = roles.includes("alumni_patron") && !isFull;
-
-  const quickCard = (key: Tab, label: string, desc: string, icon: any, bg: string, fg: string) => (
-    <button onClick={() => onNavigate(key)} className={`group rounded-2xl border p-5 hover:shadow-md transition-all text-left ${bg}`.trim()}>
-      <span className={`${fg} mb-2 block`}>{icon}</span>
-      <p className="font-display text-sm font-bold text-stone-900">{label}</p>
-      <p className="text-xs text-stone-500">{desc}</p>
-    </button>
-  );
 
   const intro = !isFull
     ? isClubPatron
@@ -577,6 +716,8 @@ function OverviewView({
         : null
     : null;
 
+  const attention = pending.filter((p) => p.count > 0);
+
   return (
     <div>
       {intro && (
@@ -584,7 +725,36 @@ function OverviewView({
           {intro}
         </div>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+      {/* Needs attention: pending work, one tap away. Answers "what should I do
+          today?" before making anyone hunt through tabs. */}
+      <div className="rounded-2xl bg-white border border-stone-200 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-display text-lg font-bold text-stone-900 inline-flex items-center gap-2">
+            <Inbox className="h-5 w-5 text-green-800" /> Needs attention
+          </h3>
+          {attention.length === 0 && <span className="text-xs font-semibold text-green-700">All clear</span>}
+        </div>
+        {attention.length > 0 ? (
+          <div className="space-y-2">
+            {attention.map((p) => (
+              <button key={p.tab} onClick={() => onNavigate(p.tab)} className="w-full flex items-center justify-between gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 text-left hover:border-amber-300 transition-colors">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-stone-900">{p.label}</span>
+                  {p.hint && <span className="block text-xs text-stone-500">{p.hint}</span>}
+                </span>
+                <span className="shrink-0 inline-flex items-center gap-1 text-sm font-bold text-amber-700">
+                  {p.count} <ChevronRight className="h-4 w-4" />
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-stone-500">Submissions to review, gifts to reconcile and new inquiries will appear here as they arrive.</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
         <StatCard icon={LayoutDashboard} label="Total Clubs" value={stats.clubs ?? 0} color="bg-green-800" />
         <StatCard icon={Users} label="Club Members" value={stats.clubMembers ?? 0} color="bg-blue-600" />
         <StatCard icon={GraduationCap} label="Alumni Profiles" value={stats.alumni ?? 0} color="bg-purple-600" />
@@ -594,28 +764,33 @@ function OverviewView({
         <StatCard icon={Megaphone} label="Club Posts" value={stats.clubPosts ?? 0} color="bg-indigo-600" />
         <StatCard icon={MessageSquare} label="Inquiries" value={stats.inquiries ?? 0} color="bg-orange-600" />
       </div>
-      <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-        {isFull ? (
-          <>
-            {quickCard("clubs", "Clubs", "Manage clubs & members", <Users className="h-6 w-6" />, "bg-green-50 border-green-200", "text-green-800")}
-            {quickCard("events", "Events", "Create & manage events", <Calendar className="h-6 w-6" />, "bg-rose-50 border-rose-200", "text-rose-700")}
-            {quickCard("notes", "Class Notes", "Approve submissions", <BookOpen className="h-6 w-6" />, "bg-cyan-50 border-cyan-200", "text-cyan-700")}
-            {isSuper && quickCard("settings", "Settings", "Site info & hero media", <Settings className="h-6 w-6" />, "bg-stone-100 border-stone-200", "text-stone-600")}
-          </>
-        ) : isClubPatron ? (
-          <>
-            {quickCard("clubs", "My Clubs", "Club info, members & news", <Users className="h-6 w-6" />, "bg-green-50 border-green-200", "text-green-800")}
-            {quickCard("applications", "Club Applications", "Review join requests", <Users className="h-6 w-6" />, "bg-indigo-50 border-indigo-200", "text-indigo-700")}
-            {quickCard("events", "Events", "School & club events", <Calendar className="h-6 w-6" />, "bg-rose-50 border-rose-200", "text-rose-700")}
-          </>
-        ) : isAlumniPatron ? (
-          <>
-            {quickCard("alumni", "Alumni", "Profiles & approvals", <GraduationCap className="h-6 w-6" />, "bg-purple-50 border-purple-200", "text-purple-700")}
-            {quickCard("businesses", "Businesses", "Alumni business directory", <Building2 className="h-6 w-6" />, "bg-amber-50 border-amber-200", "text-amber-700")}
-            {quickCard("notes", "Class Notes", "Approve class notes", <BookOpen className="h-6 w-6" />, "bg-cyan-50 border-cyan-200", "text-cyan-700")}
-            {quickCard("events", "Events", "Reunions & RSVPs", <Calendar className="h-6 w-6" />, "bg-rose-50 border-rose-200", "text-rose-700")}
-          </>
-        ) : null}
+
+      {/* Site index: every group and tab with its count, so staff learn where
+          things live without hunting the sidebar. */}
+      <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-stone-400">Where things live</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        {NAV_GROUPS.map((group) => {
+          const items = group.tabs.filter((t) => visible.includes(t));
+          if (items.length === 0) return null;
+          return (
+            <div key={group.key} className="rounded-2xl bg-white border border-stone-200 p-5">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-stone-400 mb-3">{group.label}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {items.map((key) => {
+                  const m = tabMeta(key);
+                  const Icon = m.icon;
+                  return (
+                    <button key={key} onClick={() => onNavigate(key)} className="flex items-center gap-2.5 rounded-xl border border-stone-100 bg-stone-50 px-3 py-2.5 text-left hover:border-green-200 hover:bg-green-50/50 transition-colors">
+                      <Icon className="h-4 w-4 shrink-0 text-stone-400" />
+                      <span className="flex-1 min-w-0 truncate text-sm font-medium text-stone-700">{m.label}</span>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-stone-300" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -653,7 +828,7 @@ function SocialLinksEditor({ entityType, entityId, compact = false }: { entityTy
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Remove this social link?")) return;
+    if (!(await askConfirm("Remove this social link?", { confirmLabel: "Remove" }))) return;
     await supabase.from("social_links").delete().eq("id", id);
     load();
   };
@@ -765,7 +940,7 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
   };
 
   const deleteClub = async (id: string) => {
-    if (!confirm("Delete this club and all its members/posts?")) return;
+    if (!(await askConfirm("Delete this club and all its members/posts?", { confirmLabel: "Delete club", danger: true }))) return;
     await supabase.from("club_members").delete().eq("club_id", id);
     await supabase.from("club_posts").delete().eq("club_id", id);
     await supabase.from("clubs").delete().eq("id", id);
@@ -829,8 +1004,8 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => { setEditClub(club); setName(club.name); setSlug(club.slug); setTagline(club.tagline || ""); setOverview(club.overview || ""); setShowAddClub(true); }} className="p-2.5 rounded-lg hover:bg-stone-100 border border-stone-200" title="Edit"><Settings className="h-4 w-4 text-stone-400" /></button>
-                  <button onClick={() => deleteClub(club.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200" title="Delete"><Trash2 className="h-4 w-4 text-red-400" /></button>
+                  <ActionBtn onClick={() => { setEditClub(club); setName(club.name); setSlug(club.slug); setTagline(club.tagline || ""); setOverview(club.overview || ""); setShowAddClub(true); }} icon={Settings} label="Edit" tone="edit" />
+                  <ActionBtn onClick={() => deleteClub(club.id)} icon={Trash2} label="Delete" tone="danger" />
                 </div>
               </div>
 
@@ -918,6 +1093,7 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
 
 function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [query, setQuery] = useState("");
   const [editItem, setEditItem] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -965,7 +1141,7 @@ function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: 
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Delete this event?")) return;
+    if (!(await askConfirm("Delete this event?", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from("events").delete().eq("id", id);
     setToast({ message: "Event deleted", type: "success" });
     onRefresh();
@@ -973,9 +1149,10 @@ function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: 
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h3 className="font-display text-xl font-bold text-stone-900">Events ({events.length})</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search events..." className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-40 sm:w-48" />
           <button onClick={() => { reset(); setShowAdd(!showAdd); }} className="px-4 py-2 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900 transition-colors">+ Add Event</button>
           <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
         </div>
@@ -1003,14 +1180,19 @@ function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: 
           </div>
         </div>
       )}
-      {events.length === 0 ? (
+      {(() => {
+      const q = query.trim().toLowerCase();
+      const visibleEvents = q
+        ? events.filter((e) => [e.title, e.location, e.category].join(" ").toLowerCase().includes(q))
+        : events;
+      return visibleEvents.length === 0 ? (
         <div className="text-center py-12 text-stone-400">
           <Calendar className="h-10 w-10 mx-auto mb-3" />
-          <p>No events yet.</p>
+          <p>{q ? "No events match your search." : "No events yet."}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {events.map((evt) => (
+          {visibleEvents.map((evt) => (
             <div key={evt.id} className="rounded-xl bg-white border border-stone-200 p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -1024,21 +1206,16 @@ function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: 
                   {evt.description && <p className="text-sm text-stone-600 mt-1 line-clamp-2">{evt.description}</p>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => togglePublish(evt.id, evt.approved)} className={`p-2.5 rounded-lg border transition-colors ${evt.approved ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={evt.approved ? "Unpublish" : "Publish"}>
-                    {evt.approved ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
-                  </button>
-                  <button onClick={() => startEdit(evt)} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
-                    <Settings className="h-4 w-4 text-blue-600" />
-                  </button>
-                  <button onClick={() => remove(evt.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </button>
+                  <ActionBtn onClick={() => togglePublish(evt.id, evt.approved)} icon={evt.approved ? Eye : Megaphone} label={evt.approved ? "Unpublish" : "Publish"} tone={evt.approved ? "unpublish" : "publish"} />
+                  <ActionBtn onClick={() => startEdit(evt)} icon={Settings} label="Edit" tone="edit" />
+                  <ActionBtn onClick={() => remove(evt.id)} icon={Trash2} label="Delete" tone="danger" />
                 </div>
               </div>
             </div>
           ))}
         </div>
-      )}
+      );
+      })()}
     </div>
   );
 }
@@ -1080,7 +1257,7 @@ function RsvpsTab({ rsvps, events, onRefresh, setToast }: { rsvps: any[]; events
   const eventsWithRsvps = byEvent.size;
 
   const removeRsvp = async (rsvpId: string, attendeeName: string) => {
-    if (!confirm(`Remove ${attendeeName}'s RSVP?`)) return;
+    if (!(await askConfirm(`Remove ${attendeeName}'s RSVP?`, { confirmLabel: "Remove", danger: true }))) return;
     setBusy(rsvpId);
     await supabase.from("event_rsvps").delete().eq("id", rsvpId);
     setBusy(null);
@@ -1181,7 +1358,7 @@ function RsvpsTab({ rsvps, events, onRefresh, setToast }: { rsvps: any[]; events
 function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
   const remove = async (id: string) => {
-    if (!confirm("Delete this class note?")) return;
+    if (!(await askConfirm("Delete this class note?", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from("class_notes").delete().eq("id", id);
     setToast({ message: "Class note deleted", type: "success" });
     onRefresh();
@@ -1226,17 +1403,13 @@ function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () 
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => setReviewItem({ id: note.id, author: note.author_name, content: note.content, details: { graduation_year: note.graduation_year }, approved: note.approved, rejected_notes: note.rejected_notes, table: "class_notes" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
-                    <Eye className="h-4 w-4 text-blue-600" />
-                  </button>
+                  <ActionBtn onClick={() => setReviewItem({ id: note.id, author: note.author_name, content: note.content, details: { graduation_year: note.graduation_year }, approved: note.approved, rejected_notes: note.rejected_notes, table: "class_notes" })} icon={Eye} label="Review" tone="edit" />
                   {note.approved ? (
-                    <button onClick={() => toggleApproved(note.id, false)} className="px-3 py-2 rounded-lg text-xs font-bold border border-amber-300 text-amber-700 hover:bg-amber-50 transition-colors" title="Hide this note from the public Pulse">Unpublish</button>
+                    <ActionBtn onClick={() => toggleApproved(note.id, false)} icon={Eye} label="Unpublish" tone="unpublish" />
                   ) : (
-                    <button onClick={() => toggleApproved(note.id, true)} className="px-3 py-2 rounded-lg text-xs font-bold border border-green-300 text-green-700 hover:bg-green-50 transition-colors" title="Publish this note to the Pulse">Publish</button>
+                    <ActionBtn onClick={() => toggleApproved(note.id, true)} icon={Megaphone} label="Publish" tone="publish" />
                   )}
-                  <button onClick={() => remove(note.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </button>
+                  <ActionBtn onClick={() => remove(note.id)} icon={Trash2} label="Delete" tone="danger" />
                 </div>
               </div>
               {note.rejected_notes && !note.approved && (
@@ -1256,6 +1429,7 @@ function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () 
 
 function InquiriesTab({ inquiries, onRefresh }: { inquiries: any[]; onRefresh: () => void }) {
   const remove = async (id: string) => {
+    if (!(await askConfirm("Delete this inquiry? This cannot be undone.", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from("inquiries").delete().eq("id", id);
     onRefresh();
   };
@@ -1679,7 +1853,7 @@ function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[];
     return true;
   });
   const remove = async (id: string) => {
-    if (!confirm("Delete this business?")) return;
+    if (!(await askConfirm("Delete this business?", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from("alumni_businesses").delete().eq("id", id);
     setToast({ message: "Business deleted", type: "success" });
     onRefresh();
@@ -1719,7 +1893,7 @@ function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[];
                   <p className="text-sm text-stone-500">{biz.owner_name} · {biz.category}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => {
+                  <ActionBtn onClick={() => {
                     const details: Record<string, any> = {
                       Category: biz.category,
                       Description: biz.description,
@@ -1735,12 +1909,8 @@ function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[];
                       if (v === null || v === undefined || v === "") delete details[k];
                     });
                     setReviewItem({ id: biz.id, title: biz.business_name || biz.name, author: biz.owner_name, details, approved: biz.approved, rejected_notes: biz.rejected_notes, table: "alumni_businesses" });
-                  }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
-                    <Eye className="h-4 w-4 text-blue-600" />
-                  </button>
-                  <button onClick={() => remove(biz.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </button>
+                  }} icon={Eye} label="Review" tone="edit" />
+                  <ActionBtn onClick={() => remove(biz.id)} icon={Trash2} label="Delete" tone="danger" />
                 </div>
               </div>
               {biz.rejected_notes && !biz.approved && (
@@ -1780,7 +1950,7 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
     return true;
   });
   const remove = async (id: string) => {
-    if (!confirm("Delete this alumni profile?")) return;
+    if (!(await askConfirm("Delete this alumni profile?", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from("alumni_profiles").delete().eq("id", id);
     setToast({ message: "Profile deleted", type: "success" });
     onRefresh();
@@ -1867,15 +2037,9 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setReviewItem({ id: a.id, title: a.profession || "Alumni Profile", author: a.full_name, content: a.bio || a.about_me, details: { graduation_year: a.graduation_year, company: a.company, location: a.current_location, email: a.email, phone: a.phone, linkedin: a.linkedin_url, website: a.website_url }, approved: a.approved, rejected_notes: a.rejected_notes, table: "alumni_profiles" })} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
-                    <Eye className="h-4 w-4 text-blue-600" />
-                  </button>
-                  <button onClick={() => openProfileEditor(a)} className="p-2.5 rounded-lg hover:bg-green-100 border border-green-200 transition-colors" title="Edit profile page">
-                    <Settings className="h-4 w-4 text-green-700" />
-                  </button>
-                  <button onClick={() => remove(a.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </button>
+                  <ActionBtn onClick={() => setReviewItem({ id: a.id, title: a.profession || "Alumni Profile", author: a.full_name, content: a.bio || a.about_me, details: { graduation_year: a.graduation_year, company: a.company, location: a.current_location, email: a.email, phone: a.phone, linkedin: a.linkedin_url, website: a.website_url }, approved: a.approved, rejected_notes: a.rejected_notes, table: "alumni_profiles" })} icon={Eye} label="Review" tone="edit" />
+                  <ActionBtn onClick={() => openProfileEditor(a)} icon={Settings} label="Edit" tone="edit" />
+                  <ActionBtn onClick={() => remove(a.id)} icon={Trash2} label="Delete" tone="danger" />
                 </div>
               </div>
               {a.rejected_notes && !a.approved && (
@@ -2001,6 +2165,7 @@ function ImageUpload({ value, onChange, label, setToast }: { value: string; onCh
 function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
+  const [query, setQuery] = useState("");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [category, setCategory] = useState("");
@@ -2054,7 +2219,7 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Delete this article?")) return;
+    if (!(await askConfirm("Delete this article?", { confirmLabel: "Delete", danger: true }))) return;
     const { error } = await supabase.from("articles").delete().eq("id", id);
     if (error) { setToast({ message: errMsg(error, "Couldn't delete that. Try again."), type: "error" }); return; }
     setToast({ message: "Article deleted", type: "success" });
@@ -2070,9 +2235,10 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h3 className="font-display text-xl font-bold text-stone-900">Campus News ({articles.length})</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search articles..." className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-40 sm:w-48" />
           <button onClick={() => { reset(); setShowAdd(true); scrollToEditForm(); }} className="px-4 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Article</button>
           <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
         </div>
@@ -2099,14 +2265,19 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
           </div>
         </div>
       )}
-      {articles.length === 0 ? (
+      {(() => {
+      const q = query.trim().toLowerCase();
+      const visibleArticles = q
+        ? articles.filter((a) => [a.title, a.category, a.excerpt].join(" ").toLowerCase().includes(q))
+        : articles;
+      return visibleArticles.length === 0 ? (
         <div className="text-center py-12 text-stone-400">
           <Megaphone className="h-10 w-10 mx-auto mb-3" />
-          <p>No articles yet.</p>
+          <p>{q ? "No articles match your search." : "No articles yet."}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {articles.map((article) => (
+          {visibleArticles.map((article) => (
             <div key={article.id} className="rounded-xl bg-white border border-stone-200 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
@@ -2126,21 +2297,16 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => togglePublish(article.id, article.published)} className={`p-2.5 rounded-lg border transition-colors ${article.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={article.published ? "Unpublish" : "Publish"}>
-                    {article.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
-                  </button>
-                  <button onClick={() => { setEditItem(article); setSlugTouched(true); scrollToEditForm(); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); setAuthorName(article.author_name || ""); setAuthorRole(article.author_role || ""); setAuthorAvatar(article.author_avatar || ""); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
-                    <Settings className="h-4 w-4 text-blue-600" />
-                  </button>
-                  <button onClick={() => remove(article.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </button>
+                  <ActionBtn onClick={() => togglePublish(article.id, article.published)} icon={article.published ? Eye : Megaphone} label={article.published ? "Unpublish" : "Publish"} tone={article.published ? "unpublish" : "publish"} />
+                  <ActionBtn onClick={() => { setEditItem(article); setSlugTouched(true); scrollToEditForm(); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); setAuthorName(article.author_name || ""); setAuthorRole(article.author_role || ""); setAuthorAvatar(article.author_avatar || ""); }} icon={Settings} label="Edit" tone="edit" />
+                  <ActionBtn onClick={() => remove(article.id)} icon={Trash2} label="Delete" tone="danger" />
                 </div>
               </div>
             </div>
           ))}
         </div>
-      )}
+      );
+      })()}
     </div>
   );
 }
@@ -2659,7 +2825,32 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
       </div>
     </div>
   );
-}function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+}const PAGE_NAMES: Record<string, string> = {
+  'about': 'About',
+  'student-life': 'Student Life',
+  'athletics': 'Athletics',
+  'giving': 'Giving',
+  'academics': 'Academics',
+  'mwosa': 'MWOSA Alumni',
+  'campus-news': 'Campus News',
+  'admissions': 'Admissions',
+  'calendar': 'Calendar',
+  'contact': 'Contact',
+  'clubs': 'Clubs & Societies',
+  'home': 'Homepage'
+};
+
+/** Friendly labels for section shapes — badges so admins can tell what an edit
+ *  button will open (gallery vs leadership cards vs plain text) before clicking. */
+const SECTION_TYPE_LABELS: Record<string, string> = {
+  gallery: "Gallery",
+  athlete: "Gallery",
+  leadership: "Leadership cards",
+  sports: "Sports cards",
+  socials: "Social links",
+};
+
+function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [selectedPage, setSelectedPage] = useState<string>("");
   const [editItem, setEditItem] = useState<any>(null);
   const [galleryEdit, setGalleryEdit] = useState<any>(null);
@@ -2669,27 +2860,16 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
   const [contentFields, setContentFields] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  const pageNames: Record<string, string> = {
-    'about': 'About',
-    'student-life': 'Student Life',
-    'athletics': 'Athletics',
-    'giving': 'Giving',
-    'academics': 'Academics',
-    'mwosa': 'MWOSA Alumni',
-    'campus-news': 'Campus News',
-    'admissions': 'Admissions',
-    'calendar': 'Calendar',
-    'contact': 'Contact',
-    'home': 'Homepage'
-  };
   // Every CMS-backed journal gallery (page/section rows the gallery editor opens).
   const galleryPages: { page: string; label: string }[] = [
     { page: 'about', label: 'Add Campus Gallery' },
     { page: 'student-life', label: 'Add Campus Life Gallery' },
     { page: 'home', label: 'Add Life at WACOS Gallery' },
   ];
-  const missingGalleries = galleryPages.filter(g => !pages.some(p => p.page === g.page && p.section === 'gallery'));  const filteredPages = selectedPage ? pages.filter(p => p.page === selectedPage) : pages;
-  const uniquePages = [...new Set(pages.map(p => p.page))];
+  const missingGalleries = galleryPages.filter(g => !pages.some(p => p.page === g.page && p.section === 'gallery'));
+  const pageKeys = [...new Set(pages.map(p => p.page))];
+  const sections = selectedPage ? pages.filter(p => p.page === selectedPage) : [];
+  const sectionTypeLabel = (s: string) => SECTION_TYPE_LABELS[s] || "Text & details";
 
   const reset = () => { setEditItem(null); setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(null); };
 
@@ -2701,30 +2881,6 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-display text-xl font-bold text-stone-900">Page Content ({pages.length} sections)</h3>
-        <div className="flex gap-2">
-          {missingGalleries.map(g => (
-            <button
-              key={g.page}
-              onClick={async () => {
-                const { error } = await supabase.from("page_content").insert({ page: g.page, section: 'gallery', title: g.label.replace('Add ', ''), content: { images: [] }, published: true });
-                if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
-                setToast({ message: g.label.replace('Add ', '') + " section added", type: "success" });
-                onRefresh();
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-xs font-semibold transition-colors"
-            >
-              <ImageIcon className="h-3.5 w-3.5" /> {g.label}
-            </button>
-          ))}
-          <select value={selectedPage} onChange={(e) => setSelectedPage(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
-            <option value="">All Pages</option>
-            {uniquePages.map(p => <option key={p} value={p}>{pageNames[p] || p}</option>)}
-          </select>
-          <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
-        </div>
-      </div>
       {galleryEdit && (
         <GallerySectionEditor row={galleryEdit} maxImages={galleryEdit.section === 'athlete' ? 5 : undefined} onClose={() => setGalleryEdit(null)} onRefresh={onRefresh} setToast={setToast} />
       )}
@@ -2737,38 +2893,90 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
       {editItem && (
         <StructuredContentEditor row={editItem} onClose={reset} onRefresh={onRefresh} setToast={setToast} />
       )}
-      {filteredPages.length === 0 ? (
-        <div className="text-center py-12 text-stone-400">
-          <FileText className="h-10 w-10 mx-auto mb-3" />
-          <p>No page content found.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredPages.map((item) => (
-            <div key={item.id} className="rounded-xl bg-white border border-stone-200 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">{pageNames[item.page] || item.page}</span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">{item.section}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.published ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-600"}`}>
-                      {item.published ? "Published" : "Hidden"}
-                    </span>
-                  </div>
-                  <p className="font-display text-lg font-bold text-stone-900">{item.title}</p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => togglePublish(item.id, item.published)} className={`p-2.5 rounded-lg border transition-colors ${item.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={item.published ? "Hide" : "Publish"}>
-                    {item.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
-                  </button>
-                  <button onClick={() => { if (item.section === 'gallery' || item.section === 'athlete') { setEditItem(null); setLeadershipEdit(null); setSportsEdit(null); setGalleryEdit(item); } else if (item.section === 'leadership') { setEditItem(null); setGalleryEdit(null); setSportsEdit(null); setLeadershipEdit(item); } else if (item.section === 'sports') { setEditItem(null); setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(item); } else { setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(null); setEditItem(item); scrollToEditForm(); } }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
-                    <Settings className="h-4 w-4 text-blue-600" />
-                  </button>
-                </div>
-              </div>
+
+      {/* Page-first browsing: pick a page card, then see only that page's
+          sections — no more scanning 38 look-alike rows. */}
+      {!selectedPage ? (
+        <>
+          <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+            <h3 className="font-display text-xl font-bold text-stone-900">
+              Page Content <span className="text-sm font-medium text-stone-400">({pages.length} sections)</span>
+            </h3>
+            <div className="flex gap-2 flex-wrap">
+              {missingGalleries.map(g => (
+                <button
+                  key={g.page}
+                  onClick={async () => {
+                    const { error } = await supabase.from("page_content").insert({ page: g.page, section: 'gallery', title: g.label.replace('Add ', ''), content: { images: [] }, published: true });
+                    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
+                    setToast({ message: g.label.replace('Add ', '') + " section added", type: "success" });
+                    onRefresh();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-xs font-semibold transition-colors"
+                >
+                  <ImageIcon className="h-3.5 w-3.5" /> {g.label}
+                </button>
+              ))}
+              <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors" title="Refresh"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
             </div>
-          ))}
-        </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {pageKeys.map((p) => {
+              const count = pages.filter(x => x.page === p).length;
+              return (
+                <button key={p} onClick={() => setSelectedPage(p)} className="group rounded-2xl bg-white border border-stone-200 p-5 text-left hover:border-green-300 hover:shadow-sm transition-all">
+                  <p className="font-display text-base font-bold text-stone-900 group-hover:text-green-900">{PAGE_NAMES[p] || p}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{p === "home" ? "/" : "/" + p}</p>
+                  <p className="text-xs text-stone-500 mt-2">{count} section{count === 1 ? "" : "s"} · tap to edit</p>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          <button onClick={() => setSelectedPage("")} className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-800 hover:underline mb-4">
+            <ArrowLeft className="h-4 w-4" /> All pages
+          </button>
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <h3 className="font-display text-xl font-bold text-stone-900">{PAGE_NAMES[selectedPage] || selectedPage}</h3>
+            <div className="flex gap-2 flex-wrap">
+              <a href={VIEW_ROUTES.pages} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
+                <ExternalLink className="h-3.5 w-3.5" /> View page
+              </a>
+              <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors" title="Refresh"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
+            </div>
+          </div>
+          {sections.length === 0 ? (
+            <div className="text-center py-12 text-stone-400">
+              <FileText className="h-10 w-10 mx-auto mb-3" />
+              <p>No sections for this page yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sections.map((item) => (
+                <div key={item.id} className="rounded-xl bg-white border border-stone-200 p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{sectionTypeLabel(item.section)}</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">{item.section}</span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.published ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-600"}`}>
+                          {item.published ? "Published" : "Hidden"}
+                        </span>
+                      </div>
+                      <p className="font-display text-lg font-bold text-stone-900">{item.title}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <ActionBtn onClick={() => togglePublish(item.id, item.published)} icon={item.published ? Eye : Megaphone} label={item.published ? "Hide" : "Publish"} tone={item.published ? "unpublish" : "publish"} />
+                      <ActionBtn onClick={() => { if (item.section === 'gallery' || item.section === 'athlete') { setEditItem(null); setLeadershipEdit(null); setSportsEdit(null); setGalleryEdit(item); } else if (item.section === 'leadership') { setEditItem(null); setGalleryEdit(null); setSportsEdit(null); setLeadershipEdit(item); } else if (item.section === 'sports') { setEditItem(null); setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(item); } else { setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(null); setEditItem(item); scrollToEditForm(); } }} icon={Settings} label="Edit" tone="edit" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -2780,7 +2988,7 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
   const filtered = filter === "all" ? data : data.filter((d: any) => d.status === filter);
 
   const remove = async (id: string) => {
-    if (!confirm("Delete this submission?")) return;
+    if (!(await askConfirm("Delete this submission?", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from(table).delete().eq("id", id);
     setToast({ message: "Deleted", type: "success" });
     onRefresh();
@@ -2835,12 +3043,8 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
                   ))}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => openReview(item)} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View & Review">
-                    <Eye className="h-4 w-4 text-blue-600" />
-                  </button>
-                  <button onClick={() => remove(item.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </button>
+                  <ActionBtn onClick={() => openReview(item)} icon={Eye} label="Review" tone="edit" />
+                  <ActionBtn onClick={() => remove(item.id)} icon={Trash2} label="Delete" tone="danger" />
                 </div>
               </div>
             </div>
@@ -2903,7 +3107,7 @@ function DonationsTab({ data, onRefresh, setToast }: { data: any[]; onRefresh: (
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Delete this donation record?")) return;
+    if (!(await askConfirm("Delete this donation record?", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from("donations").delete().eq("id", id);
     setToast({ message: "Deleted", type: "success" });
     onRefresh();
@@ -2993,9 +3197,7 @@ function DonationsTab({ data, onRefresh, setToast }: { data: any[]; onRefresh: (
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => setDetail(item)} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="View details">
-                      <Eye className="h-4 w-4 text-blue-600" />
-                    </button>
+                    <ActionBtn onClick={() => setDetail(item)} icon={Eye} label="Details" tone="edit" />
                     {!matched ? (
                       <button onClick={() => setStatus(item.id, "matched")} className="px-3 py-2 rounded-lg bg-green-800 hover:bg-green-900 text-white text-xs font-semibold transition-colors" title="Reconciled against the bank/MoMo statement">
                         Mark matched
@@ -3710,7 +3912,7 @@ function CommentsTab({ comments, onRefresh, setToast }: { comments: any[]; onRef
   });
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this comment?")) return;
+    if (!(await askConfirm("Delete this comment?", { confirmLabel: "Delete", danger: true }))) return;
     await supabase.from("note_comments").delete().eq("id", id);
     setToast({ message: "Comment deleted", type: "success" });
     onRefresh();
@@ -3814,7 +4016,7 @@ function StaffTab() {
   };
 
   const revoke = async (inv: any) => {
-    if (!window.confirm(`Remove ${inv.name} (${inv.email})? They lose dashboard access immediately.`)) return;
+    if (!(await askConfirm(`Remove ${inv.name} (${inv.email})? They lose dashboard access immediately.`, { confirmLabel: "Remove staff", danger: true }))) return;
     const res = await adminRevokeStaff({ data: { id: inv.id } });
     if (res.error) { flash(String(res.error), "err"); return; }
     flash("Staff member removed", "ok");
@@ -4238,6 +4440,16 @@ function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  // In-app confirm dialog state (replaces window.confirm everywhere).
+  const [confirmReq, setConfirmReq] = useState<ConfirmRequest | null>(null);
+  useEffect(() => {
+    askConfirmImpl = setConfirmReq;
+    return () => { askConfirmImpl = null; };
+  }, []);
+  // Deep-linkable tabs: /admin?tab=pages opens straight on Page Content, so
+  // staff can bookmark or share "go fix the homepage hero" links.
+  const search = Route.useSearch() as { tab?: string };
+  const navigate = useNavigate();
   // Live viewport detection (matchMedia listener): the layout re-renders the
   // moment the user crosses the mobile/desktop breakpoint, so no refresh is
   // ever needed when moving between devices or resizing.
@@ -4245,6 +4457,18 @@ function AdminPage() {
   useEffect(() => {
     if (!isMobile) setMoreOpen(false); // close the sheet when switching to desktop
   }, [isMobile]);
+
+  // Restore a deep-linked tab once on mount (/admin?tab=pages etc.), then
+  // keep the URL in sync so any tab can be bookmarked or shared with staff.
+  useEffect(() => {
+    const t = search?.tab as Tab | undefined;
+    if (t && ALL_TABS.includes(t)) setTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    navigate({ to: "/admin", search: tab === "overview" ? {} : { tab }, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -4356,46 +4580,52 @@ function AdminPage() {
     wasOnAcceptInvite.current && !isAcceptInvite && session !== null && !session.authed;
   if (isAcceptInvite) return <Outlet />;
 
-  const roleVisible: Record<string, Tab[]> = {
+  // Per-tab visibility per role (unchanged RBAC). Nav groups are purely a
+  // display layer: groups whose tabs are all invisible for this role vanish.
+  const roleTabs: Record<string, Tab[]> = {
     super_admin: ["overview", "clubs", "alumni", "events", "rsvps", "notes", "inquiries", "businesses", "articles", "pages", "applications", "mentorship", "donations", "giving", "mwosa", "scholarships", "comments", "settings", "staff"],
     admin: ["overview", "clubs", "alumni", "events", "rsvps", "notes", "inquiries", "businesses", "articles", "pages", "applications", "mentorship", "giving", "mwosa", "scholarships", "comments"],
     club_patron: ["overview", "clubs", "applications", "events"],
     alumni_patron: ["overview", "alumni", "businesses", "notes", "comments", "events", "rsvps", "inquiries"],
   };
   const sessionRoles = session?.roles || [];
+  const groupFor: Partial<Record<Tab, string>> = {};
+  NAV_GROUPS.forEach((g) => g.tabs.forEach((t) => { groupFor[t] = g.key; }));
   const visibleTabs = new Set<string>();
-  sessionRoles.forEach((r) => (roleVisible[r] || []).forEach((k) => visibleTabs.add(k)));
+  sessionRoles.forEach((r) => (roleTabs[r] || []).forEach((k) => visibleTabs.add(k)));
   const roleLabel = sessionRoles
     .map((r) => (r === "super_admin" ? "Super Admin" : r === "club_patron" ? "Club Patron" : r === "alumni_patron" ? "Alumni Patron" : "Admin"))
     .join(", ") || "Staff";
 
-  const tabs: { key: Tab; label: string; icon: any; count?: number }[] = [
-    { key: "overview", label: "Overview", icon: LayoutDashboard },
-    { key: "clubs", label: "Clubs", icon: Users, count: stats.clubs ?? 0 },
-    { key: "alumni", label: "Alumni", icon: GraduationCap, count: stats.alumni ?? 0 },
-    { key: "events", label: "Events", icon: Calendar, count: stats.events ?? 0 },
-    { key: "rsvps", label: "RSVPs", icon: CalendarCheck, count: rsvps.length },
-    { key: "notes", label: "Class Notes", icon: BookOpen, count: stats.notes ?? 0 },
-    { key: "articles", label: "Campus News", icon: Megaphone, count: stats.articles ?? 0 },
-    { key: "pages", label: "Page Content", icon: FileText, count: pageContent.length },
-    { key: "inquiries", label: "Inquiries", icon: MessageSquare, count: stats.inquiries ?? 0 },
-    { key: "businesses", label: "Businesses", icon: Building2, count: stats.businesses ?? 0 },
-    { key: "applications", label: "Club Apps", icon: Users, count: applications.length },
-    { key: "mentorship", label: "Mentorship", icon: Heart, count: mentorship.length },
-    { key: "donations", label: "Donations", icon: Heart, count: donations.length },
-    { key: "giving", label: "Giving", icon: Heart },
-    { key: "mwosa", label: "MWOSA", icon: HandHeart, count: mwosaLinks.length },
-    { key: "scholarships", label: "Scholarships", icon: GraduationCap, count: scholarships.length },
-    { key: "comments", label: "Comments", icon: MessageSquare, count: noteComments.length },
-    { key: "settings", label: "Site Settings", icon: Settings },
-    { key: "staff", label: "Staff & Roles", icon: ShieldCheck },
-  ];
-
-  // Mobile layout: 4 primary tabs pinned in the bottom bar; everything else
-  // lives behind the "More" sheet.
+  // Shared tab metadata: one source of truth for labels/icons/counts, used by
+  // the desktop sidebar, the mobile bar and the "More" sheet alike.
+  const counts: Partial<Record<Tab, number>> = {
+    clubs: stats.clubs ?? 0,
+    alumni: stats.alumni ?? 0,
+    events: stats.events ?? 0,
+    rsvps: rsvps.length,
+    notes: stats.notes ?? 0,
+    articles: stats.articles ?? 0,
+    pages: pageContent.length,
+    inquiries: stats.inquiries ?? 0,
+    businesses: stats.businesses ?? 0,
+    applications: applications.length,
+    mentorship: mentorship.length,
+    donations: donations.length,
+    mwosa: mwosaLinks.length,
+    scholarships: scholarships.length,
+    comments: noteComments.length,
+  };
+  // Mobile layout: Overview + up to 4 primary tabs pinned in the bottom bar;
+  // everything else lives in the grouped "More" sheet.
+  const navTabs = [...visibleTabs].map((key) => {
+    const k = key as Tab;
+    return { key: k, label: tabMeta(k).label, icon: tabMeta(k).icon, count: counts[k] };
+  });
   const primaryKeys = ["overview", "clubs", "articles", "alumni"];
-  const primaryTabs = tabs.filter((t) => primaryKeys.includes(t.key) && visibleTabs.has(t.key));
-  const moreTabs = tabs.filter((t) => visibleTabs.has(t.key) && !primaryKeys.includes(t.key));
+  const primaryTabs = navTabs.filter((t) => primaryKeys.includes(t.key));
+  const moreTabs = navTabs.filter((t) => !primaryKeys.includes(t.key));
+
 
   if (session === null || checkingAfterAccept) {
     return (
@@ -4411,6 +4641,7 @@ function AdminPage() {
   return (
     <div className="min-h-screen bg-stone-50">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <ConfirmDialog request={confirmReq} onClose={() => setConfirmReq(null)} />
       {/* Header (desktop) */}
       {!isMobile && (
       <div className="bg-white border-b border-stone-200">
@@ -4472,38 +4703,46 @@ function AdminPage() {
       </div>
       )}
 
-      {/* Tabs (desktop) */}
-      {!isMobile && (
-      <div className="bg-white border-b border-stone-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide -mb-px">
-            {tabs.filter((t) => visibleTabs.has(t.key)).map((t) => {
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    tab === t.key
-                      ? "border-green-800 text-green-800"
-                      : "border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {t.label}
-                  {t.count !== undefined && (
-                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-stone-100 text-xs text-stone-500">{t.count}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-32 md:py-8">
+      {/* Desktop sidebar + content, one flex row */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-32 md:py-8 md:flex md:gap-10 md:items-start">
+        {/* Grouped sidebar (desktop only): categories with live counts replace
+            the old 19-tab strip, so staff can see at a glance where things live. */}
+        {!isMobile && (
+          <aside className="w-60 shrink-0 md:sticky md:top-8 space-y-6">
+            <nav className="space-y-5">
+              <SidebarTab active={tab === "overview"} onClick={() => setTab("overview")} icon={LayoutDashboard} label="Overview" />
+              {NAV_GROUPS.map((group) => {
+                const items = group.tabs.filter((t) => visibleTabs.has(t));
+                if (items.length === 0) return null;
+                return (
+                  <div key={group.key}>
+                    <p className="px-3 mb-1.5 text-[11px] font-bold uppercase tracking-widest text-stone-400">{group.label}</p>
+                    <div className="space-y-0.5">
+                      {items.map((key) => {
+                        const m = tabMeta(key);
+                        const Icon = m.icon;
+                        return (
+                          <SidebarTab key={key} active={tab === key} onClick={() => setTab(key)} icon={Icon} label={m.label} count={counts[key]} />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </nav>
+            {VIEW_ROUTES[tab] && (
+              <a
+                href={VIEW_ROUTES[tab]}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" /> View this page on the site
+              </a>
+            )}
+          </aside>
+        )}
+        <div className="flex-1 min-w-0 w-full">
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
@@ -4516,7 +4755,22 @@ function AdminPage() {
                 {TAB_HELP[tab]}
               </div>
             )}
-            {tab === "overview" && <OverviewView stats={stats} roles={sessionRoles} onNavigate={(k) => setTab(k)} />}
+            {tab === "overview" && (
+              <OverviewView
+                stats={stats}
+                roles={sessionRoles}
+                visible={[...visibleTabs]}
+                onNavigate={(k) => setTab(k)}
+                pending={[
+                  { label: "Club applications", tab: "applications", count: applications.filter((a: any) => a.status === "pending").length, hint: "Students asking to join clubs" },
+                  { label: "Alumni profiles", tab: "alumni", count: alumni.filter((a: any) => !a.approved && !a.rejected_notes).length, hint: "Awaiting approval" },
+                  { label: "Business listings", tab: "businesses", count: businesses.filter((b: any) => !b.approved && !b.rejected_notes).length, hint: "Awaiting approval" },
+                  { label: "Class notes", tab: "notes", count: notes.filter((n: any) => !n.approved).length, hint: "Unpublished notes" },
+                  { label: "Donations to reconcile", tab: "donations", count: donations.filter((d: any) => d.status === "received").length, hint: "Match gifts against bank records" },
+                  { label: "New inquiries", tab: "inquiries", count: stats.inquiries ?? 0, hint: "Contact-form messages" },
+                ]}
+              />
+            )}
             {tab === "clubs" && <ClubsTab clubs={clubs} members={members} onRefresh={fetchData} reviewerName={session.user?.name || session.user?.email || "Admin"} setToast={setToast} />}
             {tab === "alumni" && (
               <AlumniTab alumni={alumni} onRefresh={fetchData} setToast={setToast} />
@@ -4538,6 +4792,7 @@ function AdminPage() {
             {tab === "staff" && <StaffTab />}
           </>
         )}
+        </div>
       </div>
 
       {/* Mobile bottom nav */}
@@ -4595,22 +4850,38 @@ function AdminPage() {
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 p-4">
-              {moreTabs.map((t) => {
-                const Icon = t.icon;
-                const active = tab === t.key;
+            <div className="px-4 py-4">
+              {NAV_GROUPS.map((group) => {
+                const items = moreTabs.filter((t) => groupFor[t.key] === group.key);
+                if (items.length === 0) return null;
                 return (
-                  <button
-                    key={t.key}
-                    onClick={() => { setTab(t.key); setMoreOpen(false); }}
-                    className={`flex items-center gap-2.5 rounded-xl border px-3 py-3 text-left text-[13px] font-medium transition-colors ${active ? "border-green-800/30 bg-green-50 text-green-900" : "border-stone-200 bg-white text-stone-700 active:bg-stone-50"}`}
-                  >
-                    <Icon className={`h-4 w-4 shrink-0 ${active ? "text-green-800" : "text-stone-400"}`} />
-                    <span className="min-w-0 flex-1 truncate">{t.label}</span>
-                    {t.count !== undefined && t.count > 0 && (
-                      <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-stone-100 text-[10px] font-semibold text-stone-500">{t.count}</span>
+                  <div key={group.key} className="mb-4 last:mb-0">
+                    <p className="px-1 mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-400">{group.label}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {items.map((t) => {
+                        const Icon = t.icon;
+                        const active = tab === t.key;
+                        return (
+                          <button
+                            key={t.key}
+                            onClick={() => { setTab(t.key); setMoreOpen(false); }}
+                            className={`flex items-center gap-2.5 rounded-xl border px-3 py-3 text-left text-[13px] font-medium transition-colors ${active ? "border-green-800/30 bg-green-50 text-green-900" : "border-stone-200 bg-white text-stone-700 active:bg-stone-50"}`}
+                          >
+                            <Icon className={`h-4 w-4 shrink-0 ${active ? "text-green-800" : "text-stone-400"}`} />
+                            <span className="min-w-0 flex-1 truncate">{t.label}</span>
+                            {t.count !== undefined && t.count > 0 && (
+                              <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-stone-100 text-[10px] font-semibold text-stone-500">{t.count}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {group.key === "content" && VIEW_ROUTES[tab] && (
+                      <a href={VIEW_ROUTES[tab]} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-stone-600 active:bg-stone-50 transition-colors">
+                        <ExternalLink className="h-4 w-4" /> View this page on the site
+                      </a>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
