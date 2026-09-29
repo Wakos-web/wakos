@@ -318,3 +318,102 @@ test(
     }
   },
 );
+
+test(
+  "business insert + RETURNING succeeds for a pre-existing UNLINKED profile once it is linked to the verified auth user",
+  { timeout: 60000 },
+  async () => {
+    // Regression for the production bug: alumni profiles created before the
+    // account had an auth identity carry user_id = null. When that alumnus
+    // verified an OTP and the register flow inserted a business with
+    // .select("id").single(), PostgREST's RETURNING ran the SELECT policy
+    // own_select_businesses (owner profile.user_id = auth.uid()) — which
+    // failed for a null user_id, rolling back the whole insert with
+    // "new row violates row-level security policy". The fix links the profile
+    // to the verified auth user first (createAccounts in directory.register).
+    let userId = null;
+    let profileId = null;
+    let bizId = null;
+    try {
+      const email = `e2e.unlinked.${Date.now()}@example.com`;
+      const password = "Unlinked!Passw0rd-" + Date.now();
+
+      // 1. Seed the historical state: an approved profile with NO user_id.
+      const { data: profile, error: seedErr } = await service
+        .from("alumni_profiles")
+        .insert({
+          user_id: null,
+          full_name: "E2E Unlinked Alumnus",
+          email,
+          graduation_year: 2012,
+          programme: "O-Level",
+          is_public: true,
+          approved: true,
+        })
+        .select("id")
+        .single();
+      if (seedErr) throw new Error("seed unlinked profile failed: " + seedErr.message);
+      profileId = profile.id;
+
+      // 2. Create + sign in the auth user for that email (what OTP verify does).
+      const created = await service.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+      userId = created.data?.user?.id;
+      if (!userId) throw new Error("could not create the seeded auth user");
+
+      const anon = createClient(SUPABASE_URL, env("SUPABASE_ANON_KEY", "sb_publishable_BXQkhnpm3ha7O7ZjGrZlqg_Es95WeON"), {
+        auth: { persistSession: false },
+      });
+      const { data: signIn, error: signInErr } = await anon.auth.signInWithPassword({ email, password });
+      if (signInErr || !signIn.session) throw new Error("seeded sign-in failed: " + (signInErr?.message || "no session"));
+
+      // 3. WITHOUT the fix this exact call fails: business insert + RETURNING
+      //    on an unlinked owner profile violates own_select_businesses.
+      const before = await anon
+        .from("alumni_businesses")
+        .insert({
+          owner_id: profileId,
+          name: "E2E Unlinked Farm (pre-fix probe)",
+          email: "orders." + Date.now() + "@example.com",
+          description: "probe",
+          approved: false,
+        })
+        .select("id")
+        .single();
+      assert.ok(
+        before.error,
+        "business insert + RETURNING must FAIL while the owner profile is unlinked " +
+          "(reproducing the production RLS rollback); got: " + JSON.stringify(before.error || before.data),
+      );
+
+      // 4. Apply the fix's exact step: link the profile to the verified auth user.
+      const { error: linkErr } = await anon
+        .from("alumni_profiles")
+        .update({ user_id: userId })
+        .eq("id", profileId);
+      assert.equal(linkErr, null, "linking the profile to the verified auth user must succeed");
+
+      // 5. The same insert + RETURNING now succeeds.
+      const after = await anon
+        .from("alumni_businesses")
+        .insert({
+          owner_id: profileId,
+          name: "E2E Unlinked Farm",
+          email: "orders." + Date.now() + "@example.com",
+          description: "after link",
+          approved: false,
+        })
+        .select("id")
+        .single();
+      assert.equal(after.error, null, "business insert + RETURNING must succeed after linking: " + JSON.stringify(after.error));
+      assert.ok(after.data?.id, "RETURNING should yield the new business id");
+      bizId = after.data.id;
+    } finally {
+      try { if (bizId) await service.from("alumni_businesses").delete().eq("id", bizId); } catch {}
+      await cleanup(userId, profileId);
+    }
+  },
+);
