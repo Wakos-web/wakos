@@ -1,15 +1,3 @@
-import heroImg from "@/assets/hero.jpg";
-import newsRobotics from "@/assets/news-robotics.jpg";
-import newsBasketball from "@/assets/news-basketball.jpg";
-import newsService from "@/assets/news-service.jpg";
-import newsGraduation from "@/assets/news-graduation.jpg";
-import newsAcademics from "@/assets/academics.jpg";
-import newsStudentLife from "@/assets/student-life.jpg";
-import campus from "@/assets/campus.jpg";
-import academics from "@/assets/academics.jpg";
-import athletics from "@/assets/athletics.jpg";
-import studentLife from "@/assets/student-life.jpg";
-import giving from "@/assets/giving.jpg";
 
 export const SCHOOL_NAME = "M.M College Wairaka";
 export const SCHOOL_SHORT = "WACOS";
@@ -20,13 +8,16 @@ export const LOGO_URL = "/wacos-logo.png";
 export const HERO_VIDEO = "/hero-video.mp4";
 export const HERO_POSTER = "/hero-poster.png";
 
+// Authentic WACOS photos from Supabase storage (the old bundled placeholder
+// assets were deleted). These are the fallbacks everywhere a section's CMS
+// image is empty; admins can still override each from Page Content.
 export const IMAGES = {
-  hero: heroImg,
-  campus,
-  academics,
-  athletics,
-  studentLife,
-  giving,
+  hero: "https://cykaheepeqcgmveckuru.supabase.co/storage/v1/object/public/uploads/uploads/1788811696233-scholarship-hero.jfif",
+  campus: "https://cykaheepeqcgmveckuru.supabase.co/storage/v1/object/public/uploads/gallery/all-students-pause.jpg",
+  academics: "https://cykaheepeqcgmveckuru.supabase.co/storage/v1/object/public/uploads/uploads/1788812176395-academic-hero.jpg",
+  athletics: "https://cykaheepeqcgmveckuru.supabase.co/storage/v1/object/public/club-images/student-life/athletics-section.jpg",
+  studentLife: "https://cykaheepeqcgmveckuru.supabase.co/storage/v1/object/public/club-images/student-life/boarding-hall.jpg",
+  giving: "https://cykaheepeqcgmveckuru.supabase.co/storage/v1/object/public/club-images/student-life/community-service.jpg",
 };
 
 export const NAV_ITEMS = [
@@ -139,16 +130,16 @@ export const STATS = [
 ];
 
 export const CLUBS = [
-  { slug: "wildlife", name: "Wildlife Club", tagline: "Protect. Observe. Conserve.", desc: "The Wildlife Club connects students with Uganda’s rich biodiversity. Members participate in nature walks, wildlife surveys, and conservation campaigns. The club fosters awareness of environmental stewardship and the importance of protecting local ecosystems around the Busoga region.", activities: ["Nature walks and wildlife surveys", "Conservation campaigns in local communities", "Tree planting drives", "Guest speakers from Uganda Wildlife Authority"], img: "IMAGES.campus" },
-  { slug: "arts-culture", name: "Arts & Culture Club", tagline: "Express. Create. Celebrate.", desc: "The Arts & Culture Club is the creative heartbeat of WACOS. Members explore traditional Busoga dance, music, drama, and visual arts. The club performs at school events, inter-school competitions, and community celebrations, keeping cultural heritage alive while building confidence and creativity.", activities: ["Traditional dance and music performances", "Drama productions and inter-school competitions", "Visual arts exhibitions", "Cultural heritage awareness"], img: "IMAGES.studentLife" },
-  { slug: "scouts-guides", name: "Scouts & Girl Guides", tagline: "Prepared. Responsible. Service.", desc: "Scouts and Girl Guides build leadership, service, and resilience through structured programmes. Members develop outdoor skills, community awareness, and the discipline to serve others. The programme connects students to a global movement while rooting them in local community needs.", activities: ["Outdoor survival and camping skills", "Community service projects", "Leadership training", "First aid certification"], img: "IMAGES.giving" },
-  { slug: "agriculture", name: "Agriculture Club", tagline: "Grow. Learn. Sustain.", desc: "Running the school nursery and farm, the Agriculture Club is central to WACOS identity. Students grow seedlings from seed, manage crops, and learn practical agricultural skills that connect directly to the school’s founding identity as a farm school. The club supplied 4,000 seedlings for the community reforestation drive.", activities: ["School nursery and farm management", "Seedling production for community outreach", "Crop rotation and soil management", "Agricultural science experiments"], img: "IMAGES.campus" },
-  { slug: "debate", name: "Debate Club", tagline: "Think. Argue. Persuade.", desc: "The Debate Club sharpens critical thinking and public speaking. Students research, construct arguments, and compete in inter-school tournaments. The club builds the confidence to speak clearly, think independently, and engage respectfully with differing viewpoints.", activities: ["Weekly practice sessions", "Inter-school debate tournaments", "Public speaking workshops", "Model United Nations simulations"], img: "IMAGES.academics" },
-  { slug: "writers", name: "Writers Club", tagline: "Write. Read. Share.", desc: "The Writers Club nurtures a love of language. Members write poetry, short stories, essays, and journalism. The club produces the school magazine and provides a platform for students to find their voice through the written word.", activities: ["School magazine production", "Creative writing workshops", "Poetry slams and open mic events", "Journalism and reporting"], img: "IMAGES.studentLife" },
-  { slug: "red-cross", name: "Red Cross Club", tagline: "Care. Respond. Serve.", desc: "The Red Cross Club teaches students the principles of humanitarian service. Members learn first aid, disaster preparedness, and health education. The club organises blood drives, health camps, and community outreach programmes that directly serve the Wairaka community.", activities: ["First aid training and certification", "Blood donation drives", "Health education campaigns", "Disaster preparedness workshops"], img: "IMAGES.giving" },
-  { slug: 'entertainment', name: 'Entertainment Club', tagline: 'Perform. Inspire. Entertain.', desc: 'The Entertainment Club is where talent meets stage. Members organise talent shows, music performances, comedy nights, and cultural events. The club gives students a platform to express themselves, build confidence, and entertain the school community.', activities: ['Talent shows and open mic nights', 'Music and dance performances', 'Comedy and drama sketches', 'Event planning and MC duties'], img: 'IMAGES.studentLife' },
-  { slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.', desc: 'The Home Science Club teaches practical life skills ,  cooking, nutrition, textiles, and household management. Members learn to prepare nutritious meals, sew and mend clothing, and understand the science behind everyday domestic life. The club connects classroom learning to real-world self-reliance.', activities: ['Cooking and nutrition workshops', 'Textile and fashion design', 'Food preservation techniques', 'Health and hygiene education'], img: 'IMAGES.campus' },
-  { slug: 'current-affairs', name: 'Current Affairs Club', tagline: 'Read. Discuss. Understand.', desc: 'The Current Affairs Club keeps students informed about national and global events. Members discuss politics, economics, science, and social issues. The club builds informed citizens who can think critically about the world around them.', activities: ['Weekly news discussion sessions', 'Mock parliament and governance simulations', 'Guest speakers and panels', 'Model African Union and UN programmes'], img: 'IMAGES.academics' }
+  { slug: "wildlife", name: "Wildlife Club", tagline: "Protect. Observe. Conserve.", desc: "The Wildlife Club connects students with Uganda’s rich biodiversity. Members participate in nature walks, wildlife surveys, and conservation campaigns. The club fosters awareness of environmental stewardship and the importance of protecting local ecosystems around the Busoga region.", activities: ["Nature walks and wildlife surveys", "Conservation campaigns in local communities", "Tree planting drives", "Guest speakers from Uganda Wildlife Authority"], img: IMAGES.campus },
+  { slug: "arts-culture", name: "Arts & Culture Club", tagline: "Express. Create. Celebrate.", desc: "The Arts & Culture Club is the creative heartbeat of WACOS. Members explore traditional Busoga dance, music, drama, and visual arts. The club performs at school events, inter-school competitions, and community celebrations, keeping cultural heritage alive while building confidence and creativity.", activities: ["Traditional dance and music performances", "Drama productions and inter-school competitions", "Visual arts exhibitions", "Cultural heritage awareness"], img: IMAGES.studentLife },
+  { slug: "scouts-guides", name: "Scouts & Girl Guides", tagline: "Prepared. Responsible. Service.", desc: "Scouts and Girl Guides build leadership, service, and resilience through structured programmes. Members develop outdoor skills, community awareness, and the discipline to serve others. The programme connects students to a global movement while rooting them in local community needs.", activities: ["Outdoor survival and camping skills", "Community service projects", "Leadership training", "First aid certification"], img: IMAGES.giving },
+  { slug: "agriculture", name: "Agriculture Club", tagline: "Grow. Learn. Sustain.", desc: "Running the school nursery and farm, the Agriculture Club is central to WACOS identity. Students grow seedlings from seed, manage crops, and learn practical agricultural skills that connect directly to the school’s founding identity as a farm school. The club supplied 4,000 seedlings for the community reforestation drive.", activities: ["School nursery and farm management", "Seedling production for community outreach", "Crop rotation and soil management", "Agricultural science experiments"], img: IMAGES.campus },
+  { slug: "debate", name: "Debate Club", tagline: "Think. Argue. Persuade.", desc: "The Debate Club sharpens critical thinking and public speaking. Students research, construct arguments, and compete in inter-school tournaments. The club builds the confidence to speak clearly, think independently, and engage respectfully with differing viewpoints.", activities: ["Weekly practice sessions", "Inter-school debate tournaments", "Public speaking workshops", "Model United Nations simulations"], img: IMAGES.academics },
+  { slug: "writers", name: "Writers Club", tagline: "Write. Read. Share.", desc: "The Writers Club nurtures a love of language. Members write poetry, short stories, essays, and journalism. The club produces the school magazine and provides a platform for students to find their voice through the written word.", activities: ["School magazine production", "Creative writing workshops", "Poetry slams and open mic events", "Journalism and reporting"], img: IMAGES.studentLife },
+  { slug: "red-cross", name: "Red Cross Club", tagline: "Care. Respond. Serve.", desc: "The Red Cross Club teaches students the principles of humanitarian service. Members learn first aid, disaster preparedness, and health education. The club organises blood drives, health camps, and community outreach programmes that directly serve the Wairaka community.", activities: ["First aid training and certification", "Blood donation drives", "Health education campaigns", "Disaster preparedness workshops"], img: IMAGES.giving },
+  { slug: 'entertainment', name: 'Entertainment Club', tagline: 'Perform. Inspire. Entertain.', desc: 'The Entertainment Club is where talent meets stage. Members organise talent shows, music performances, comedy nights, and cultural events. The club gives students a platform to express themselves, build confidence, and entertain the school community.', activities: ['Talent shows and open mic nights', 'Music and dance performances', 'Comedy and drama sketches', 'Event planning and MC duties'], img: IMAGES.studentLife },
+  { slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.', desc: 'The Home Science Club teaches practical life skills ,  cooking, nutrition, textiles, and household management. Members learn to prepare nutritious meals, sew and mend clothing, and understand the science behind everyday domestic life. The club connects classroom learning to real-world self-reliance.', activities: ['Cooking and nutrition workshops', 'Textile and fashion design', 'Food preservation techniques', 'Health and hygiene education'], img: IMAGES.campus },
+  { slug: 'current-affairs', name: 'Current Affairs Club', tagline: 'Read. Discuss. Understand.', desc: 'The Current Affairs Club keeps students informed about national and global events. Members discuss politics, economics, science, and social issues. The club builds informed citizens who can think critically about the world around them.', activities: ['Weekly news discussion sessions', 'Mock parliament and governance simulations', 'Guest speakers and panels', 'Model African Union and UN programmes'], img: IMAGES.academics }
 ];
 
 
@@ -168,7 +159,7 @@ export const ARTICLES: Article[] = [
     title: "Science Club Takes Second at the National Science Fair",
     date: "Aug 24, 2026",
     category: "STEM",
-    image: newsRobotics,
+    image: "",
     excerpt:
       "A solar-powered irrigation prototype built in the WACOS workshop earned second place among ninety schools in Kampala.",
     body: [
@@ -183,7 +174,7 @@ export const ARTICLES: Article[] = [
     title: "Asbestos Removal Programme Reaches Major Milestone",
     date: "Aug 15, 2026",
     category: "Infrastructure",
-    image: newsService,
+    image: "",
     excerpt:
       "The alumni-funded asbestos removal programme has cleared three major buildings, making campus safer for students and staff.",
     body: [
@@ -198,7 +189,7 @@ export const ARTICLES: Article[] = [
     title: "Agriculture Club Leads Community Reforestation Drive",
     date: "Aug 09, 2026",
     category: "Outreach",
-    image: newsService,
+    image: "",
     excerpt:
       "Students plant 4,000 seedlings along the Wairaka stretch, restoring tree cover lost to decades of deforestation.",
     body: [
@@ -213,7 +204,7 @@ export const ARTICLES: Article[] = [
     title: "Debate Team Wins Eastern Regional Championships",
     date: "Jul 28, 2026",
     category: "Academics",
-    image: newsAcademics,
+    image: "",
     excerpt:
       "The WACOS debate team defeated fifteen schools to claim the Eastern Regional debating title for the first time.",
     body: [
@@ -228,7 +219,7 @@ export const ARTICLES: Article[] = [
     title: "Red Cross Club Hosts Annual Blood Drive",
     date: "Jul 15, 2026",
     category: "Community",
-    image: newsService,
+    image: "",
     excerpt:
       "Students and staff donate over 200 units of blood in the club\u2019s biggest drive yet, supporting Jinja Regional Hospital.",
     body: [
@@ -243,7 +234,7 @@ export const ARTICLES: Article[] = [
     title: "Writers Club Launches New School Magazine \u201CThe Wairaka Voice\u201D",
     date: "Jul 02, 2026",
     category: "Arts",
-    image: newsStudentLife,
+    image: "",
     excerpt:
       "The inaugural issue of \u201CThe Wairaka Voice\u201D features student poetry, fiction, and investigative journalism on campus issues.",
     body: [
@@ -258,7 +249,7 @@ export const ARTICLES: Article[] = [
     title: "Old Students Reunion Brings Together Six Decades of WACOS Graduates",
     date: "Jun 20, 2026",
     category: "Alumni",
-    image: newsGraduation,
+    image: "",
     excerpt:
       "Over 300 alumni from the 1960s to 2020s gathered at the school grounds for the annual reunion celebration.",
     body: [
@@ -273,7 +264,7 @@ export const ARTICLES: Article[] = [
     title: "Netball Team Triumphs in Inter-School Tournament",
     date: "Jun 10, 2026",
     category: "Athletics",
-    image: newsBasketball,
+    image: "",
     excerpt:
       "The WACOS netball team defeated five schools to win the Jinja District Inter-School Netball Tournament.",
     body: [
@@ -288,7 +279,7 @@ export const ARTICLES: Article[] = [
     title: "Physics and Chemistry Laboratories Fully Renovated",
     date: "May 28, 2026",
     category: "Infrastructure",
-    image: newsAcademics,
+    image: "",
     excerpt:
       "Alumni-funded renovations have transformed the science laboratories with new equipment and modern safety features.",
     body: [
@@ -303,7 +294,7 @@ export const ARTICLES: Article[] = [
     title: "Entertainment Club Hosts Sold-Out Talent Show \u201CWACOS Has Talent\u201D",
     date: "May 15, 2026",
     category: "Arts",
-    image: newsStudentLife,
+    image: "",
     excerpt:
       "Over 500 students and parents packed the school hall for an evening of music, dance, comedy, and drama performances.",
     body: [
@@ -318,7 +309,7 @@ export const ARTICLES: Article[] = [
     title: "Current Affairs Club Hosts Mock Parliament Session",
     date: "May 02, 2026",
     category: "Academics",
-    image: newsAcademics,
+    image: "",
     excerpt:
       "Students role-play as MPs debating education funding, healthcare, and youth employment in a simulated parliamentary session.",
     body: [
@@ -333,7 +324,7 @@ export const ARTICLES: Article[] = [
     title: "Wairaka Wins the Busoga Schools Football Championship",
     date: "Aug 18, 2026",
     category: "Athletics",
-    image: newsBasketball,
+    image: "",
     excerpt:
       "Down a goal at half time, the school side came back to win 3\u20131 in front of a packed home crowd.",
     body: [
@@ -348,7 +339,7 @@ export const ARTICLES: Article[] = [
     title: "Students Plant 4,000 Seedlings in Wairaka Community Drive",
     date: "Aug 09, 2026",
     category: "Outreach",
-    image: newsService,
+    image: "",
     excerpt:
       "Senior students spent the first Saturday of term working alongside neighbouring households on a reforestation drive.",
     body: [
@@ -363,7 +354,7 @@ export const ARTICLES: Article[] = [
     title: "Class of 2026 Sent Off: \u201CGo and Do It Yourselves\u201D",
     date: "Jul 02, 2026",
     category: "Community",
-    image: newsGraduation,
+    image: "",
     excerpt:
       "Three hundred and twelve candidates were sent off in a ceremony attended by old students spanning six decades.",
     body: [

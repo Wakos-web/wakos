@@ -45,3 +45,6 @@ _build.js
 _write-header.js
 
 .env*.local
+
+# Bare .env (only .env.example may be committed)
+.env
