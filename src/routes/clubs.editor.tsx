@@ -11,8 +11,10 @@ import { friendlyError } from "@/lib/friendly-error";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 import { ClubPostMediaManager } from "@/components/club-post-media-manager";
 import {
-  LogOut, Send, ImagePlus, Trash2, PenLine, X, ArrowLeft, Mail, Clock, Eye, ListChecks,
+  LogOut, Send, ImagePlus, Trash2, PenLine, X, ArrowLeft, Mail, Clock, Eye, ListChecks, Search, Info,
 } from "lucide-react";
+import { askConfirm, ConfirmDialog } from "@/components/confirm-dialog";
+import { ActionBtn } from "@/components/action-button";
 
 export const Route = createFileRoute("/clubs/editor")({
   head: () => ({
@@ -353,7 +355,9 @@ function Composer({
           >
             {busy ? "Saving…" : post ? "Save changes" : "Submit for approval"}
           </button>
-          <button onClick={onCancel} className="px-4 py-2.5 rounded-xl bg-stone-100 text-stone-600 text-sm font-semibold">Cancel</button>
+          <button onClick={onCancel} className="px-4 py-2.5 rounded-xl bg-stone-100 text-stone-600 text-sm font-semibold">
+            {post ? "Done — back to my posts" : "Cancel"}
+          </button>
         </div>
         {!post && (
           <p className="text-[11px] text-stone-400 flex items-center gap-1.5">
@@ -372,6 +376,8 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<PostRow | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "rejected" | "published">("all");
+  const [query, setQuery] = useState("");
   const [postsLoading, setPostsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -454,7 +460,7 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
   const activeEditor = editors.find((e) => e.club_id === clubId) || null;
 
   const removePost = async (post: PostRow) => {
-    if (!window.confirm("Delete this post? This cannot be undone.")) return;
+    if (!(await askConfirm(`Delete "${post.title}"? This cannot be undone.`, { confirmLabel: "Delete", danger: true }))) return;
     const { error: err } = await supabase.from("club_posts").delete().eq("id", post.id);
     if (err) { setError(friendlyError(err, "Couldn't delete that post. Try again.")); return; }
     setPosts((p) => p.filter((x) => x.id !== post.id));
@@ -486,6 +492,20 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
     );
   }
 
+  const counts = {
+    pending: posts.filter((p) => p.status === "pending").length,
+    rejected: posts.filter((p) => p.status === "rejected").length,
+    published: posts.filter((p) => p.status === "published").length,
+  };
+  const filteredPosts = posts.filter((p) => {
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      return (p.title + " " + (p.excerpt || "")).toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -498,6 +518,16 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
         <button onClick={onSignOut} className="rounded-xl bg-stone-100 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 inline-flex items-center gap-2">
           <LogOut className="h-4 w-4" /> Sign out
         </button>
+      </div>
+
+      {/* First-time guidance: the whole workflow in one line, so new student
+          editors never have to guess what happens after they press submit. */}
+      <div className="mb-5 rounded-2xl bg-green-50/60 border border-green-100 px-4 py-3 text-sm text-stone-700 flex items-start gap-2.5">
+        <Info className="h-4 w-4 text-green-800 shrink-0 mt-0.5" />
+        <p>
+          <span className="font-semibold text-green-900">How it works: </span>
+          write a post and add photos or videos → it goes to your club patron for approval → once approved it appears on the club's public page. If it comes back "Needs changes", open it, revise and submit again.
+        </p>
       </div>
 
       {editors.length > 1 && (
@@ -520,7 +550,19 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
         <Composer
           editor={activeEditor!}
           post={editing}
-          onCancel={() => { setComposing(false); setEditing(null); }}
+          onCancel={() => {
+            setComposing(false); setEditing(null);
+            // "Done — back to my posts" also leaves via onCancel: refetch so a
+            // just-submitted post (or revision) shows up immediately.
+            if (clubId) {
+              supabase
+                .from("club_posts")
+                .select("*")
+                .eq("club_id", clubId)
+                .order("created_at", { ascending: false })
+                .then(({ data }) => setPosts((data || []) as PostRow[]));
+            }
+          }}
           onCreated={(created) => { setComposing(true); setEditing(created); }}
           onSaved={() => {
             setComposing(false); setEditing(null);
@@ -536,7 +578,7 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
         />
       ) : (
         <>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <p className="text-sm text-stone-500">
               {activeEditor?.clubs?.name} — write news for your club page below.
             </p>
@@ -548,20 +590,55 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
             </button>
           </div>
 
+          {/* Status filter + search (posts accumulate term after term — find old ones fast) */}
+          {posts.length > 0 && (
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <div className="flex gap-1 flex-wrap">
+                {([
+                  ["all", `All (${posts.length})`],
+                  ["pending", `Awaiting (${counts.pending})`],
+                  ["rejected", `Needs changes (${counts.rejected})`],
+                  ["published", `Live (${counts.published})`],
+                ] as const).map(([key, label]) => (
+                  <button key={key} onClick={() => setStatusFilter(key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      statusFilter === key ? "bg-green-800 text-white border-green-800" : "bg-white text-stone-600 border-stone-200 hover:border-green-400"
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-1 min-w-[160px] max-w-xs">
+                <Search className="h-4 w-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search posts..."
+                  className="w-full pl-9 pr-3 py-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
 
           {postsLoading ? (
             <div className="flex justify-center py-16"><div className="h-6 w-6 animate-spin rounded-full border-2 border-green-800 border-t-transparent" /></div>
-          ) : posts.length === 0 ? (
+          ) : filteredPosts.length === 0 ? (
             <div className="rounded-2xl bg-white border border-stone-200 p-10 text-center">
               <PenLine className="h-8 w-8 text-stone-300 mx-auto mb-3" />
-              <p className="font-display text-lg font-bold text-stone-800">No posts yet</p>
-              <p className="text-sm text-stone-500 mt-1 mb-5">Share your club's first story of the term.</p>
-              <button onClick={() => setComposing(true)} className="px-5 py-2.5 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900">Write your first post</button>
+              {posts.length === 0 ? (
+                <>
+                  <p className="font-display text-lg font-bold text-stone-800">No posts yet</p>
+                  <p className="text-sm text-stone-500 mt-1 mb-5">Share your club's first story of the term.</p>
+                  <button onClick={() => setComposing(true)} className="px-5 py-2.5 rounded-xl bg-green-800 text-white text-sm font-semibold hover:bg-green-900">Write your first post</button>
+                </>
+              ) : (
+                <>
+                  <p className="font-display text-lg font-bold text-stone-800">No posts match</p>
+                  <p className="text-sm text-stone-500 mt-1">Try a different status filter or search term.</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
-              {posts.map((post) => {
+              {filteredPosts.map((post) => {
                 const chip = statusMeta(post.status);
                 return (
                   <div key={post.id} className="rounded-2xl bg-white border border-stone-200 p-5 flex items-start gap-4">
@@ -582,12 +659,14 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
                     <div className="flex gap-1 shrink-0">
                       {(post.status === "pending" || post.status === "rejected") && (
                         <>
-                          <button onClick={() => setEditing(post)} className="p-2 rounded-lg hover:bg-stone-100 border border-stone-200" title="Edit"><PenLine className="h-3.5 w-3.5 text-stone-500" /></button>
-                          <button onClick={() => removePost(post)} className="p-2 rounded-lg hover:bg-red-50 border border-red-100" title="Delete"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
+                          <ActionBtn onClick={() => setEditing(post)} icon={PenLine} label="Edit" tone="edit" />
+                          <ActionBtn onClick={() => removePost(post)} icon={Trash2} label="Delete" tone="danger" />
                         </>
                       )}
                       {post.status === "published" && activeEditor?.clubs?.slug && (
-                        <a href={`/clubs/${activeEditor.clubs.slug}/posts/${post.id}`} className="p-2 rounded-lg hover:bg-stone-100 border border-stone-200" title="View live"><Eye className="h-3.5 w-3.5 text-stone-500" /></a>
+                        <a href={`/clubs/${activeEditor.clubs.slug}/posts/${post.id}`} title="View live" aria-label="View live" className="inline-flex items-center gap-1.5 rounded-lg border bg-white border-stone-200 px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors">
+                          <Eye className="h-3.5 w-3.5" /> <span className="hidden lg:inline">View live</span>
+                        </a>
                       )}
                     </div>
                   </div>
@@ -649,7 +728,7 @@ function StudioSocialPanel({ clubId }: { clubId: string }) {
   };
 
   const remove = async (id: string) => {
-    if (!window.confirm("Remove this social link?")) return;
+    if (!(await askConfirm("Remove this social link?", { confirmLabel: "Remove", danger: true }))) return;
     const { error } = await supabase.from("social_links").delete().eq("id", id);      if (error) { setMsg({ text: friendlyError(error, "Couldn't save that social link. Try again."), kind: "err" }); return; }
     load();
   };
@@ -677,12 +756,8 @@ function StudioSocialPanel({ clubId }: { clubId: string }) {
               <p className="text-xs text-stone-500 truncate mt-1">{l.url}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <button onClick={() => toggleActive(l.id, l.active)} title={l.active === false ? "Show on site" : "Hide from site"} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500">
-                {l.active === false ? <Eye className="h-3.5 w-3.5" /> : <ListChecks className="h-3.5 w-3.5" />}
-              </button>
-              <button onClick={() => remove(l.id)} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-red-500">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <ActionBtn onClick={() => toggleActive(l.id, l.active)} icon={l.active === false ? Eye : ListChecks} label={l.active === false ? "Show" : "Hide"} />
+              <ActionBtn onClick={() => remove(l.id)} icon={Trash2} label="Delete" tone="danger" />
             </div>
           </div>
         ))}
@@ -769,6 +844,7 @@ function ClubEditorPage() {
 
   return (
     <div className="min-h-screen bg-stone-50">
+      <ConfirmDialog />
       <header className="bg-green-900 text-white">
         <div className="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>

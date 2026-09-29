@@ -5,7 +5,8 @@ import { prepareImageForUpload } from "@/lib/image-convert";
 import { VIDEO_TYPES, VIDEO_MAX_MB, validateMedia, UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import { friendlyError } from "@/lib/friendly-error";
-import { Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, Trash2 } from "lucide-react";
+import { askConfirm } from "@/components/confirm-dialog";
+import { ChevronUp, ChevronDown, Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, Trash2 } from "lucide-react";
 
 type Notice = (text: string, kind: "ok" | "err") => void;
 
@@ -177,9 +178,43 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
   };
 
   const removeRow = async (id: string) => {
+    // Previously unguarded: a single mis-tap on this small icon permanently
+    // deleted a captioned photo/video from the story page.
+    if (!(await askConfirm("Remove this media from the story page? This cannot be undone.", { confirmLabel: "Remove", danger: true }))) return;
     const { error } = await supabase.from("club_post_media").delete().eq("id", id);
     if (error) {      notice(friendlyError(error, "Couldn't remove that. Try again."), "err"); return; }
     notice("Media removed", "ok");
+    load();
+  };
+
+  /* Touch-friendly reorder: swaps with the neighbor row and persists the
+   * whole list's sort_order in one batch (same write pattern as drag).   */
+  const moveRow = async (id: string, dir: -1 | 1) => {
+    const from = items.findIndex((m) => m.id === id);
+    const to = from + dir;
+    if (from === -1 || to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setItems(next);
+    setEdits((prev) => {
+      const upd = { ...prev };
+      next.forEach((m, i) => { const cur = upd[m.id]; if (cur) upd[m.id] = { ...cur, sort: String(i + 1) }; });
+      return upd;
+    });
+    const updates = next.map((m, i) =>
+      supabase.from("club_post_media").update({ sort_order: i + 1 }).eq("id", m.id),
+    );
+    const results = await Promise.allSettled(updates);
+    const failed = results.find((r) => r.status === "fulfilled" && r.value.error);
+    if (failed) {
+      // Surface the failure instead of pretending the order saved.
+      const err = (failed as PromiseFulfilledResult<any>).value.error;
+      notice(friendlyError(err, "Couldn't save the new order. Try again."), "err");
+      load(); // resync UI with what the DB actually has
+      return;
+    }
+    notice("Order saved", "ok");
     load();
   };
 
@@ -221,7 +256,14 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
     const updates = next.map((m, i) =>
       supabase.from("club_post_media").update({ sort_order: i + 1 }).eq("id", m.id),
     );
-    await Promise.all(updates);
+    const results = await Promise.allSettled(updates);
+    const failed = results.find((r) => r.status === "fulfilled" && r.value.error);
+    if (failed) {
+      const err = (failed as PromiseFulfilledResult<any>).value.error;
+      notice(friendlyError(err, "Couldn't save the new order. Try again."), "err");
+      load();
+      return;
+    }
     notice("Order saved", "ok");
     load();
   };
@@ -230,7 +272,7 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
     <div className="rounded-xl bg-stone-50 border border-stone-200 p-4">
       <p className="text-sm font-semibold text-stone-700 mb-1">Story media (photos & videos with captions)</p>
       <p className="text-xs text-stone-400 mb-4">
-        These appear on the post's detailed page as a captioned gallery: photos bundle into one swipeable carousel under a single caption, and videos play inline (upload a file or paste a YouTube link). Reorder with the order field.
+        These appear on the post's detailed page as a captioned gallery: photos bundle into one swipeable carousel under a single caption, and videos play inline (upload a file or paste a YouTube link). Reorder with the arrows (or drag on a computer).
       </p>
 
       <div className="rounded-xl bg-white border border-stone-200 p-3 mb-4 space-y-3">
@@ -288,11 +330,17 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
               onDragOver={(e) => onDragOverRow(e, item.id)}
               onDrop={(e) => onDrop(e, item.id)}
               onDragEnd={() => { setDragId(null); setDragOverId(null); }}
-              className={`flex items-start gap-3 rounded-lg border p-2.5 cursor-grab active:cursor-grabbing transition-all ${dragId === item.id ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverId === item.id && dragId !== item.id ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
+              className={`flex flex-col md:flex-row md:items-start gap-3 rounded-lg border p-2.5 cursor-grab active:cursor-grabbing transition-all ${dragId === item.id ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverId === item.id && dragId !== item.id ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
             >
-              <div className="flex flex-col items-center gap-1 shrink-0 pt-1">
-                <GripVertical className="h-4 w-4 text-stone-400" />
+              <div className="flex md:flex-col items-center gap-0.5 shrink-0">
+                <GripVertical className="h-4 w-4 text-stone-300 hidden md:block" />
+                <button onClick={() => moveRow(item.id, -1)} disabled={idx === 0} title="Move up" aria-label="Move up" className="p-0.5 rounded hover:bg-stone-200 text-stone-500 disabled:opacity-25">
+                  <ChevronUp className="h-4 w-4" />
+                </button>
                 <span className="text-[10px] font-bold text-stone-400">{idx + 1}</span>
+                <button onClick={() => moveRow(item.id, 1)} disabled={idx === items.length - 1} title="Move down" aria-label="Move down" className="p-0.5 rounded hover:bg-stone-200 text-stone-500 disabled:opacity-25">
+                  <ChevronDown className="h-4 w-4" />
+                </button>
               </div>
               {item.media_type === "video" ? (
                 youtubeId(item.youtube_url || item.media_url) ? (
