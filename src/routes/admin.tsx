@@ -4681,6 +4681,10 @@ function AdminPage() {
 
 
   if (session === null || checkingAfterAccept) {
+    // The accept-invite child route renders inside <Outlet/> below — it must
+    // never be wrapped in the dashboard chrome (or blocked by these gates),
+    // otherwise unauthenticated invitees land on a spinner/login forever.
+    if (isAcceptInvite) return <Outlet />;
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
@@ -4688,6 +4692,7 @@ function AdminPage() {
     );
   }
   if (!session.authed) {
+    if (isAcceptInvite) return <Outlet />;
     return <StaffLoginScreen onAuthed={boot} />;
   }
 
