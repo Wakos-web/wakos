@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { IMAGES } from "@/lib/content";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 
 export const Route = createFileRoute("/academics")({
   head: () => ({
     meta: [{ title: "Academics ,  M.M College Wairaka" },{ name: "description", content: "94% university entry. Sciences, humanities, practical skills. UNEB examination centre in Jinja." }],
     links: [{ rel: "canonical", href: "/academics" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("academics") }),
   component: AcademicsPage,
 });
 
@@ -16,7 +18,7 @@ const AR=["Literature in English","History","Economics","Divinity","Geography","
 const DP=[{n:"Science & Laboratory",d:"Well-stocked physics, chemistry, and biology laboratories. Renovated through alumni support."},{n:"Humanities",d:"Literature, history, civic education, and religious studies."},{n:"Mathematics",d:"From O-Level foundational maths through A-Level pure and applied mathematics."},{n:"Agriculture & Practical Skills",d:"A school farm and practical sessions honouring our farm-school origins."},{n:"Technology",d:"Computer studies with internet-connected resource centre."},{n:"Sports & Co-Curricular",d:"Football, athletics, netball, volleyball, basketball, cricket, and clubs."},{n:"Wood Work",d:"Hands-on carpentry and joinery in the school workshop — from joints and furniture to real construction skills."},{n:"Technical Drawing",d:"Drafting, geometry, and design fundamentals that open the door to engineering and architecture."},{n:"Food Science",d:"Nutrition, food processing, and hygiene — practical lessons that turn home science into a career skill."}];
 const SP=[{n:"O-Level (S1–S4)",d:"Four years covering both arts and science subjects. UNEB UCE examination centre.",i:["Arts + Science subjects","UNEB UCE examination centre","Comprehensive curriculum","Practical skills integration"]},{n:"A-Level (S5–S6)",d:"Two years of specialised study. Three essential + two subsidiary subjects.",i:["Arts or Sciences track","Three essential + two subsidiary subjects","Theory + practical lessons","Mock examinations + career guidance"]},{n:"Practical Skills Programme",d:"Every student participates in hands-on learning through agriculture, workshops, and community service.",i:["School farm operations","Laboratory practicals","Community outreach projects","Workshop sessions"]}];
 function AcademicsPage() {
-  const { content } = usePageContent("academics");
+  const { content } = usePageContent("academics", Route.useLoaderData().cms);
   const OL2 = content.olevel?.subjects?.length ? content.olevel.subjects : OL;
   const heroDesc = content.hero?.description || "94% of A-Level students go to university. But we do not just prepare students for exams ,  we prepare them for life. High challenge, high support, practical skills from day one.";
   const departments: { n: string; d: string }[] = content.departments?.items?.length ? content.departments.items.map((d: any) => ({ n: d.name || d.n, d: d.description || d.d })) : DP;

@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-r
 import { useState, useEffect, useCallback } from 'react';
 import { IMAGES } from '@/lib/content';
 import { usePageContent } from '@/hooks/usePageContent';
+import { fetchPageContent } from '@/lib/cms';
 import { supabase } from '@/lib/supabase';
 
 const CLUBS = [
@@ -21,6 +22,8 @@ export const Route = createFileRoute('/clubs')({
     meta: [{ title: 'Clubs' },{ name: 'description', content: 'Student clubs and societies at M.M College Wairaka.' }],
     links: [{ rel: 'canonical', href: '/clubs' }],
   }),
+  // Loader runs during SSR so the CMS hero is in the first paint.
+  loader: async () => ({ cms: await fetchPageContent("clubs") }),
   component: ClubsPage,
 });
 
@@ -105,7 +108,7 @@ function ChatBubble({ voice, align }: { voice: typeof FALLBACK_VOICES[0]; align:
 }
 
 function ClubsOverview() {
-  const { content } = usePageContent('clubs');
+  const { content } = usePageContent('clubs', Route.useLoaderData().cms);
   const voices = content.voices?.voices || FALLBACK_VOICES;
   return (
     <section className='py-20 bg-stone-50'>
@@ -255,7 +258,7 @@ function ClubsGrid() {
 function ClubsPage() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isRoot = pathname === '/clubs';
-  const { content } = usePageContent('clubs');
+  const { content } = usePageContent('clubs', Route.useLoaderData().cms);
   return (
     <div>
       {isRoot && (

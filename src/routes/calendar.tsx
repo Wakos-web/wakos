@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 import { useEffect, useState } from "react";
 import { IMAGES } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/calendar")({
     meta: [{ title: "School Calendar ,  M.M College Wairaka" }],
     links: [{ rel: "canonical", href: "/calendar" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("calendar") }),
   component: CalendarPage,
 });
 
@@ -111,7 +113,7 @@ function EventsSection() {
 }
 
 function CalendarPage() {
-  const { content } = usePageContent("calendar");
+  const { content } = usePageContent("calendar", Route.useLoaderData().cms);
   return (
     <div>
       <section className="relative h-[40vh] min-h-[280px] flex items-end overflow-hidden">

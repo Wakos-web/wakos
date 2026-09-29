@@ -17,6 +17,7 @@ import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS, DEFAULT_STATS, getSet
 import { supabase } from "@/lib/supabase";
 import { JournalGallery } from "@/components/journal-gallery";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,6 +42,8 @@ export const Route = createFileRoute("/")({
       { rel: "preload", as: "video", href: HERO_VIDEO },
     ],
   }),
+  // Loader runs during SSR so CMS images (gallery, mission) are in the first paint.
+  loader: async () => ({ cms: await fetchPageContent("home") }),
   component: HomePage,
 });
 
@@ -194,7 +197,7 @@ const CAMPUS_IMAGES = [
 function CampusCarousel() {
   // "Life at WACOS" gallery images come from the CMS (Admin > Page Content >
   // Life at WACOS Gallery, with real file uploads). Empty -> bundled defaults.
-  const { content } = usePageContent("home");
+  const { content } = usePageContent("home", Route.useLoaderData().cms);
   const images = (content.gallery?.images?.length ? content.gallery.images : CAMPUS_IMAGES) as { src: string; alt: string; caption?: string }[];
   return <JournalGallery images={images} title="Life at WACOS" />;
 }

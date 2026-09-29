@@ -2,12 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { IMAGES } from "@/lib/content";
 import { JournalGallery } from "@/components/journal-gallery";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [{ title: "About ,  M.M College Wairaka" },{ name: "description", content: "Founded in 1953, M.M College Wairaka is a government-aided boarding school built on discipline, hard work, and self-reliance. Olympic champion alumni. Bursaries for bright students." }],
     links: [{ rel: "canonical", href: "/about" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("about") }),
   component: AboutPage,
 });
 
@@ -25,7 +27,7 @@ const ABOUT_IMAGES = [
   { src: IMAGES.giving, alt: "Alumni", caption: "The alumni who keep Wairaka alive" },
 ];
 function AboutPage() {
-  const { content } = usePageContent("about");
+  const { content } = usePageContent("about", Route.useLoaderData().cms);
   const L2 = content.leadership?.leaders?.length ? content.leadership.leaders : L.map((x: any) => ({ role: x.n, name: x.p, description: x.d }));
   const M2 = content.history?.timeline?.length ? content.history.timeline.map((x: any) => ({ y: x.year, t: x.event, x: "" })) : M;
   const V2 = content.mission?.values?.length ? content.mission.values.map((x: any) => ({ n: x, d: x })) : V;

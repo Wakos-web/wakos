@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useMatch } from "@tanstack/react-router"
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 import { SocialLinksRow } from "@/components/social-links";
 import {
   MessageCircle, Users, Building2, Sparkles, Briefcase, TrendingUp,
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/mwosa")({
     ],
     links: [{ rel: "canonical", href: "/mwosa" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("mwosa") }),
   component: MwosaPage,
 });
 
@@ -388,7 +390,7 @@ function MwosaPage() {
   // All hooks below must run unconditionally (React hook-order rule), so
   // the story check happens only AFTER every hook has run.
   const isStoryRoute = useMatch({ from: "/mwosa/update/$id", shouldThrow: false });
-  const { content } = usePageContent("mwosa");
+  const { content } = usePageContent("mwosa", Route.useLoaderData().cms);
   const heroDesc =
     content.hero?.description ||
     "We Do It Ourselves. The bond between WACOS old boys and old girls lasts long after graduation — and together we are rebuilding our school.";

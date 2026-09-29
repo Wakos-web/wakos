@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { IMAGES } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 import { friendlyError } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/giving")({
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/giving")({
     meta: [{ title: "Giving ,  M.M College Wairaka" },{ name: "description", content: "Support M.M College Wairaka. From UGX 10,000/month. Fund bursaries, laboratories, and student futures." }],
     links: [{ rel: "canonical", href: "/giving" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("giving") }),
   component: GivingPage,
 });
 
@@ -391,7 +393,7 @@ const IMPACT = [
 ];
 
 function GivingPage() {
-  const { content } = usePageContent("giving");
+  const { content } = usePageContent("giving", Route.useLoaderData().cms);
   const heroDesc = content.hero?.description || "Last year, alumni funded bursaries for 211 students. This year, more are waiting. Your gift changes a life.";
   const ways = content.ways?.ways?.length
     ? content.ways.ways.map((w: any) => ({ title: w.name, desc: w.description, tag: w.impact || "Gift", slug: w.slug }))

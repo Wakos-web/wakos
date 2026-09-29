@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { IMAGES, ARTICLES } from "@/lib/content";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 
 export const Route = createFileRoute("/campus-news/")({
   head: () => ({
     meta: [{ title: "Campus News ,  M.M College Wairaka" },{ name: "description", content: "The latest news, stories, and updates from M.M College Wairaka." }],
     links: [{ rel: "canonical", href: "/campus-news" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("campus-news") }),
   component: CampusNewsPage,
 });
 
@@ -99,7 +101,7 @@ function BlogGrid() {
 }
 
 function CampusNewsPage() {
-  const { content } = usePageContent("campus-news");
+  const { content } = usePageContent("campus-news", Route.useLoaderData().cms);
   return (
     <div>
       <HeroSection img={content.hero?.heroImage} />

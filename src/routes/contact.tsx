@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 import { IMAGES } from "@/lib/content";
 import { Mail, Phone, MapPin } from "lucide-react";
 
@@ -8,11 +9,12 @@ export const Route = createFileRoute("/contact")({
     meta: [{ title: "Contact ,  M.M College Wairaka" }],
     links: [{ rel: "canonical", href: "/contact" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("contact") }),
   component: ContactPage,
 });
 
 function ContactPage() {
-  const { content } = usePageContent("contact");
+  const { content } = usePageContent("contact", Route.useLoaderData().cms);
   return (
     <div>
       <section className="relative h-[40vh] min-h-[280px] flex items-end overflow-hidden">

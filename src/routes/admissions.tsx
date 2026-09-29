@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { IMAGES, SCHOOL_NAME } from "@/lib/content";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 import { friendlyError } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/admissions")({
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/admissions")({
     meta: [{ title: "Admissions ,  M.M College Wairaka" },{ name: "description", content: "Admission opens every term at M.M College Wairaka. Bursaries for bright students. No entrance exams. Government-aided boarding school in Jinja." }],
     links: [{ rel: "canonical", href: "/admissions" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("admissions") }),
   component: AdmissionsPage,
 });
 
@@ -250,7 +252,7 @@ function CTASection() {
 }
 
 function AdmissionsPage() {
-  const { content } = usePageContent("admissions");
+  const { content } = usePageContent("admissions", Route.useLoaderData().cms);
   return (
     <div>
       <HeroSection img={content.hero?.heroImage} />

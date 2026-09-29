@@ -2,12 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { IMAGES, SCHOOL_NAME, SCHOOL_MOTTO } from "@/lib/content";
 import { JournalGallery } from "@/components/journal-gallery";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 
 export const Route = createFileRoute("/student-life")({
   head: () => ({
     meta: [{ title: "Student Life ,  M.M College Wairaka" },{ name: "description", content: "10 clubs, 8 sports, community service, and boarding life at M.M College Wairaka. Where character is built outside the classroom." }],
     links: [{ rel: "canonical", href: "/student-life" }],
   }),
+  // Loader runs during SSR so the CMS hero/gallery are in the first paint
+  // (no old-image flash before the CMS images arrive).
+  loader: async () => ({ cms: await fetchPageContent("student-life") }),
   component: StudentLifePage,
 });
 
@@ -57,7 +61,7 @@ function CTASection() {  return (    <section className="bg-green-900 py-20">   
         className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_30%] md:object-center opacity-[0.12]"
       />
       <div className="relative max-w-6xl mx-auto px-6">        <div className="text-center mb-10">          <p className="text-sm font-semibold text-green-800 uppercase tracking-widest mb-3">Daily Life</p>          <h2 className="font-display text-3xl md:text-4xl text-stone-900 font-bold">A day at Wairaka</h2>        </div>        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">          {items.map((item) => (            <div key={item.name} className="rounded-2xl bg-white p-6 border border-stone-200">              <h3 className="font-display text-lg font-bold text-stone-900 mb-2">{item.name}</h3>              <p className="text-stone-600 text-sm leading-relaxed font-body">{item.description}</p>            </div>          ))}        </div>      </div>    </section>  );}
-function StudentLifePage() {  const { content } = usePageContent("student-life");
+function StudentLifePage() {  const { content } = usePageContent("student-life", Route.useLoaderData().cms);
   // Campus Life gallery images come from the CMS (Admin > Page Content >
   // Campus Life Gallery, with real file uploads). Empty -> bundled defaults.
   const galleryImages = (content.gallery?.images?.length ? content.gallery.images : SL_IMAGES) as { src: string; alt: string; caption?: string }[];

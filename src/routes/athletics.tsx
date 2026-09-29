@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { IMAGES } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
+import { fetchPageContent } from "@/lib/cms";
 
 export const Route = createFileRoute("/athletics")({
   head: () => ({
     meta: [{ title: "Athletics ,  M.M College Wairaka" },{ name: "description", content: "Busoga Champions in football. 8 sports across 3 terms. Olympic champion alumni. M.M College Wairaka athletics." }],
     links: [{ rel: "canonical", href: "/athletics" }],
   }),
+  loader: async () => ({ cms: await fetchPageContent("athletics") }),
   component: AthleticsPage,
 });
 
@@ -360,7 +362,7 @@ function CTASection() {
   );
 }
 function AthleticsPage() {
-  const { content } = usePageContent("athletics");
+  const { content } = usePageContent("athletics", Route.useLoaderData().cms);
   const heroDesc = content.hero?.description || "Busoga Champions. Regional competitors. Olympic alumni. Your child will compete here.";
   const paragraphs = content.overview?.paragraphs?.length ? content.overview.paragraphs : PHILOSOPHY;
   const sports = content.sports?.items?.length
