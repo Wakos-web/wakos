@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
-import { normalizeImageFile } from "@/lib/image-convert";
+import { prepareImageForUpload } from "@/lib/image-convert";
 import { VIDEO_TYPES, VIDEO_MAX_MB, validateMedia } from "@/lib/upload-guide";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
+import { friendlyError } from "@/lib/friendly-error";
 import { Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, Trash2 } from "lucide-react";
 
 type Notice = (text: string, kind: "ok" | "err") => void;
@@ -42,8 +43,9 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
   useEffect(() => { load(); }, [postId]);
 
   const uploadMediaFile = async (file: File): Promise<string> => {
-    // TIFF photos are converted to JPEG in the browser before upload.
-    const uploadable = await normalizeImageFile(file);
+    // TIFF is converted to JPEG in the browser; oversized photos are
+    // auto-compressed to fit the bucket limit.
+    const uploadable = await prepareImageForUpload(file);
     const ext = uploadable.name.split(".").pop();
     const path = "club-posts-media/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
     const { error } = await supabase.storage.from("class-notes-photos").upload(path, uploadable, { contentType: uploadable.type });
@@ -105,7 +107,7 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
       notice("Media added", "ok");
       load();
     } catch (e: any) {
-      notice(e?.message || "Upload failed", "err");
+      notice(friendlyError(e, "Couldn't upload that photo. Try a different one."), "err");
     } finally {
       setUploading(false);
       if (photoRef.current) photoRef.current.value = "";
@@ -151,7 +153,7 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
       notice("YouTube video added — it plays inline on the story page", "ok");
       load();
     } catch (e: any) {
-      notice(e?.message || "Could not add the YouTube video", "err");
+      notice(friendlyError(e, "Couldn't add that YouTube video. Check the link and try again."), "err");
     } finally {
       setUploading(false);
     }
@@ -169,14 +171,14 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
       caption: e.caption.trim() || null,
       sort_order: parseInt(e.sort) || 0,
     }).eq("id", id);
-    if (error) { notice(error.message || "Save failed", "err"); return; }
+    if (error) {      notice(friendlyError(error, "Couldn't save that change. Try again."), "err"); return; }
     notice("Saved", "ok");
     load();
   };
 
   const removeRow = async (id: string) => {
     const { error } = await supabase.from("club_post_media").delete().eq("id", id);
-    if (error) { notice(error.message || "Delete failed", "err"); return; }
+    if (error) {      notice(friendlyError(error, "Couldn't remove that. Try again."), "err"); return; }
     notice("Media removed", "ok");
     load();
   };

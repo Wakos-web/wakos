@@ -5,14 +5,17 @@
  * accepted formats and sizes, the offending file, and how to fix it.
  */
 
-export const IMAGE_TYPES = "JPG, PNG, WebP or GIF";
-export const IMAGE_MAX_MB = 10;
+// Aligned with the strictest photo buckets (class-notes-photos, club-images):
+// JPEG/PNG/WebP at 5 MB. GIF is not accepted by those buckets and TIFF is
+// auto-converted to JPEG before upload (see image-convert.ts).
+export const IMAGE_TYPES = "JPG, PNG or WebP";
+export const IMAGE_MAX_MB = 5;
 export const VIDEO_TYPES = "MP4 or WebM";
 export const VIDEO_MAX_MB = 5;
 
 /** Accept hints for the file picker (TIFF is listed because it is auto-converted). */
 export const IMAGE_ACCEPT =
-  "image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif,.tif,.tiff";
+  "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,.tif,.tiff";
 export const VIDEO_ACCEPT = "video/mp4,video/webm,.mp4,.webm";
 
 export function fileSizeMb(bytes: number): string {
@@ -34,15 +37,31 @@ export interface UploadError {
   kind: "image" | "video";
 }
 
-/** Returns a friendly error message, or null when the file is acceptable. */
-export function validateImage(file: File): string | null {
-  if (!file.type.startsWith("image/") && !/\.(jpe?g|png|webp|gif|tiff?)$/i.test(file.name)) {
+/**
+ * Type-only check: rejects GIF (photo buckets don't accept it) and non-image
+ * files. Size is NOT checked here — oversized photos are auto-compressed
+ * instead of rejected (see image-convert.prepareImageForUpload).
+ */
+export function validateImageType(file: File): string | null {
+  // GIF is not accepted by the photo buckets (class-notes-photos, club-images),
+  // so reject it here even though its MIME starts with "image/".
+  if (/^image\/gif$/i.test(file.type) || /\.gif$/i.test(file.name)) {
+    return `"${file.name}" is a GIF animation — we accept ${IMAGE_TYPES} photos. Save it as a JPG, PNG or WebP and try again.`;
+  }
+  if (!file.type.startsWith("image/") && !/\.(jpe?g|png|webp|tiff?)$/i.test(file.name)) {
     return `"${file.name}" is ${fileKind(file)} — we accept ${IMAGE_TYPES} photos (TIFF is converted automatically). Save it as one of those and try again.`;
   }
-  if (file.size > IMAGE_MAX_MB * 1024 * 1024) {
-    return `"${file.name}" is ${fileSizeMb(file.size)} — photos must be ${IMAGE_MAX_MB}MB or smaller. Compress or resize it first.`;
-  }
   return null;
+}
+
+/**
+ * Image type gate. Oversized photos are NOT rejected here — they are
+ * auto-compressed by prepareImageForUpload (image-convert.ts) before upload.
+ * Size limits still apply to videos (validateVideo) since they cannot be
+ * compressed in the browser.
+ */
+export function validateImage(file: File): string | null {
+  return validateImageType(file);
 }
 
 /** Returns a friendly error message, or null when the video is acceptable. */
