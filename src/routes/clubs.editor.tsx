@@ -4,9 +4,9 @@ import { supabase } from "@/lib/supabase";
 import { notifyClubPatron } from "@/lib/club-notify";
 import { staffClubAccess, staffClubSignOut } from "@/lib/club-staff";
 import { youtubeId } from "@/lib/youtube";
-import { normalizeImageFile } from "@/lib/image-convert";
-import { IMAGE_TYPES, IMAGE_MAX_MB, validateImage } from "@/lib/upload-guide";
+import { prepareImageForUpload } from "@/lib/image-convert";
 import { useOtpResend } from "@/hooks/useOtpResend";
+import { friendlyError } from "@/lib/friendly-error";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 import { ClubPostMediaManager } from "@/components/club-post-media-manager";
 import {
@@ -59,8 +59,9 @@ const STATUS_META = {
 function statusMeta(status: string) {
   return STATUS_META[status as keyof typeof STATUS_META] ?? STATUS_META.pending;
 }async function uploadImage(file: File): Promise<string> {
-  // TIFF photos are converted to JPEG in the browser before upload.
-  const uploadable = await normalizeImageFile(file);
+  // TIFF is converted to JPEG in the browser; oversized photos are
+  // auto-compressed to fit the bucket limit.
+  const uploadable = await prepareImageForUpload(file);
   const ext = uploadable.name.split(".").pop();
   const path = "club-posts/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
   const { error } = await supabase.storage
@@ -96,7 +97,7 @@ function OtpPanel({ onSignedIn }: { onSignedIn: (email: string) => void }) {
       resend.onSent();
       setSent(true);
     } catch (e: any) {
-      setError(e?.message || "Could not send the code. Try again.");
+      setError(friendlyError(e, "Could not send the code. Try again."));
     } finally {
       setBusy(false);
     }
@@ -114,7 +115,7 @@ function OtpPanel({ onSignedIn }: { onSignedIn: (email: string) => void }) {
       if (!data.user) throw new Error("Sign-in did not complete.");
       onSignedIn(data.user.email || "");
     } catch (e: any) {
-      setError(e?.message || "That code did not work. Check it and try again.");
+      setError(friendlyError(e, "That code did not work. Check it and try again."));
     } finally {
       setBusy(false);
     }
@@ -208,10 +209,16 @@ function Composer({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const pickFile = (f: File | null) => {
+  const pickFile = async (f: File | null) => {
     if (f) {
-      const imgErr = validateImage(f);
-      if (imgErr) { setError(imgErr); return; }
+      // Same gates as the admin uploader: type-check (JPG/PNG/WebP), convert
+      // TIFF to JPEG, and auto-compress anything over 5 MB.
+      try {
+        f = await prepareImageForUpload(f);
+      } catch (err: any) {
+        setError(err?.message || "That photo could not be processed.");
+        return;
+      }
     }
     setImage(f);
     if (f) setPreview(URL.createObjectURL(f));
@@ -275,7 +282,7 @@ function Composer({
       }
       onSaved();
     } catch (e: any) {
-      setError(e?.message || "Could not save the post. Try again.");
+      setError(friendlyError(e, "Could not save the post. Try again."));
     } finally {
       setBusy(false);
     }
@@ -383,7 +390,7 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
         .eq("email", u.email.toLowerCase())
         .eq("status", "pending");
       if (linkErr) {
-        setError("Your invite could not be activated: " + (linkErr.message || "unknown error") + ". Ask your patron to resend the invite.");
+        setError("Your invite couldn't be activated. Ask your club patron to resend it — then try the link again.");
         setState("none");
         return;
       }
@@ -393,7 +400,7 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
       .select("*, clubs(id, name, slug)")
       .eq("user_id", u.id)
       .eq("status", "active");
-    if (err) { setError(err.message || "Could not load your clubs."); setState("none"); return; }
+    if (err) { setError(friendlyError(err, "Couldn't load your clubs. Try refreshing the page.")); setState("none"); return; }
     const rows = (data || []) as EditorRow[];
     // Club patrons are linked via clubs.patron_user_id (not club_editors) —
     // include their clubs so patrons can manage social links in the studio.
@@ -437,7 +444,7 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
       .eq("club_id", clubId)
       .order("created_at", { ascending: false })
       .then(({ data, error: err }) => {
-        if (err) setError(err.message || "Could not load posts.");
+        if (err) setError(friendlyError(err, "Couldn't load posts. Try refreshing the page."));
         setPosts((data || []) as PostRow[]);
         setPostsLoading(false);
       });
@@ -448,7 +455,7 @@ function EditorWorkspace({ email, onSignOut }: { email: string; onSignOut: () =>
   const removePost = async (post: PostRow) => {
     if (!window.confirm("Delete this post? This cannot be undone.")) return;
     const { error: err } = await supabase.from("club_posts").delete().eq("id", post.id);
-    if (err) { setError(err.message || "Could not delete the post."); return; }
+    if (err) { setError(friendlyError(err, "Couldn't delete that post. Try again.")); return; }
     setPosts((p) => p.filter((x) => x.id !== post.id));
   };
 
@@ -629,23 +636,20 @@ function StudioSocialPanel({ clubId }: { clubId: string }) {
       platform,
       url: trimmed,
       sort_order: links.length + 1,
-    });
-    if (error) { setMsg({ text: error.message, kind: "err" }); return; }
+    });      if (error) { setMsg({ text: friendlyError(error, "Couldn't save that social link. Try again."), kind: "err" }); return; }
     setUrl("");
     setMsg({ text: "Added — it now shows on the club page", kind: "ok" });
     load();
   };
 
   const toggleActive = async (id: string, active: boolean) => {
-    const { error } = await supabase.from("social_links").update({ active: !active }).eq("id", id);
-    if (error) { setMsg({ text: error.message, kind: "err" }); return; }
+    const { error } = await supabase.from("social_links").update({ active: !active }).eq("id", id);      if (error) { setMsg({ text: friendlyError(error, "Couldn't save that social link. Try again."), kind: "err" }); return; }
     load();
   };
 
   const remove = async (id: string) => {
     if (!window.confirm("Remove this social link?")) return;
-    const { error } = await supabase.from("social_links").delete().eq("id", id);
-    if (error) { setMsg({ text: error.message, kind: "err" }); return; }
+    const { error } = await supabase.from("social_links").delete().eq("id", id);      if (error) { setMsg({ text: friendlyError(error, "Couldn't save that social link. Try again."), kind: "err" }); return; }
     load();
   };
 

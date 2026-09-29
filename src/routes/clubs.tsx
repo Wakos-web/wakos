@@ -3,28 +3,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { IMAGES } from '@/lib/content';
 import { usePageContent } from '@/hooks/usePageContent';
 import { supabase } from '@/lib/supabase';
-import campusImg from '@/assets/campus.jpg';
-import clubsHeroImg from '@/assets/clubs-hero.jpg';
-import athleticsImg from '@/assets/athletics.jpg';
-import studentLifeImg from '@/assets/student-life.jpg';
-import academicsImg from '@/assets/academics.jpg';
-import newsServiceImg from '@/assets/news-service.jpg';
-import givingImg from '@/assets/giving.jpg';
-import newsRoboticsImg from '@/assets/news-robotics.jpg';
-import newsBasketballImg from '@/assets/news-basketball.jpg';
-import newsGraduationImg from '@/assets/news-graduation.jpg';
 
 const CLUBS = [
-  { slug: 'wildlife', name: 'Wildlife Club', tagline: 'Protect. Observe. Conserve.', imgs: [campusImg, athleticsImg, newsServiceImg] },
-  { slug: 'arts-culture', name: 'Arts & Culture', tagline: 'Express. Create. Celebrate.', imgs: [studentLifeImg, campusImg, givingImg] },
-  { slug: 'scouts-guides', name: 'Scouts & Girl Guides', tagline: 'Prepared. Responsible. Service.', imgs: [givingImg, athleticsImg, newsServiceImg] },
-  { slug: 'agriculture', name: 'Agriculture Club', tagline: 'Grow. Learn. Sustain.', imgs: [campusImg, studentLifeImg, newsServiceImg] },
-  { slug: 'debate', name: 'Debate Club', tagline: 'Think. Argue. Persuade.', imgs: [academicsImg, campusImg, studentLifeImg] },
-  { slug: 'writers', name: 'Writers Club', tagline: 'Write. Read. Share.', imgs: [studentLifeImg, academicsImg, campusImg] },
-  { slug: 'red-cross', name: 'Red Cross Club', tagline: 'Care. Respond. Serve.', imgs: [givingImg, newsServiceImg, athleticsImg] },
-  { slug: 'entertainment', name: 'Entertainment Club', tagline: 'Perform. Inspire. Entertain.', imgs: [studentLifeImg, newsBasketballImg, campusImg] },
-  { slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.', imgs: [campusImg, givingImg, academicsImg] },
-  { slug: 'current-affairs', name: 'Current Affairs Club', tagline: 'Read. Discuss. Understand.', imgs: [academicsImg, newsGraduationImg, studentLifeImg] },
+  { slug: 'wildlife', name: 'Wildlife Club', tagline: 'Protect. Observe. Conserve.', imgs: [] as string[] },
+  { slug: 'arts-culture', name: 'Arts & Culture', tagline: 'Express. Create. Celebrate.', imgs: [] as string[] },
+  { slug: 'scouts-guides', name: 'Scouts & Girl Guides', tagline: 'Prepared. Responsible. Service.', imgs: [] as string[] },
+  { slug: 'agriculture', name: 'Agriculture Club', tagline: 'Grow. Learn. Sustain.', imgs: [] as string[] },
+  { slug: 'debate', name: 'Debate Club', tagline: 'Think. Argue. Persuade.', imgs: [] as string[] },
+  { slug: 'writers', name: 'Writers Club', tagline: 'Write. Read. Share.', imgs: [] as string[] },
+  { slug: 'red-cross', name: 'Red Cross Club', tagline: 'Care. Respond. Serve.', imgs: [] as string[] },
+  { slug: 'entertainment', name: 'Entertainment Club', tagline: 'Perform. Inspire. Entertain.', imgs: [] as string[] },
+  { slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.', imgs: [] as string[] },
+  { slug: 'current-affairs', name: 'Current Affairs Club', tagline: 'Read. Discuss. Understand.', imgs: [] as string[] },
 ];
 export const Route = createFileRoute('/clubs')({
   head: () => ({
@@ -38,7 +28,7 @@ function HeroSection({ img }: { img?: string }) {
   return (
     <section className='relative h-[50vh] min-h-[360px] flex items-end overflow-hidden'>
       <div className='absolute inset-0'>
-        <img src={img || clubsHeroImg} alt='WACOS clubs' className='h-full w-full object-cover object-center' />
+        <img src={img || IMAGES.campus} alt='WACOS clubs' className='h-full w-full object-cover object-[center_30%] md:object-center' />
         <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
       </div>
       <Link to='/clubs/editor' className='absolute top-5 right-5 z-20 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 px-4 py-1.5 text-xs font-medium text-white/85 hover:bg-black/60 hover:text-white transition-colors'>
@@ -51,31 +41,31 @@ function HeroSection({ img }: { img?: string }) {
     </section>
   );
 }
-const STUDENT_VOICES = [
+const FALLBACK_VOICES = [
   {
     name: 'Nadia M., S4',
     club: 'Wildlife Club',
     quote: 'I never thought I would enjoy camping until Wildlife Club took us to Murchison. Now I want to study conservation.',
     type: 'image' as const,
-    img: campusImg,
+    img: '',
   },
   {
     name: 'Brian K., S5',
     club: 'Debate Club',
     quote: 'Debate taught me to think before I speak. My teachers say I am a different student now.',
     type: 'video' as const,
-    img: academicsImg,
+    img: '',
   },
   {
     name: 'Sarah N., S3',
     club: 'Red Cross Club',
     quote: 'When we did the blood drive, I realised I could help save lives while still in school. That changed everything for me.',
     type: 'image' as const,
-    img: newsServiceImg,
+    img: '',
   },
 ];
 
-function ChatBubble({ voice, align }: { voice: typeof STUDENT_VOICES[0]; align: 'left' | 'right' }) {
+function ChatBubble({ voice, align }: { voice: typeof FALLBACK_VOICES[0]; align: 'left' | 'right' }) {
   const isRight = align === 'right';
   return (
     <div className={`flex ${isRight ? 'flex-row-reverse' : 'flex-row'} items-end gap-3 mb-4`}>
@@ -115,6 +105,8 @@ function ChatBubble({ voice, align }: { voice: typeof STUDENT_VOICES[0]; align: 
 }
 
 function ClubsOverview() {
+  const { content } = usePageContent('clubs');
+  const voices = content.voices?.voices || FALLBACK_VOICES;
   return (
     <section className='py-20 bg-stone-50'>
       <div className='max-w-6xl mx-auto px-6'>
@@ -133,9 +125,9 @@ function ClubsOverview() {
           {/* Right: Chat bubbles */}
           <div className='lg:sticky lg:top-24'>
             <p className='text-sm font-semibold text-green-800 uppercase tracking-widest mb-3'>Student Voices</p>
-            <h3 className='font-display text-xl text-stone-900 font-bold mb-6'>Hear from the students themselves</h3>
+            <h3 className='font-display text-xl text-stone-900 font-bold mb-6'>{content.voices?.subtitle || 'Hear from the students themselves'}</h3>
             <div className='space-y-2'>
-              {STUDENT_VOICES.map((voice, i) => (
+              {voices.map((voice: any, i: number) => (
                 <ChatBubble key={i} voice={voice} align={i % 2 === 0 ? 'left' : 'right'} />
               ))}
             </div>
@@ -225,7 +217,10 @@ function ClubsGrid() {
       if (data && data.length > 0) {
         const merged = data.map((db: any) => {
           const local = CLUBS.find(c => c.slug === db.slug);
-          return { slug: db.slug, name: db.name, tagline: db.tagline, imgs: local?.imgs || [campusImg, athleticsImg, givingImg] };
+          // Each club's own hero image (uploaded in the admin Clubs tab) leads
+          // the card; no bundled fallback — if no hero is set the card stays blank.
+          const hero = db.hero_image_url ? [db.hero_image_url] : [];
+          return { slug: db.slug, name: db.name, tagline: db.tagline, imgs: hero.length ? hero : (local?.imgs || []) };
         });
         setClubs(merged);
       }

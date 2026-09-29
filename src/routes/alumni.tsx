@@ -5,7 +5,9 @@ import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { staffPulseAccess, staffPulseSignOut } from "@/lib/alumni-staff";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
-import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, validateImage } from "@/lib/upload-guide";
+import { friendlyError } from "@/lib/friendly-error";
+import { IMAGE_ACCEPT } from "@/lib/upload-guide";
+import { prepareImageForUpload } from "@/lib/image-convert";
 import {
   Send, Calendar, BookOpen, Users, Heart, Award, Building2, Clock, ThumbsUp,
   MessageCircle, ChevronDown, ChevronUp, LogOut, UserCircle2, ImagePlus, Home,
@@ -187,7 +189,7 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login", onHold }: {
       setStep("code");
       return true;
     } catch (err: any) {
-      setError(err.message || "Could not send the code. Try again.");
+      setError(friendlyError(err, "Could not send the code. Try again."));
       return false;
     } finally {
       setBusy(false);
@@ -276,7 +278,7 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login", onHold }: {
       }
     } catch (err: any) {
       onHold?.(false);
-      setError(err.message || "That code didn't work. Try again.");
+      setError(friendlyError(err, "That code didn't work. Try again."));
     }
     setBusy(false);
   };
@@ -293,7 +295,7 @@ function OtpJoinFlow({ onDone, onClose, initialMode = "login", onHold }: {
       const p = pendingProfile || (await refreshProfile());
       onDone(p as Alumnus);
     } catch (err: any) {
-      setError(err?.message || "Could not set your password. Try again.");
+      setError(friendlyError(err, "Could not set your password. Try again."));
     }
     setBusy(false);
   };
@@ -507,14 +509,19 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
   const years = Array.from({ length: currentYear - 1952 }, (_, i) => currentYear - i);
   const avatarUrl = avatarPreview || alumnus?.avatar_url || null;
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Friendly guidance — reject bad photos here, not at the server.
-      const imgErr = validateImage(file);
-      if (imgErr) { setError(imgErr); e.target.value = ""; return; }
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+      // Friendly guidance — reject bad formats, convert TIFF, and auto-compress
+      // oversized photos before they reach the server.
+      try {
+        const prepared = await prepareImageForUpload(file);
+        setAvatarFile(prepared);
+        setAvatarPreview(URL.createObjectURL(prepared));
+      } catch (err: any) {
+        setError(err?.message || "That photo could not be processed.");
+        e.target.value = "";
+      }
     }
   };
 
@@ -599,7 +606,7 @@ function RegistrationForm({ alumnus, mode, onDone, onSignOut, lockedEmail, userI
       if (isEdit) await submitEdit();
       else await submitJoin();
     } catch (err: any) {
-      setError(err.message || (isEdit ? "Could not save your profile" : "Registration failed"));
+      setError(friendlyError(err, isEdit ? "Could not save your profile" : "Registration failed"));
     }
     setLoading(false);
   };
@@ -1111,7 +1118,7 @@ function ComposerBar({ alumnus, channelKey, sending, text, setText, onSend, onPi
             </button>
           </div>
         )}
-        <input type="file" accept="image/*" ref={fileRef} className="hidden"
+        <input type="file" accept={IMAGE_ACCEPT} ref={fileRef} className="hidden"
           onChange={e => onPickPhoto(e.target.files?.[0] || null)} />
         <button onClick={() => fileRef.current?.click()} className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors shrink-0" title="Attach a photo">
           <ImagePlus className="h-5 w-5" />
@@ -2115,7 +2122,15 @@ function AlumniPulsePage() {
         {/* Composer */}
         <ComposerBar alumnus={alumnus} channelKey={channel} sending={sending} text={composerText}
           setText={setComposerText} onSend={sendMessage}
-          onPickPhoto={(f) => { if (f) { const imgErr = validateImage(f); if (imgErr) { window.alert(imgErr); return; } } setComposerPhoto(f); setComposerPreview(f ? URL.createObjectURL(f) : null); }}
+          onPickPhoto={(f) => { void (async () => {
+            if (!f) { setComposerPhoto(null); setComposerPreview(null); return; }
+            // Same gates as the admin uploader: type-check, convert TIFF to
+            // JPEG, and auto-compress anything over 5 MB.
+            try {
+              const file = await prepareImageForUpload(f);
+              setComposerPhoto(file); setComposerPreview(URL.createObjectURL(file));
+            } catch (err: any) { window.alert(err?.message || "That photo could not be processed."); }
+          })(); }}
           photoPreview={composerPreview} onClearPhoto={() => { setComposerPhoto(null); setComposerPreview(null); }}
           onJoin={openJoin} onEditProfile={openEdit} />
       </section>

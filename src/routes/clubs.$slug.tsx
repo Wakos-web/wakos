@@ -4,16 +4,6 @@ import { IMAGES } from '@/lib/content';
 import { SocialLinksRow } from '@/components/social-links';
 import { Video, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import campusImg from '@/assets/campus.jpg';
-import athleticsImg from '@/assets/athletics.jpg';
-import studentLifeImg from '@/assets/student-life.jpg';
-import academicsImg from '@/assets/academics.jpg';
-import newsServiceImg from '@/assets/news-service.jpg';
-import givingImg from '@/assets/giving.jpg';
-import newsRoboticsImg from '@/assets/news-robotics.jpg';
-import newsBasketballImg from '@/assets/news-basketball.jpg';
-import newsGraduationImg from '@/assets/news-graduation.jpg';
-import heroImg from '@/assets/hero.jpg';
 
 function ClubApplicationForm({ club, slug }: { club: any; slug: string }) {
   const [showForm, setShowForm] = useState(false);
@@ -189,7 +179,7 @@ function MentorshipForm({ club, open, onClose }: { club: any; open: boolean; onC
   );
 }
 
-const AVATARS = [campusImg, athleticsImg, studentLifeImg, academicsImg, newsServiceImg, givingImg, newsRoboticsImg, newsBasketballImg, newsGraduationImg, heroImg];
+const AVATARS: string[] = [];
 
 type Person = { name: string; role: string; year?: string; joined?: string; img?: string };
 
@@ -198,12 +188,12 @@ const CLUBS = [
     slug: 'wildlife', name: 'Wildlife Club', tagline: 'Protect. Observe. Conserve.',
     overview: 'We connect students with Uganda\'s biodiversity. Every walk, every survey, every campaign is a lesson no textbook can teach. This is where future conservationists are made.',
     stats: { members: 45, events: 8, years: 15, alumni: 200 },
-    img: campusImg,
-    patron: { name: 'Mr. Moses Okello', role: 'Science Teacher', joined: '2018', img: academicsImg },
+   
+    patron: { name: 'Mr. Moses Okello', role: 'Science Teacher', joined: '2018' },
     executives: [
-      { name: 'Nadia M.', role: 'Chairperson', year: 'S4', joined: '2023', img: studentLifeImg },
-      { name: 'David K.', role: 'Vice Chair', year: 'S4', joined: '2023', img: athleticsImg },
-      { name: 'Sarah N.', role: 'Secretary', year: 'S3', joined: '2024', img: newsServiceImg },
+      { name: 'Nadia M.', role: 'Chairperson', year: 'S4', joined: '2023' },
+      { name: 'David K.', role: 'Vice Chair', year: 'S4', joined: '2023' },
+      { name: 'Sarah N.', role: 'Secretary', year: 'S3', joined: '2024' },
     ],
     members: [
       { name: 'Brian K.', year: 'S3', joined: '2024' }, { name: 'Ali M.', year: 'S2', joined: '2025' },
@@ -217,12 +207,12 @@ const CLUBS = [
     slug: 'arts-culture', name: 'Arts & Culture Club', tagline: 'Express. Create. Celebrate.',
     overview: 'We are the creative heartbeat of WACOS. Traditional dance, music, drama, visual arts, and cultural heritage live here. If you feel it, we help you express it.',
     stats: { members: 38, events: 12, years: 20, alumni: 350 },
-    img: studentLifeImg,
-    patron: { name: 'Ms. Florence Auma', role: 'Arts Teacher', joined: '2016', img: studentLifeImg },
+   
+    patron: { name: 'Ms. Florence Auma', role: 'Arts Teacher', joined: '2016' },
     executives: [
-      { name: 'Brian K.', role: 'Chairperson', year: 'S5', joined: '2022', img: academicsImg },
-      { name: 'Nadia M.', role: 'Drama Captain', year: 'S4', joined: '2023', img: campusImg },
-      { name: 'David O.', role: 'Music Director', year: 'S4', joined: '2023', img: athleticsImg },
+      { name: 'Brian K.', role: 'Chairperson', year: 'S5', joined: '2022' },
+      { name: 'Nadia M.', role: 'Drama Captain', year: 'S4', joined: '2023' },
+      { name: 'David O.', role: 'Music Director', year: 'S4', joined: '2023' },
     ],
     members: [
       { name: 'Sarah N.', year: 'S3', joined: '2024' }, { name: 'Ali M.', year: 'S2', joined: '2025' },
@@ -236,12 +226,12 @@ const CLUBS = [
     slug: 'scouts-guides', name: 'Scouts & Girl Guides', tagline: 'Prepared. Responsible. Service.',
     overview: 'Leadership, service, and resilience through structured outdoor programmes. We prepare students not just for exams, but for life.',
     stats: { members: 60, events: 10, years: 25, alumni: 500 },
-    img: givingImg,
-    patron: { name: 'Mr. Peter Wasswa', role: 'Senior Teacher', joined: '2015', img: athleticsImg },
+   
+    patron: { name: 'Mr. Peter Wasswa', role: 'Senior Teacher', joined: '2015' },
     executives: [
-      { name: 'Joseph W.', role: 'Scout Leader', year: 'S5', joined: '2022', img: campusImg },
-      { name: 'Brenda N.', role: 'Guide Captain', year: 'S5', joined: '2022', img: newsServiceImg },
-      { name: 'Ali M.', role: 'Secretary', year: 'S4', joined: '2023', img: academicsImg },
+      { name: 'Joseph W.', role: 'Scout Leader', year: 'S5', joined: '2022' },
+      { name: 'Brenda N.', role: 'Guide Captain', year: 'S5', joined: '2022' },
+      { name: 'Ali M.', role: 'Secretary', year: 'S4', joined: '2023' },
     ],
     members: [
       { name: 'Nadia M.', year: 'S4', joined: '2023' }, { name: 'Brian K.', year: 'S3', joined: '2024' },
@@ -255,12 +245,12 @@ const CLUBS = [
     slug: 'agriculture', name: 'Agriculture Club', tagline: 'Grow. Learn. Sustain.',
     overview: 'Running the school nursery and farm, we are central to the WACOS identity. Students grow seedlings from seed, manage crops, and feed the community. This is the motto in action.',
     stats: { members: 50, events: 6, years: 30, alumni: 600 },
-    img: campusImg,
-    patron: { name: 'Mr. James Okello', role: 'Agriculture Teacher', joined: '2017', img: athleticsImg },
+   
+    patron: { name: 'Mr. James Okello', role: 'Agriculture Teacher', joined: '2017' },
     executives: [
-      { name: 'Patrick I.', role: 'Chairperson', year: 'S5', joined: '2022', img: campusImg },
-      { name: 'Sarah K.', role: 'Secretary', year: 'S4', joined: '2023', img: newsServiceImg },
-      { name: 'Moses W.', role: 'Farm Manager', year: 'S4', joined: '2023', img: academicsImg },
+      { name: 'Patrick I.', role: 'Chairperson', year: 'S5', joined: '2022' },
+      { name: 'Sarah K.', role: 'Secretary', year: 'S4', joined: '2023' },
+      { name: 'Moses W.', role: 'Farm Manager', year: 'S4', joined: '2023' },
     ],
     members: [
       { name: 'Nadia M.', year: 'S4', joined: '2023' }, { name: 'Brian K.', year: 'S3', joined: '2024' },
@@ -274,12 +264,12 @@ const CLUBS = [
     slug: 'debate', name: 'Debate Club', tagline: 'Think. Argue. Persuade.',
     overview: 'Critical thinking and public speaking sharpened through research, argument construction, and competition. We produce lawyers, politicians, and leaders who can hold their own anywhere.',
     stats: { members: 35, events: 14, years: 18, alumni: 300 },
-    img: academicsImg,
-    patron: { name: 'Mr. Samuel Balikowa', role: 'History Teacher', joined: '2019', img: athleticsImg },
+   
+    patron: { name: 'Mr. Samuel Balikowa', role: 'History Teacher', joined: '2019' },
     executives: [
-      { name: 'Brian K.', role: 'Chairperson', year: 'S5', joined: '2022', img: academicsImg },
-      { name: 'Nadia M.', role: 'Vice Chair', year: 'S4', joined: '2023', img: campusImg },
-      { name: 'Sarah N.', role: 'Secretary', year: 'S4', joined: '2023', img: newsServiceImg },
+      { name: 'Brian K.', role: 'Chairperson', year: 'S5', joined: '2022' },
+      { name: 'Nadia M.', role: 'Vice Chair', year: 'S4', joined: '2023' },
+      { name: 'Sarah N.', role: 'Secretary', year: 'S4', joined: '2023' },
     ],
     members: [
       { name: 'David K.', year: 'S3', joined: '2024' }, { name: 'Ali M.', year: 'S2', joined: '2025' },
@@ -293,12 +283,12 @@ const CLUBS = [
     slug: 'writers', name: 'Writers Club', tagline: 'Write. Read. Share.',
     overview: 'A love of language nurtured through poetry, short stories, essays, and journalism. We publish. We perform. We find our voice.',
     stats: { members: 30, events: 8, years: 12, alumni: 180 },
-    img: studentLifeImg,
-    patron: { name: 'Ms. Janet Nakato', role: 'English Teacher', joined: '2020', img: studentLifeImg },
+   
+    patron: { name: 'Ms. Janet Nakato', role: 'English Teacher', joined: '2020' },
     executives: [
-      { name: 'Sarah N.', role: 'Editor-in-Chief', year: 'S4', joined: '2023', img: newsServiceImg },
-      { name: 'David O.', role: 'Chairperson', year: 'S4', joined: '2023', img: athleticsImg },
-      { name: 'Grace N.', role: 'Secretary', year: 'S3', joined: '2024', img: campusImg },
+      { name: 'Sarah N.', role: 'Editor-in-Chief', year: 'S4', joined: '2023' },
+      { name: 'David O.', role: 'Chairperson', year: 'S4', joined: '2023' },
+      { name: 'Grace N.', role: 'Secretary', year: 'S3', joined: '2024' },
     ],
     members: [
       { name: 'Nadia M.', year: 'S4', joined: '2023' }, { name: 'Brian K.', year: 'S3', joined: '2024' },
@@ -312,12 +302,12 @@ const CLUBS = [
     slug: 'red-cross', name: 'Red Cross Club', tagline: 'Care. Respond. Serve.',
     overview: 'Humanitarian service taught through first aid, disaster preparedness, and health education. We save lives before we leave school.',
     stats: { members: 55, events: 10, years: 22, alumni: 450 },
-    img: givingImg,
-    patron: { name: 'Sr. Grace Nakamya', role: 'School Nurse', joined: '2017', img: newsServiceImg },
+   
+    patron: { name: 'Sr. Grace Nakamya', role: 'School Nurse', joined: '2017' },
     executives: [
-      { name: 'Brenda N.', role: 'Chairperson', year: 'S5', joined: '2022', img: givingImg },
-      { name: 'Ali M.', role: 'Vice Chair', year: 'S4', joined: '2023', img: academicsImg },
-      { name: 'Grace N.', role: 'Secretary', year: 'S4', joined: '2023', img: campusImg },
+      { name: 'Brenda N.', role: 'Chairperson', year: 'S5', joined: '2022' },
+      { name: 'Ali M.', role: 'Vice Chair', year: 'S4', joined: '2023' },
+      { name: 'Grace N.', role: 'Secretary', year: 'S4', joined: '2023' },
     ],
     members: [
       { name: 'Nadia M.', year: 'S4', joined: '2023' }, { name: 'Brian K.', year: 'S3', joined: '2024' },
@@ -331,12 +321,12 @@ const CLUBS = [
     slug: 'entertainment', name: 'Entertainment Club', tagline: 'Perform. Inspire. Entertain.',
     overview: 'Where talent meets stage. Talent shows, music, comedy, cultural events. We plan it. We perform it. We own it.',
     stats: { members: 42, events: 15, years: 10, alumni: 250 },
-    img: studentLifeImg,
-    patron: { name: 'Mr. David Ssemwanga', role: 'Music Teacher', joined: '2021', img: athleticsImg },
+   
+    patron: { name: 'Mr. David Ssemwanga', role: 'Music Teacher', joined: '2021' },
     executives: [
-      { name: 'David O.', role: 'Chairperson', year: 'S5', joined: '2022', img: athleticsImg },
-      { name: 'Nadia M.', role: 'Events Coordinator', year: 'S4', joined: '2023', img: campusImg },
-      { name: 'Brian K.', role: 'MC Lead', year: 'S4', joined: '2023', img: academicsImg },
+      { name: 'David O.', role: 'Chairperson', year: 'S5', joined: '2022' },
+      { name: 'Nadia M.', role: 'Events Coordinator', year: 'S4', joined: '2023' },
+      { name: 'Brian K.', role: 'MC Lead', year: 'S4', joined: '2023' },
     ],
     members: [
       { name: 'Sarah N.', year: 'S3', joined: '2024' }, { name: 'Ali M.', year: 'S2', joined: '2025' },
@@ -350,12 +340,12 @@ const CLUBS = [
     slug: 'home-science', name: 'Home Science Club', tagline: 'Cook. Create. Care.',
     overview: 'Practical life skills that matter. Cooking, nutrition, textiles, household management. We learn what keeps families healthy and homes running.',
     stats: { members: 28, events: 8, years: 14, alumni: 220 },
-    img: campusImg,
-    patron: { name: 'Ms. Harriet Nabirye', role: 'Home Science Teacher', joined: '2019', img: studentLifeImg },
+   
+    patron: { name: 'Ms. Harriet Nabirye', role: 'Home Science Teacher', joined: '2019' },
     executives: [
-      { name: 'Sarah K.', role: 'Chairperson', year: 'S4', joined: '2023', img: newsServiceImg },
-      { name: 'Brenda N.', role: 'Secretary', year: 'S4', joined: '2023', img: givingImg },
-      { name: 'Grace N.', role: 'Treasurer', year: 'S3', joined: '2024', img: campusImg },
+      { name: 'Sarah K.', role: 'Chairperson', year: 'S4', joined: '2023' },
+      { name: 'Brenda N.', role: 'Secretary', year: 'S4', joined: '2023' },
+      { name: 'Grace N.', role: 'Treasurer', year: 'S3', joined: '2024' },
     ],
     members: [
       { name: 'Nadia M.', year: 'S4', joined: '2023' }, { name: 'Brian K.', year: 'S3', joined: '2024' },
@@ -369,12 +359,12 @@ const CLUBS = [
     slug: 'current-affairs', name: 'Current Affairs Club', tagline: 'Read. Discuss. Understand.',
     overview: 'National and global events discussed, debated, and understood. Politics, economics, science, social issues. We produce citizens who know what is happening and why it matters.',
     stats: { members: 32, events: 10, years: 8, alumni: 150 },
-    img: academicsImg,
-    patron: { name: 'Mr. Francis Mugalu', role: 'Social Studies Teacher', joined: '2020', img: athleticsImg },
+   
+    patron: { name: 'Mr. Francis Mugalu', role: 'Social Studies Teacher', joined: '2020' },
     executives: [
-      { name: 'Ali M.', role: 'Chairperson', year: 'S5', joined: '2022', img: academicsImg },
-      { name: 'Nadia M.', role: 'Research Lead', year: 'S4', joined: '2023', img: campusImg },
-      { name: 'Joseph W.', role: 'Secretary', year: 'S4', joined: '2023', img: athleticsImg },
+      { name: 'Ali M.', role: 'Chairperson', year: 'S5', joined: '2022' },
+      { name: 'Nadia M.', role: 'Research Lead', year: 'S4', joined: '2023' },
+      { name: 'Joseph W.', role: 'Secretary', year: 'S4', joined: '2023' },
     ],
     members: [
       { name: 'Brian K.', year: 'S3', joined: '2024' }, { name: 'David K.', year: 'S2', joined: '2025' },
@@ -600,7 +590,6 @@ function ClubDetailPage() {
   const club = dbClub ? {
     ...localClub,
     ...dbClub,
-    img: localClub?.img || campusImg,
     stats: { members: dbClub.members_count || 0, events: dbClub.events_count || 0, years: dbClub.years_active || 0, alumni: dbClub.alumni_count || 0 },
     patron: dbMembers.find((m: any) => m.role === 'Patron') || localClub?.patron || null,
     executives: dbMembers.filter((m: any) => m.role !== 'Patron' && m.role !== 'Member').slice(0, 3),

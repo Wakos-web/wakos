@@ -3,7 +3,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
-import { IMAGE_ACCEPT, validateImage } from "@/lib/upload-guide";
+import { friendlyError } from "@/lib/friendly-error";
+import { IMAGE_ACCEPT } from "@/lib/upload-guide";
+import { prepareImageForUpload } from "@/lib/image-convert";
 
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
 import { ArrowLeft, Plus, Trash2, Building2, CheckCircle, Clock } from "lucide-react";
@@ -137,7 +139,7 @@ function ClaimContent() {
       setSuccess("Profile saved! It will appear in the directory after admin approval.");
       setEditing(false);
     } catch (err: any) {
-      setError(err.message || "Save failed");
+      setError(friendlyError(err, "Couldn't save your profile. Please try again."));
     }
     setLoading(false);
   };
@@ -186,7 +188,7 @@ function ClaimContent() {
       await fetchBusinesses();
       setSuccess("Business submitted for approval!");
     } catch (err: any) {
-      setError(err.message || "Failed to add business");
+      setError(friendlyError(err, "Couldn't add your business. Please try again."));
     }
     setLoading(false);
   };
@@ -315,7 +317,7 @@ function ClaimContent() {
                   <label className="min-w-0 flex-1 basis-full sm:basis-1/2 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-4 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
                     {avatar ? avatar.name : "Choose a photo"}
-                    <input type="file" accept={IMAGE_ACCEPT} onChange={(e) => { const f = e.target.files?.[0]; if (f) { const imgErr = validateImage(f); if (imgErr) { window.alert(imgErr); e.target.value = ""; return; } setAvatar(f); setAvatarPreview(URL.createObjectURL(f)); } }} className="hidden" />
+                    <input type="file" accept={IMAGE_ACCEPT} onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; void (async () => { try { const file = await prepareImageForUpload(f); setAvatar(file); setAvatarPreview(URL.createObjectURL(file)); } catch (err) { window.alert((err as any)?.message || "That photo could not be processed."); e.target.value = ""; } })(); }} className="hidden" />
                   </label>
                   {avatarPreview && <img src={avatarPreview} alt="" className="h-16 w-16 rounded-full object-cover" />}
                 </div>
@@ -409,7 +411,7 @@ function ClaimContent() {
                     <label className="min-w-0 flex-1 basis-full sm:basis-1/2 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-3 text-sm text-stone-500 hover:border-green-800 hover:text-green-800 transition-colors cursor-pointer">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
                       {bizLogo ? bizLogo.name : "Logo (optional)"}
-                      <input type="file" accept={IMAGE_ACCEPT} onChange={(e) => { const f = e.target.files?.[0]; if (f) { const imgErr = validateImage(f); if (imgErr) { window.alert(imgErr); e.target.value = ""; return; } setBizLogo(f); setBizLogoPreview(URL.createObjectURL(f)); } }} className="hidden" />
+                      <input type="file" accept={IMAGE_ACCEPT} onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; void (async () => { try { const file = await prepareImageForUpload(f); setBizLogo(file); setBizLogoPreview(URL.createObjectURL(file)); } catch (err) { window.alert((err as any)?.message || "That photo could not be processed."); e.target.value = ""; } })(); }} className="hidden" />
                     </label>
                     {bizLogoPreview && <img src={bizLogoPreview} alt="" className="h-12 w-12 rounded-xl object-cover" />}
                   </div>

@@ -2,8 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { notifyAlumniApprover } from "@/lib/alumni-notify";
+import { friendlyError } from "@/lib/friendly-error";
 import { useOtpResend } from "@/hooks/useOtpResend";
-import { IMAGE_ACCEPT, validateImage } from "@/lib/upload-guide";
+import { IMAGE_ACCEPT } from "@/lib/upload-guide";
+import { prepareImageForUpload } from "@/lib/image-convert";
 import {
   ArrowLeft, Mail, Send, ShieldCheck, Building2, ImagePlus, GraduationCap,
   CheckCircle2, Loader2, KeyRound, Store,
@@ -37,6 +39,7 @@ async function uploadToBucket(bucket: string, folder: string, file: File): Promi
 
 type BusProfile = {
   id: string;
+  user_id?: string | null;
   full_name: string;
   email: string;
   graduation_year: number | null;
@@ -137,7 +140,7 @@ function RegisterBusinessPage() {
       setSentTo(em);
       setStep("verify");
     } catch (e: any) {
-      setError(e?.message || "Could not send the code. Try again.");
+      setError(friendlyError(e, "Could not send the code. Try again."));
     } finally {
       setBusy(false);
     }
@@ -183,6 +186,18 @@ function RegisterBusinessPage() {
         notifyAlumniApprover({ data: { kind: "registration", submissionId: profile.id, accessToken: token } })
           .then(() => {}).catch(() => {});
       } catch { /* never block on the notification */ }
+    } else if (profile.user_id !== uid) {
+      // Returning alumnus whose profile predates this auth account (user_id
+      // null or stale): link it to the just-verified auth user. Without this
+      // the business insert below fails RLS on RETURNING
+      // (own_select_businesses requires owner profile.user_id = auth.uid())
+      // and the whole registration rolls back.
+      const { error: linkErr } = await supabase
+        .from("alumni_profiles")
+        .update({ user_id: uid })
+        .eq("id", profile.id);
+      if (linkErr) throw linkErr;
+      profile = { ...profile, user_id: uid };
     }
 
     const { data: biz, error: bErr } = await supabase
@@ -233,7 +248,7 @@ function RegisterBusinessPage() {
       // the unique email index from migration 025).
       const { data: existing, error: lookErr } = await supabase
         .from("alumni_profiles")
-        .select("id, full_name, email, graduation_year, approved")
+        .select("id, full_name, email, graduation_year, approved, user_id")
         .ilike("email", email.trim())
         .maybeSingle();
       if (lookErr) {
@@ -265,7 +280,7 @@ function RegisterBusinessPage() {
 
       await resendCode();
     } catch (e: any) {
-      setError(e?.message || "Could not start your registration.");
+      setError(friendlyError(e, "Could not start your registration."));
     } finally {
       setBusy(false);
     }
@@ -288,7 +303,7 @@ function RegisterBusinessPage() {
         setStep("password");
       }
     } catch (e: any) {
-      setError(e?.message || "That code did not work. Check it and try again.");
+      setError(friendlyError(e, "That code did not work. Check it and try again."));
     } finally {
       setBusy(false);
     }
@@ -305,20 +320,25 @@ function RegisterBusinessPage() {
       await createAccounts(null);
       setDone(true);
     } catch (e: any) {
-      setError(e?.message || "Could not set your password. Try again.");
+      setError(friendlyError(e, "Could not set your password. Try again."));
     } finally {
       setBusy(false);
     }
   };
 
-  const filePick = (e: React.ChangeEvent<HTMLInputElement>, setFile: (f: File | null) => void, setPreview: (v: string | null) => void) => {
+  const filePick = async (e: React.ChangeEvent<HTMLInputElement>, setFile: (f: File | null) => void, setPreview: (v: string | null) => void) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    // Friendly guidance — bad photos are rejected here, not at the server.
-    const imgErr = validateImage(f);
-    if (imgErr) { window.alert(imgErr); e.target.value = ""; return; }
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    // Friendly guidance — bad formats are rejected, TIFF is auto-converted to
+    // JPEG, and oversized photos are compressed before they hit the bucket.
+    try {
+      const file = await prepareImageForUpload(f);
+      setFile(file);
+      setPreview(URL.createObjectURL(file));
+    } catch (err: any) {
+      window.alert(err?.message || "That photo could not be processed.");
+      e.target.value = "";
+    }
   };
 
   /* ---------------------------------------------------------------- */
