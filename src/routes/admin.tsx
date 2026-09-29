@@ -22,6 +22,8 @@ import {
   ExternalLink, LayoutGrid, Inbox, Newspaper, AlertTriangle
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
+import { askConfirm, ConfirmDialog } from "@/components/confirm-dialog";
+import { ActionBtn } from "@/components/action-button";
 
 /**
  * Scroll the viewport to the tab's edit/add form so the user never has to hunt
@@ -33,27 +35,6 @@ function scrollToEditForm() {
     const el = document.querySelector(".admin-edit-form");
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 120);
-}
-
-/** Small labeled action button — replaces icon-only buttons so touch users and
- *  newcomers can see what each action does without guessing from tooltips. */
-function ActionBtn({ onClick, icon: Icon, label, tone = "default", disabled }: {
-  onClick: () => void; icon: any; label: string; tone?: "default" | "edit" | "danger" | "publish" | "unpublish"; disabled?: boolean;
-}) {
-  const tones: Record<string, string> = {
-    default: "border-stone-200 text-stone-600 hover:bg-stone-50",
-    edit: "border-blue-200 text-blue-700 hover:bg-blue-50",
-    danger: "border-red-200 text-red-600 hover:bg-red-50",
-    publish: "border-green-200 text-green-700 hover:bg-green-50",
-    unpublish: "border-amber-200 text-amber-700 hover:bg-amber-50",
-  };
-  return (
-    <button onClick={onClick} disabled={disabled} title={label} aria-label={label}
-      className={`inline-flex items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${tones[tone]}`}>
-      <Icon className="h-3.5 w-3.5" />
-      <span className="hidden lg:inline">{label}</span>
-    </button>
-  );
 }
 
 /** One row in the desktop grouped sidebar. */
@@ -117,6 +98,20 @@ const TAB_HELP: Partial<Record<Tab, string>> = {
   settings: "Update school-wide site settings like contact details and map coordinates.",    staff: "Invite staff by email, assign roles (super admin, admin, club patron, alumni patron), resend invite codes and revoke access.",
 };
 
+/** Friendly relative time for the activity feed. */
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  if (s < 604800) return Math.floor(s / 86400) + "d ago";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** One row in the Overview activity feed: what changed, where it lives, when. */
+type ActivityEntry = { key: string; tab: Tab; icon: any; label: string; who: string | null; at: string; atMs: number; verb: string };
+
 /* ------------------------------------------------------------------ */
 /* Grouped navigation model. Every tab belongs to exactly one group;   */
 /* desktop (sidebar) and mobile ("More" sheet) both render from this   */
@@ -160,50 +155,6 @@ function tabMeta(key: Tab): { label: string; icon: any } {
   };
   return meta[key] || { label: key, icon: LayoutGrid };
 }
-
-/* ------------------------------------------------------------------ */
-/* In-app replacement for window.confirm(). Native dialogs look alien, */
-/* are easily mis-clicked on touch screens and cannot be restyled.     */
-/* ------------------------------------------------------------------ */
-type ConfirmRequest = { message: string; confirmLabel?: string; danger?: boolean; resolve: (ok: boolean) => void };
-
-// Module-level bridge: AdminPage mounts the dialog and registers its state
-// setter here, so every tab component can `await askConfirm(...)` without
-// prop-threading through 12 components.
-let askConfirmImpl: ((req: ConfirmRequest) => void) | null = null;
-function askConfirm(message: string, opts?: { confirmLabel?: string; danger?: boolean }): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (askConfirmImpl) askConfirmImpl({ message, resolve, ...opts });
-    else resolve(window.confirm(message)); // fallback if dialog not mounted
-  });
-}
-
-function ConfirmDialog({ request, onClose }: { request: ConfirmRequest | null; onClose: () => void }) {
-  if (!request) return null;
-  const finish = (ok: boolean) => { onClose(); request.resolve(ok); };
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className={`h-10 w-10 rounded-full flex items-center justify-center mb-4 ${request.danger ? "bg-red-50" : "bg-stone-100"}`}>
-          <AlertTriangle className={`h-5 w-5 ${request.danger ? "text-red-600" : "text-stone-500"}`} />
-        </div>
-        <p className="text-sm text-stone-700 mb-5 whitespace-pre-line">{request.message}</p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => finish(true)}
-            className={`flex-1 py-2.5 rounded-xl font-semibold text-sm text-white transition-colors ${request.danger ? "bg-red-600 hover:bg-red-700" : "bg-green-800 hover:bg-green-900"}`}
-          >
-            {request.confirmLabel || "Confirm"}
-          </button>
-          <button onClick={() => finish(false)} className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-sm transition-colors">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 
 
 export const Route = createFileRoute("/admin")({
@@ -701,8 +652,8 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
 /* role can actually use (the proxy enforces the same limits server-side). */
 /* ------------------------------------------------------------------ */
 function OverviewView({
-  stats, roles, onNavigate, pending, visible,
-}: { stats: Record<string, number>; roles: string[]; onNavigate: (t: Tab) => void; pending: { label: string; tab: Tab; count: number; hint?: string }[]; visible: string[] }) {
+  stats, roles, onNavigate, pending, visible, activity,
+}: { stats: Record<string, number>; roles: string[]; onNavigate: (t: Tab) => void; pending: { label: string; tab: Tab; count: number; hint?: string }[]; visible: string[]; activity: ActivityEntry[] }) {
   const isSuper = roles.includes("super_admin");
   const isFull = isSuper || roles.includes("admin");
   const isClubPatron = roles.includes("club_patron") && !isFull;
@@ -753,6 +704,43 @@ function OverviewView({
           <p className="text-sm text-stone-500">Submissions to review, gifts to reconcile and new inquiries will appear here as they arrive.</p>
         )}
       </div>
+
+      {/* Recently updated: what colleagues changed, newest first — answers
+          "what's new since I was last here?" and teaches where things live. */}
+      {activity.length > 0 && (
+        <div className="rounded-2xl bg-white border border-stone-200 p-5 mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display text-lg font-bold text-stone-900 inline-flex items-center gap-2">
+              <Clock className="h-5 w-5 text-green-800" /> Recently updated
+            </h3>
+            <span className="text-xs text-stone-400">latest {activity.length}</span>
+          </div>
+          <ul className="divide-y divide-stone-100">
+            {activity.filter((a) => visible.includes(a.tab)).map((a) => {
+              const Icon = a.icon;
+              const verbCap = a.verb.charAt(0).toUpperCase() + a.verb.slice(1);
+              return (
+                <li key={a.key}>
+                  <button onClick={() => onNavigate(a.tab)} className="w-full flex items-center gap-3 py-2.5 text-left hover:bg-stone-50 rounded-lg px-2 -mx-2 transition-colors">
+                    <span className="h-8 w-8 rounded-lg bg-stone-100 flex items-center justify-center shrink-0">
+                      <Icon className="h-4 w-4 text-stone-500" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm text-stone-800 truncate">
+                        <span className="font-semibold">{a.who ? a.who : verbCap}</span>
+                        {a.who && <span className="text-stone-500"> {a.verb}</span>}
+                        <span className="font-medium text-stone-800"> · {a.label}</span>
+                      </span>
+                      <span className="block text-xs text-stone-400">{timeAgo(a.at)}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-stone-300 shrink-0" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
         <StatCard icon={LayoutDashboard} label="Total Clubs" value={stats.clubs ?? 0} color="bg-green-800" />
@@ -4436,16 +4424,13 @@ function AdminPage() {
   const [noteComments, setNoteComments] = useState<any[]>([]);
   const [rsvps, setRsvps] = useState<any[]>([]);
   const [mwosaLinks, setMwosaLinks] = useState<any[]>([]);
+  // Overview activity feed: review trail + recently updated content.
+  const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  // In-app confirm dialog state (replaces window.confirm everywhere).
-  const [confirmReq, setConfirmReq] = useState<ConfirmRequest | null>(null);
-  useEffect(() => {
-    askConfirmImpl = setConfirmReq;
-    return () => { askConfirmImpl = null; };
-  }, []);
+  // In-app confirm dialog renders via the shared self-registering <ConfirmDialog />.
   // Deep-linkable tabs: /admin?tab=pages opens straight on Page Content, so
   // staff can bookmark or share "go fix the homepage hero" links.
   const search = Route.useSearch() as { tab?: string };
@@ -4472,7 +4457,7 @@ function AdminPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes, commentsRes, rsvpsRes, mwosaRes] = await Promise.all([
+    const [clubsRes, membersRes, eventsRes, notesRes, inqRes, bizRes, alumniRes, articlesRes, pagesRes, appsRes, mentRes, donRes, schRes, commentsRes, rsvpsRes, mwosaRes, postsTrailRes, pcRecentRes, artRecentRes, clubsRecentRes, alumniRecentRes, bizRecentRes] = await Promise.all([
       supabase.from("clubs").select("*"),
       supabase.from("club_members").select("*"),
       supabase.from("events").select("*").order("created_at", { ascending: false }),
@@ -4489,6 +4474,16 @@ function AdminPage() {
       supabase.from("note_comments").select("*").order("created_at", { ascending: false }),
       supabase.from("event_rsvps").select("*, alumni_profiles(id, full_name, graduation_year, profession, current_location, avatar_url, email), events(id, title, event_date, location, category, approved)"),
       supabase.from("mwosa_links").select("*").order("sort_order", { ascending: true }),
+      // Activity-feed sources: the review trail (real attribution: who reviewed
+      // or submitted club stories) and a bounded slice of every CMS/content
+      // table that carries updated_at. Supabase can't order by greatest of two
+      // timestamps, so we fetch enough recent-by-one-key rows and sort in code.
+      supabase.from("club_posts").select("id, title, status, editor_name, reviewed_by, reviewed_at, created_at, club_id, clubs(name)").order("reviewed_at", { ascending: false, nullsFirst: false }).limit(30),
+      supabase.from("page_content").select("id, page, section, title, updated_at, created_at").order("updated_at", { ascending: false }).limit(10),
+      supabase.from("articles").select("id, title, updated_at, created_at").order("updated_at", { ascending: false }).limit(8),
+      supabase.from("clubs").select("id, name, updated_at, created_at").order("updated_at", { ascending: false }).limit(6),
+      supabase.from("alumni_profiles").select("id, full_name, updated_at, created_at").order("updated_at", { ascending: false }).limit(6),
+      supabase.from("alumni_businesses").select("id, name, updated_at, created_at").order("updated_at", { ascending: false }).limit(5),
     ]);
 
     const c = clubsRes.data || [];
@@ -4536,6 +4531,60 @@ function AdminPage() {
       clubPosts: postCount || 0,
       articles: art.length,
     });
+
+    // ---- Recently updated feed (Overview) ------------------------------
+    // Merge review-trail events (which carry real attribution) with the most
+    // recently updated rows of every CMS/content table, newest first.
+    const act: ActivityEntry[] = [];
+    (postsTrailRes.data || []).forEach((p: any) => {
+      const club = p.clubs?.name ? p.clubs.name + " — " : "";
+      if (p.reviewed_at) {
+        act.push({
+          key: "rev-" + p.id,
+          tab: "clubs",
+          icon: PenSquare,
+          label: club + (p.title || "Untitled story"),
+          who: p.reviewed_by || null,
+          at: p.reviewed_at,
+          atMs: new Date(p.reviewed_at).getTime(),
+          verb: p.status === "published" ? "approved story" : p.status === "rejected" ? "sent back story" : "reviewed story",
+        });
+      } else if (p.created_at) {
+        act.push({
+          key: "sub-" + p.id,
+          tab: "clubs",
+          icon: PenSquare,
+          label: club + (p.title || "Untitled story"),
+          who: p.editor_name || null,
+          at: p.created_at,
+          atMs: new Date(p.created_at).getTime(),
+          verb: "submitted a story",
+        });
+      }
+    });
+    (pcRecentRes.data || []).forEach((r: any) => {
+      const created = !r.updated_at || new Date(r.updated_at).getTime() - new Date(r.created_at).getTime() < 5000;
+      act.push({ key: "pc-" + r.id, tab: "pages", icon: FileText, label: (r.title || r.section || "Section") + " · " + (PAGE_NAMES[r.page] || r.page || ""), who: null, at: r.updated_at || r.created_at, atMs: new Date(r.updated_at || r.created_at).getTime(), verb: created ? "added page section" : "edited page section" });
+    });
+    (artRecentRes.data || []).forEach((r: any) => {
+      const created = !r.updated_at || new Date(r.updated_at).getTime() - new Date(r.created_at).getTime() < 5000;
+      act.push({ key: "art-" + r.id, tab: "articles", icon: Megaphone, label: r.title || "Untitled article", who: null, at: r.updated_at || r.created_at, atMs: new Date(r.updated_at || r.created_at).getTime(), verb: created ? "published article" : "edited article" });
+    });
+    (clubsRecentRes.data || []).forEach((r: any) => {
+      const created = !r.updated_at || new Date(r.updated_at).getTime() - new Date(r.created_at).getTime() < 5000;
+      act.push({ key: "clb-" + r.id, tab: "clubs", icon: Users, label: r.name || "Club", who: null, at: r.updated_at || r.created_at, atMs: new Date(r.updated_at || r.created_at).getTime(), verb: created ? "created club" : "updated club" });
+    });
+    (alumniRecentRes.data || []).forEach((r: any) => {
+      const created = !r.updated_at || new Date(r.updated_at).getTime() - new Date(r.created_at).getTime() < 5000;
+      act.push({ key: "al-" + r.id, tab: "alumni", icon: GraduationCap, label: r.full_name || "Alumnus", who: null, at: r.updated_at || r.created_at, atMs: new Date(r.updated_at || r.created_at).getTime(), verb: created ? "joined directory" : "updated profile" });
+    });
+    (bizRecentRes.data || []).forEach((r: any) => {
+      const created = !r.updated_at || new Date(r.updated_at).getTime() - new Date(r.created_at).getTime() < 5000;
+      act.push({ key: "biz-" + r.id, tab: "businesses", icon: Building2, label: r.name || "Business", who: null, at: r.updated_at || r.created_at, atMs: new Date(r.updated_at || r.created_at).getTime(), verb: created ? "listed business" : "updated listing" });
+    });
+    act.sort((x, y) => y.atMs - x.atMs);
+    setRecentActivity(act.slice(0, 12));
+
     setLoading(false);
   };
 
@@ -4641,7 +4690,7 @@ function AdminPage() {
   return (
     <div className="min-h-screen bg-stone-50">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      <ConfirmDialog request={confirmReq} onClose={() => setConfirmReq(null)} />
+      <ConfirmDialog />
       {/* Header (desktop) */}
       {!isMobile && (
       <div className="bg-white border-b border-stone-200">
@@ -4760,6 +4809,7 @@ function AdminPage() {
                 stats={stats}
                 roles={sessionRoles}
                 visible={[...visibleTabs]}
+                activity={recentActivity}
                 onNavigate={(k) => setTab(k)}
                 pending={[
                   { label: "Club applications", tab: "applications", count: applications.filter((a: any) => a.status === "pending").length, hint: "Students asking to join clubs" },
