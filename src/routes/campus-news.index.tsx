@@ -80,7 +80,9 @@ function BlogGrid() {
           {articles.map((article) => (
             <Link key={article.slug} to="/campus-news/$slug" params={{ slug: article.slug }} className="group">
               <div className="overflow-hidden rounded-2xl">
-                <img src={article.image} alt={article.title} className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                {article.image && (
+                  <img src={article.image} alt={article.title} className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                )}
               </div>
               <div className="mt-4">
                 <div className="flex items-center gap-2 mb-2">

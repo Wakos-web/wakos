@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { ARTICLES } from "@/lib/content";
+import { ARTICLES, IMAGES } from "@/lib/content";
 import { ArrowLeft, Calendar, Tag, Clock, Share2, Bookmark, Eye, User } from "lucide-react";
 
 export const Route = createFileRoute("/campus-news/$slug")({
@@ -109,7 +109,7 @@ function ArticlePage() {
       {/* Hero Section */}
       <section className="relative h-[60vh] min-h-[400px] flex items-end overflow-hidden">
         <img 
-          src={article.image} 
+          src={article.image || IMAGES.hero} 
           alt={article.title} 
           className="absolute inset-0 h-full w-full object-cover" 
         />
