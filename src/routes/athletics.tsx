@@ -43,7 +43,7 @@ function HeroSection({ desc, img }: { desc: string; img?: string }) {
   return (
     <section className="relative h-[60vh] min-h-[420px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src={img || IMAGES.athletics} alt="WACOS athletes in action" className="h-full w-full object-cover object-center" />
+        <img src={img || IMAGES.athletics} alt="WACOS athletes in action" className="h-full w-full object-cover object-[center_30%] md:object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">

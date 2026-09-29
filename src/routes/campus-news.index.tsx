@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { IMAGES, ARTICLES } from "@/lib/content";
+import { usePageContent } from "@/hooks/usePageContent";
 
 export const Route = createFileRoute("/campus-news/")({
   head: () => ({
@@ -11,11 +12,11 @@ export const Route = createFileRoute("/campus-news/")({
   component: CampusNewsPage,
 });
 
-function HeroSection() {
+function HeroSection({ img }: { img?: string }) {
   return (
     <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src={IMAGES.studentLife} alt="Campus news" className="h-full w-full object-cover object-center" />
+        <img src={img || "https://cykaheepeqcgmveckuru.supabase.co/storage/v1/object/public/uploads/gallery/all-students-pause.jpg"} alt="Campus news" className="h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
@@ -98,9 +99,10 @@ function BlogGrid() {
 }
 
 function CampusNewsPage() {
+  const { content } = usePageContent("campus-news");
   return (
     <div>
-      <HeroSection />
+      <HeroSection img={content.hero?.heroImage} />
       <BlogGrid />
     </div>
   );

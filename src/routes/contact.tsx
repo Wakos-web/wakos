@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { usePageContent } from "@/hooks/usePageContent";
 import { IMAGES } from "@/lib/content";
 import { Mail, Phone, MapPin } from "lucide-react";
 
@@ -11,11 +12,12 @@ export const Route = createFileRoute("/contact")({
 });
 
 function ContactPage() {
+  const { content } = usePageContent("contact");
   return (
     <div>
       <section className="relative h-[40vh] min-h-[280px] flex items-end overflow-hidden">
         <div className="absolute inset-0">
-          <img src={IMAGES.campus} alt="WACOS campus" className="h-full w-full object-cover object-center" />
+          <img src={content.hero?.heroImage || IMAGES.campus} alt="WACOS campus" className="h-full w-full object-cover object-center" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         </div>
         <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-12">

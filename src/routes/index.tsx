@@ -15,12 +15,6 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS, DEFAULT_STATS, getSettings } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
-import newsRobotics from "@/assets/news-robotics.jpg";
-import newsBasketball from "@/assets/news-basketball.jpg";
-import newsService from "@/assets/news-service.jpg";
-import newsGraduation from "@/assets/news-graduation.jpg";
-import scholarshipHero from "@/assets/scholarship-hero.jpg";
-import ourMission from "@/assets/ourmission.jpg";
 import { JournalGallery } from "@/components/journal-gallery";
 import { usePageContent } from "@/hooks/usePageContent";
 
@@ -192,10 +186,10 @@ const CAMPUS_IMAGES = [
   { src: IMAGES.athletics, alt: "WACOS athletes", caption: "Busoga Champions in football" },
   { src: IMAGES.studentLife, alt: "Student life at WACOS", caption: "Boarding life, second family" },
   { src: IMAGES.giving, alt: "Alumni gathering", caption: "Old students return every October" },
-  { src: newsRobotics, alt: "Science Club at national fair", caption: "2nd at National Science Fair" },
-  { src: newsBasketball, alt: "Football championship", caption: "Busoga Schools Champions" },
-  { src: newsService, alt: "Community outreach", caption: "4,000 seedlings in one Saturday" },
-  { src: newsGraduation, alt: "Class of 2026", caption: "312 candidates sent off" },
+  { src: "", alt: "Science Club at national fair", caption: "2nd at National Science Fair" },
+  { src: "", alt: "Football championship", caption: "Busoga Schools Champions" },
+  { src: "", alt: "Community outreach", caption: "4,000 seedlings in one Saturday" },
+  { src: "", alt: "Class of 2026", caption: "312 candidates sent off" },
 ];
 function CampusCarousel() {
   // "Life at WACOS" gallery images come from the CMS (Admin > Page Content >
@@ -336,7 +330,7 @@ function MissionSection() {
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
         <div className="overflow-hidden rounded-[2rem]">
           <img
-            src={ourMission}
+            src={""}
             alt="M.M College Wairaka mission"
             width={1600}
             height={900}
@@ -380,7 +374,7 @@ function GivingCta() {
   return (
     <section className="relative overflow-hidden">
       <img
-        src={scholarshipHero}
+        src={""}
         alt="WACOS scholarship students"
         width={1200}
         height={800}

@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { IMAGES, SCHOOL_NAME } from "@/lib/content";
+import { usePageContent } from "@/hooks/usePageContent";
+import { friendlyError } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/admissions")({
   head: () => ({
@@ -31,11 +33,11 @@ const FAQ = [
   { q: "Are there bursaries?", a: "Yes. Bursaries are awarded competitively at the end of each term based on examination results. They are funded primarily by alumni through the Wairaka Trust Fund. Top-performing students in financial need are selected for fee and boarding support the following term. Contact the college for details." },
   { q: "What subjects are offered?", a: "O-Level students study both Arts and Science subjects. A-Level students select subject combinations under Arts or Sciences, taking three essential subjects plus two subsidiary subjects." },
   { q: "Is the school a UNEB centre?", a: "Yes. M.M College Wairaka is a UNEB examination centre for both UCE (O-Level) and UACE (A-Level) examinations." },
-];function HeroSection() {
+];function HeroSection({ img }: { img?: string }) {
   return (
     <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src={IMAGES.hero} alt="WACOS admissions" className="h-full w-full object-cover object-center" />
+        <img src={img || IMAGES.hero} alt="WACOS admissions" className="h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
@@ -130,7 +132,7 @@ const FAQ = [
       setSuccess(true);
       setStudentName(""); setParentName(""); setPhone(""); setEmail(""); setCurrentSchool(""); setLevel(""); setMessage("");
     } catch (err: any) {
-      setError(err.message || "Submission failed");
+      setError(friendlyError(err, "We couldn't send your inquiry. Please try again."));
     }
     setLoading(false);
   };
@@ -248,9 +250,10 @@ function CTASection() {
 }
 
 function AdmissionsPage() {
+  const { content } = usePageContent("admissions");
   return (
     <div>
-      <HeroSection />
+      <HeroSection img={content.hero?.heroImage} />
       <HowToApply />
       <ScholarshipsSection />
       <InquiryForm />

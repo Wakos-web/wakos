@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { IMAGES } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
 import { usePageContent } from "@/hooks/usePageContent";
+import { friendlyError } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/giving")({
   head: () => ({
@@ -67,7 +68,7 @@ function HeroSection({ desc, img }: { desc: string; img?: string }) {
   return (
     <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
       <div className="absolute inset-0">
-        <img src={img || IMAGES.giving} alt="Giving to WACOS" className="h-full w-full object-cover object-center" />
+        <img src={img || IMAGES.giving} alt="Giving to WACOS" className="h-full w-full object-cover object-[center_30%] md:object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16">
@@ -294,7 +295,7 @@ function ThankYouForm({ ways }: { ways: GivingWay[] }) {
       status: "received",
     });
     setSaving(false);
-    if (insertError) { setError(insertError.message || "Could not record your gift. Try again."); return; }
+    if (insertError) { setError(friendlyError(insertError, "We couldn't record your gift just now. Please try again.")); return; }
     setSubmitted(true);
   };
 
@@ -305,7 +306,7 @@ function ThankYouForm({ ways }: { ways: GivingWay[] }) {
         src="/hero-poster.png"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.1]"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_30%] md:object-center opacity-[0.1]"
       />
       <div className="relative max-w-4xl mx-auto px-6">
         {!submitted ? (
