@@ -25,6 +25,7 @@ dist-ssr
 
 # Source assets (not part of the site)
 mm college/
+students images/
 
 # Editor directories and files
 .vscode/*
