@@ -1,0 +1,72 @@
+# Weekly CMS image audit: crawls every public page and every CMS-stored
+# image URL, and opens/updates a GitHub issue when images break — so a dead
+# hero or a deleted storage object is reported the day it happens, not
+# whenever someone next visits the page.
+#
+# Runs Monday 07:00 UTC (~10:00 EAT) and on demand. Needs no install step:
+# the audit script uses plain fetch against PostgREST.
+name: Image Audit
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  audit:
+    name: Audit CMS images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run image audit
+        id: audit
+        continue-on-error: true
+        env:
+          AUDIT_BASE_URL: https://wacos.mmwosasocials.workers.dev
+          SUPABASE_URL: https://cykaheepeqcgmveckuru.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node scripts/audit-cms-images.mjs | tee audit-output.txt
+          # publish the raw report as a workflow summary too
+          cat audit-output.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update an issue when images are broken
+        if: steps.audit.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +"%Y-%m-%d")
+          BODY_FILE=audit-output.txt
+          # Find an existing open issue from previous runs to keep history in one place.
+          NUMBER=$(gh issue list --search "CMS image audit failed in:title,state:open" --json number --jq '.[0].number')
+          if [ -n "$NUMBER" ]; then
+            gh issue comment "$NUMBER" --body "## $DATE run
+
+          \`\`\`
+          $(cat $BODY_FILE)
+          \`\`\`"
+          else
+            gh issue create \
+              --title "CMS image audit failed ($DATE)" \
+              --body "The weekly image audit found broken or missing images.
+
+          \`\`\`
+          $(cat $BODY_FILE)
+          \`\`\`
+
+          Fix the failing entries, then re-run: **Actions → Image Audit → Run workflow**."
+          fi
+
+      - name: Close the tracking issue when the audit is clean
+        if: steps.audit.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NUMBER=$(gh issue list --search "CMS image audit failed in:title,state:open" --json number --jq '.[0].number')
+          if [ -n "$NUMBER" ]; then
+            gh issue close "$NUMBER" --comment "Latest audit (${date:-$(date -u +%F)}) is clean — closing."
+          fi
