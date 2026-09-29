@@ -667,7 +667,11 @@ function OverviewView({
         : null
     : null;
 
-  const attention = pending.filter((p) => p.count > 0);
+  // Role scoping: only surface counts for tabs this role can actually open —
+  // a club patron must never see alumni/inquiry/donation queues they cannot
+  // act on (the e2e role-walk asserts these words stay absent).
+  const attention = pending.filter((p) => p.count > 0 && visible.includes(p.tab));
+  const stat = (tab: Tab) => visible.includes(tab);
 
   return (
     <div>
@@ -743,14 +747,14 @@ function OverviewView({
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
-        <StatCard icon={LayoutDashboard} label="Total Clubs" value={stats.clubs ?? 0} color="bg-green-800" />
-        <StatCard icon={Users} label="Club Members" value={stats.clubMembers ?? 0} color="bg-blue-600" />
-        <StatCard icon={GraduationCap} label="Alumni Profiles" value={stats.alumni ?? 0} color="bg-purple-600" />
-        <StatCard icon={Building2} label="Businesses" value={stats.businesses ?? 0} color="bg-amber-600" />
-        <StatCard icon={Calendar} label="Events" value={stats.events ?? 0} color="bg-rose-600" />
-        <StatCard icon={BookOpen} label="Class Notes" value={stats.notes ?? 0} color="bg-cyan-600" />
-        <StatCard icon={Megaphone} label="Club Posts" value={stats.clubPosts ?? 0} color="bg-indigo-600" />
-        <StatCard icon={MessageSquare} label="Inquiries" value={stats.inquiries ?? 0} color="bg-orange-600" />
+        {stat("clubs") && <StatCard icon={LayoutDashboard} label="Total Clubs" value={stats.clubs ?? 0} color="bg-green-800" />}
+        {stat("clubs") && <StatCard icon={Users} label="Club Members" value={stats.clubMembers ?? 0} color="bg-blue-600" />}
+        {stat("alumni") && <StatCard icon={GraduationCap} label="Alumni Profiles" value={stats.alumni ?? 0} color="bg-purple-600" />}
+        {stat("businesses") && <StatCard icon={Building2} label="Businesses" value={stats.businesses ?? 0} color="bg-amber-600" />}
+        {stat("events") && <StatCard icon={Calendar} label="Events" value={stats.events ?? 0} color="bg-rose-600" />}
+        {stat("notes") && <StatCard icon={BookOpen} label="Class Notes" value={stats.notes ?? 0} color="bg-cyan-600" />}
+        {stat("clubs") && <StatCard icon={Megaphone} label="Club Posts" value={stats.clubPosts ?? 0} color="bg-indigo-600" />}
+        {stat("inquiries") && <StatCard icon={MessageSquare} label="Inquiries" value={stats.inquiries ?? 0} color="bg-orange-600" />}
       </div>
 
       {/* Site index: every group and tab with its count, so staff learn where

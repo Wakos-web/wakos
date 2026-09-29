@@ -138,13 +138,26 @@ test("admin gallery upload keeps its real MIME type through the proxy", { timeou
     );
 
     // ---- open the Campus Gallery editor ----
+    // Page Content is now a page-first browser: click the tab, then the About
+    // page card, then the gallery row's Edit button.
     await page.clickByText("Page Content");
-    await page.waitFor("document.body.innerText.toLowerCase().includes('page content (')", { timeout: 30000 });
+    await page.waitFor("document.body.innerText.includes('tap to edit')", { timeout: 30000 });
     const opened = await page.eval(`(() => {
-      // The row's Edit affordance is an icon-only button (lucide-settings)
+      // 1) open the About page card
+      const pageCard = Array.from(document.querySelectorAll('button')).find(
+        (b) => /About/.test(b.textContent || '') && /tap to edit/.test(b.textContent || ''),
+      );
+      if (!pageCard) return 'no-about-card';
+      pageCard.click();
+      return 'clicked-page';
+    })()`);
+    assert.equal(opened, "clicked-page", "About page card not found in Page Content");
+    await page.waitFor("document.body.innerText.includes('All pages')", { timeout: 30000 });
+    const openedRow = await page.eval(`(() => {
+      // The row's Edit affordance is a labeled button (lucide-settings icon)
       // inside the section card whose text names the gallery.
       const cards = Array.from(document.querySelectorAll('div')).filter(
-        (el) => el.className && String(el.className).includes('rounded-xl') && /gallery/i.test(el.textContent || '') && (el.textContent || '').length < 200,
+        (el) => el.className && String(el.className).includes('rounded-xl') && /gallery/i.test(el.textContent || '') && (el.textContent || '').length < 300,
       );
       const card = cards[0];
       if (!card) return 'no-card';
@@ -155,7 +168,7 @@ test("admin gallery upload keeps its real MIME type through the proxy", { timeou
       btn.click();
       return 'clicked';
     })()`);
-    assert.equal(opened, "clicked", "gallery row edit button not found");
+    assert.equal(openedRow, "clicked", "gallery row edit button not found");
     await page.waitFor("document.body.innerText.includes('Upload photos')", { timeout: 15000 });
 
     // ---- attach a real PNG to the upload input ----
