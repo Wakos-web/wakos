@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { readStaffSession } from "@/lib/staff-session";
+import { friendlyError } from "@/lib/friendly-error";
 
 /**
  * Email notifications for the club co-editor workflow.
@@ -127,7 +128,7 @@ export const notifyClubPatron = createServerFn({ method: "POST" })
     await sendResendEmail(recipients, `New post awaiting approval: ${title}`, html);
   } catch (e: any) {
     console.error("notifyClubPatron:", e?.message || e);
-    return { ok: false as const, reason: "Email could not be sent." };
+    return { ok: false as const, reason: friendlyError(e, "The notification email couldn't be sent. Please try again in a moment.") };
   }
 
   return { ok: true as const, notified: recipients.length };
@@ -244,7 +245,7 @@ export const notifyClubEditor = createServerFn({ method: "POST" })
     );
   } catch (e: any) {
     console.error("notifyClubEditor:", e?.message || e);
-    return { ok: false as const, reason: "Email could not be sent." };
+    return { ok: false as const, reason: friendlyError(e, "The notification email couldn't be sent. Please try again in a moment.") };
   }
 
   return { ok: true as const, notified: 1 };

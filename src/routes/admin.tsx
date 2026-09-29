@@ -7,8 +7,9 @@ import { LOGO_URL } from "@/lib/content";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
-import { normalizeImageFile } from "@/lib/image-convert";
-import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, VIDEO_ACCEPT, VIDEO_TYPES, VIDEO_MAX_MB, fileSizeMb, validateImage, validateMedia } from "@/lib/upload-guide";
+import { prepareImageForUpload } from "@/lib/image-convert";
+import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, VIDEO_ACCEPT, VIDEO_TYPES, VIDEO_MAX_MB, fileSizeMb, validateMedia } from "@/lib/upload-guide";
+import { friendlyError } from "@/lib/friendly-error";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import { ClubPostMediaManager } from "@/components/club-post-media-manager";
 import {
@@ -20,6 +21,47 @@ import {
   Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
+
+/**
+ * Scroll the viewport to the tab's edit/add form so the user never has to hunt
+ * for it after clicking Edit/Add. Works from any child tab component: forms
+ * register themselves with the shared "admin-edit-form" anchor class.
+ */
+function scrollToEditForm() {
+  setTimeout(() => {
+    const el = document.querySelector(".admin-edit-form");
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 120);
+}
+
+/** Friendly error for staff: plain headline, technical detail tucked after. */
+function errMsg(error: any, fallback: string): string {
+  const friendly = friendlyError(error, fallback);
+  const raw = error?.message || "";
+  return raw && raw !== friendly ? friendly + " (" + raw + ")" : friendly;
+}
+/** Per-tab guidance shown at the top of the admin dashboard. */
+const TAB_HELP: Partial<Record<Tab, string>> = {
+  clubs: "Add or edit clubs, manage member lists, upload each club's hero image, review student story submissions and manage co-editors.",
+  alumni: "Review alumni registrations and business listings, edit profiles, and approve or reject submissions with notes.",
+  events: "Create school and alumni events, edit details, publish or unpublish them, and delete old entries.",
+  rsvps: "See who has RSVPed to each upcoming event so organizers can plan attendance.",
+  notes: "Review class notes submitted by alumni before they appear on the site.",
+  inquiries: "Read and resolve contact-form inquiries from visitors.",
+  businesses: "Approve or reject business directory listings and edit their details.",
+  articles: "Write campus news articles, upload cover images, manage author info, and publish or unpublish.",
+  pages: "Edit the text, heroes and galleries of every public page — including structured sections like leadership, sports and galleries.",
+  applications: "Review club membership applications submitted online.",
+  mentorship: "Review mentorship programme applications and approve matches.",
+  donations: "Reconcile donation thank-you form submissions against bank and mobile money records.",
+  scholarships: "Review sports scholarship applications submitted by students.",
+  comments: "Moderate comments left on class notes and posts.",
+  giving: "Manage the Ways of Giving cards, donation accounts (bank and mobile money), impact stats and the contact person.",
+  mwosa: "Manage the MWOSA alumni page: quick links, social channels, milestone stats and project updates with photo stories.",
+  settings: "Update school-wide site settings like contact details and map coordinates.",
+  staff: "Invite staff by email, assign roles (super admin, admin, club patron, alumni patron), resend invite codes and revoke access.",
+};
+
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -82,7 +124,7 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
     setSaving(true);
     const { error } = await supabase.from(item.table).update({ approved: true, rejected_notes: null }).eq("id", item.id);
     setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Submission approved", type: "success" });
     await notifyApplicant("approved");
     onRefresh();
@@ -94,7 +136,7 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
     setSaving(true);
     const { error } = await supabase.from(item.table).update({ approved: false, rejected_notes: rejectNotes.trim() }).eq("id", item.id);
     setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Submission rejected", type: "success" });
     await notifyApplicant("rejected");
     onRefresh();
@@ -254,6 +296,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
     setEditingPost(post);
     setPostForm({ title: post.title || "", excerpt: post.excerpt || "", content: post.content || "" });
     setPostImage(post.image_url || "");
+    scrollToEditForm();
   };
 
   const savePost = async () => {
@@ -270,7 +313,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
       })
       .eq("id", editingPost.id);
     setPostSaving(false);
-    if (error) { flash(error.message || "Could not save the story", "err"); return; }
+    if (error) { flash(errMsg(error, "Couldn't save the story. Try again."), "err"); return; }
     flash("Story page saved", "ok");
     setEditingPost(null);
     reload();
@@ -278,14 +321,14 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
 
   const unpublishPost = async (post: any) => {
     const { error } = await supabase.from("club_posts").update({ published: false, status: "rejected", review_note: "Unpublished by admin" }).eq("id", post.id);
-    if (error) { flash(error.message || "Could not unpublish", "err"); return; }
+    if (error) { flash(errMsg(error, "Couldn't unpublish that post. Try again."), "err"); return; }
     flash("Story unpublished from the club page", "ok");
     reload();
   };
 
   const republishPost = async (post: any) => {
     const { error } = await supabase.from("club_posts").update({ published: true, status: "published", review_note: null, reviewed_by: reviewerName || "Admin", reviewed_at: new Date().toISOString() }).eq("id", post.id);
-    if (error) { flash(error.message || "Could not publish", "err"); return; }
+    if (error) { flash(errMsg(error, "Couldn't publish that post. Try again."), "err"); return; }
     flash("Story published to the club page", "ok");
     reload();
   };
@@ -301,7 +344,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
     });
     setSaving(false);
     if (error) {
-      flash(error.code === "23505" ? "That email is already an editor for this club" : (error.message || "Could not send invite"), "err");
+      flash(error.code === "23505" ? "That email is already an editor for this club." : errMsg(error, "Couldn't send the invite. Try again."), "err");
       return;
     }
     flash("Invite sent. They can sign in at /clubs/editor with this email.", "ok");
@@ -312,7 +355,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
   const revoke = async (ed: any) => {
     if (!window.confirm("Remove " + ed.name + " as co-editor? They will no longer be able to post for this club.")) return;
     const { error } = await supabase.from("club_editors").update({ status: "removed", updated_at: new Date().toISOString() }).eq("id", ed.id);
-    if (error) { flash(error.message || "Could not remove editor", "err"); return; }
+    if (error) { flash(errMsg(error, "Couldn't remove that editor. Try again."), "err"); return; }
     flash("Co-editor removed", "ok");
     reload();
   };
@@ -327,7 +370,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
       setRejectNoteFor(null); setRejectNote("");
     }
     const { error } = await supabase.from("club_posts").update(patch).eq("id", post.id);
-    if (error) { flash(error.message || "Update failed", "err"); return; }
+    if (error) { flash(errMsg(error, "Couldn't update that post. Try again."), "err"); return; }
     flash(verdict === "approve" ? "Post published to the club page" : "Post rejected", "ok");
     reload();
     // Tell the co-editor their post was decided (fire-and-forget; a failed
@@ -366,7 +409,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
 
       {/* Story-page editor: full form + media manager for the post's detail page */}
       {editingPost && (
-        <div className="rounded-xl bg-green-50/60 border border-green-200 p-5 space-y-4">
+        <div className="admin-edit-form rounded-xl bg-green-50/60 border border-green-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <p className="font-display text-base font-bold text-stone-900">Edit story page: {editingPost.title}</p>
             <button onClick={() => setEditingPost(null)} className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-400"><X className="h-4 w-4" /></button>
@@ -680,8 +723,9 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
     if (!file) return;
     setUploadingHero(club.id);
     try {
-      // TIFF photos are converted to JPEG in the browser before upload.
-      const uploadable = await normalizeImageFile(file);
+      // TIFF is converted to JPEG in the browser; oversized photos are
+      // auto-compressed to fit the bucket limit.
+      const uploadable = await prepareImageForUpload(file);
       const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
       const path = `club-heroes/${club.slug}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
@@ -697,7 +741,7 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
       setToast({ message: "Hero image updated", type: "success" });
       onRefresh();
     } catch (e: any) {
-      setToast({ message: e?.message || "Hero upload failed", type: "error" });
+      setToast({ message: errMsg(e, "Couldn't upload that hero image. Try again."), type: "error" });
     } finally {
       setUploadingHero(null);
     }
@@ -750,7 +794,7 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
 
       {/* Add/Edit Club Form */}
       {showAddClub && (
-        <div className="rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
+        <div className="admin-edit-form rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
           <p className="text-sm font-semibold text-green-800 mb-4">{editClub ? "Edit Club" : "Add New Club"}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-stone-700 mb-1">Name</label><input value={name} onChange={e => setName(e.target.value)} className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm" placeholder="e.g. Wildlife Club" /></div>
@@ -892,6 +936,7 @@ function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: 
     setLocation(evt.location || "");
     setCategory(evt.category || "reunion");
     setShowAdd(false);
+    scrollToEditForm();
   };
 
   const togglePublish = async (id: string, current: boolean) => {
@@ -907,12 +952,12 @@ function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: 
     if (editItem) {
       const { error } = await supabase.from("events").update({ title: trimmedTitle, description: description?.trim() || null, event_date: eventDate || null, location: location?.trim() || null, category }).eq("id", editItem.id);
       setSaving(false);
-      if (error) { setToast({ message: error.message, type: "error" }); return; }
+      if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
       setToast({ message: "Event updated", type: "success" });
     } else {
       const { error } = await supabase.from("events").insert({ title: trimmedTitle, description: description?.trim() || null, event_date: eventDate || null, location: location?.trim() || null, category, approved: true });
       setSaving(false);
-      if (error) { setToast({ message: error.message, type: "error" }); return; }
+      if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
       setToast({ message: "Event created", type: "success" });
     }
     reset();
@@ -938,7 +983,7 @@ function EventsTab({ events, onRefresh, setToast }: { events: any[]; onRefresh: 
 
       {/* Add/Edit Event Form */}
       {(showAdd || editItem) && (
-        <div className="rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
+        <div className="admin-edit-form rounded-2xl bg-green-50 border border-green-200 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-green-800">{editItem ? "Edit Event" : "New Event"}</p>
             <button onClick={reset} className="text-stone-400 hover:text-stone-600"><X className="h-4 w-4" /></button>
@@ -1328,7 +1373,7 @@ function GivingTab({ setToast }: { setToast: (t: { message: string; type: "succe
       ({ error } = await supabase.from(table).insert(payload));
     }
     setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: edit?.id ? "Updated" : "Added", type: "success" });
     resetForm();
     load();
@@ -1336,7 +1381,7 @@ function GivingTab({ setToast }: { setToast: (t: { message: string; type: "succe
 
   const remove = async (id: string) => {
     const { error } = await supabase.from(tableFor(section)).delete().eq("id", id);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Deleted", type: "success" });
     load();
   };
@@ -1488,13 +1533,11 @@ function SettingsTab() {
   };
 
   const uploadFile = async (key: string, file: File) => {
-    // Friendly guidance before touching storage.
-    const imgErr = validateImage(file);
-    if (imgErr) { window.alert(imgErr); return; }
     setUploading(key);
     try {
-      // TIFF photos are converted to JPEG in the browser before upload.
-      const uploadable = await normalizeImageFile(file);
+      // TIFF is converted to JPEG in the browser; oversized photos are
+      // auto-compressed to fit the bucket limit.
+      const uploadable = await prepareImageForUpload(file);
       const ext = uploadable.name.split(".").pop();
       const path = key + "/" + Date.now() + "." + ext;
       const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
@@ -1503,7 +1546,7 @@ function SettingsTab() {
         update(key, data.publicUrl);
       } else {
         // SettingsTab has no toast — surface the failure loudly and helpfully.
-        window.alert(`Upload failed: ${error.message}. We accept ${IMAGE_TYPES} up to ${IMAGE_MAX_MB}MB.`);
+        window.alert(`We couldn't upload that file. We accept ${IMAGE_TYPES} up to ${IMAGE_MAX_MB}MB.`);
       }
     } catch (err: any) {
       window.alert(err?.message || `Image could not be processed. We accept ${IMAGE_TYPES} up to ${IMAGE_MAX_MB}MB.`);
@@ -1778,7 +1821,7 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
       })
       .eq("id", editProfile.id);
     setProfileSaving(false);
-    if (error) { setToast({ message: error.message || "Could not save the profile", type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save the profile. Try again."), type: "error" }); return; }
     setToast({ message: "Profile saved", type: "success" });
     setEditProfile(null);
     onRefresh();
@@ -1907,18 +1950,11 @@ function ImageUpload({ value, onChange, label, setToast }: { value: string; onCh
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let file = e.target.files?.[0];
     if (!file) return;
-    // Loud, friendly validation — a failed upload must never fail silently.
-    const imgErr = validateImage(file);
-    if (imgErr) {
-      setToast?.({ message: imgErr, type: "error" });
-      e.target.value = "";
-      return;
-    }
     setUploading(true);
-    // TIFF/HEIC photos are converted to JPEG in the browser (or rejected with
-    // a clear message) before they hit the bucket policy.
+    // Type-check, TIFF/HEIC conversion, and auto-compression happen here —
+    // a failed upload must never fail silently.
     try {
-      file = await normalizeImageFile(file);
+      file = await prepareImageForUpload(file);
     } catch (err: any) {
       setToast?.({ message: err?.message || "Image could not be processed.", type: "error" });
       setUploading(false);
@@ -1928,7 +1964,7 @@ function ImageUpload({ value, onChange, label, setToast }: { value: string; onCh
     const fileName = `uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
     const { error } = await supabase.storage.from("uploads").upload(fileName, file, { contentType: file.type });
     if (error) {
-      setToast?.({ message: `Image upload failed: ${error.message}`, type: "error" });
+      setToast?.({ message: errMsg(error, "Couldn't upload that image. Try again."), type: "error" });
       setUploading(false);
       return;
     }
@@ -2007,11 +2043,11 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
       if (editItem) {
       const { error } = await supabase.from("articles").update({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || editItem.image, ...authorData }).eq("id", editItem.id);
       setSaving(false);
-      if (error) { setToast({ message: error.message, type: "error" }); return; }
+      if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     } else {
       const { error } = await supabase.from("articles").insert({ title: trimmedTitle, slug: trimmedSlug, category: category.trim(), excerpt: excerpt.trim(), body: bodyArray, image: imageUrl.trim() || "/assets/news-service.jpg", date: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }), views: 0, ...authorData });
       setSaving(false);
-      if (error) { setToast({ message: error.message, type: "error" }); return; }
+      if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     }
     setToast({ message: editItem ? "Article updated" : "Article created", type: "success" });
     reset();
@@ -2021,14 +2057,14 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
   const remove = async (id: string) => {
     if (!confirm("Delete this article?")) return;
     const { error } = await supabase.from("articles").delete().eq("id", id);
-    if (error) { setToast({ message: `Delete failed: ${error.message}`, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't delete that. Try again."), type: "error" }); return; }
     setToast({ message: "Article deleted", type: "success" });
     onRefresh();
   };
 
   const togglePublish = async (id: string, currentStatus: boolean) => {
     const { error } = await supabase.from("articles").update({ published: !currentStatus }).eq("id", id);
-    if (error) { setToast({ message: `Could not update: ${error.message}`, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't update that. Try again."), type: "error" }); return; }
     setToast({ message: currentStatus ? "Article unpublished" : "Article published", type: "success" });
     onRefresh();
   };
@@ -2038,12 +2074,12 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-bold text-stone-900">Campus News ({articles.length})</h3>
         <div className="flex gap-2">
-          <button onClick={() => { reset(); setShowAdd(true); }} className="px-4 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Article</button>
+          <button onClick={() => { reset(); setShowAdd(true); scrollToEditForm(); }} className="px-4 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Article</button>
           <button onClick={onRefresh} className="p-2 rounded-lg hover:bg-stone-100 transition-colors"><RefreshCw className="h-4 w-4 text-stone-400" /></button>
         </div>
       </div>
       {(showAdd || editItem) && (
-        <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+        <div className="admin-edit-form rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
           <h4 className="font-display text-lg font-bold text-stone-900">{editItem ? "Edit Article" : "New Article"}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input value={title} onChange={(e) => handleTitle(e.target.value)} placeholder="Title" className="p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
@@ -2094,7 +2130,7 @@ function ArticlesTab({ articles, onRefresh, setToast }: { articles: any[]; onRef
                   <button onClick={() => togglePublish(article.id, article.published)} className={`p-2.5 rounded-lg border transition-colors ${article.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={article.published ? "Unpublish" : "Publish"}>
                     {article.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
                   </button>
-                  <button onClick={() => { setEditItem(article); setSlugTouched(true); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); setAuthorName(article.author_name || ""); setAuthorRole(article.author_role || ""); setAuthorAvatar(article.author_avatar || ""); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                  <button onClick={() => { setEditItem(article); setSlugTouched(true); scrollToEditForm(); setTitle(article.title); setSlug(article.slug); setCategory(article.category); setExcerpt(article.excerpt); setBody(article.body?.join("\n") || ""); setImageUrl(article.image || ""); setAuthorName(article.author_name || ""); setAuthorRole(article.author_role || ""); setAuthorAvatar(article.author_avatar || ""); }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
                     <Settings className="h-4 w-4 text-blue-600" />
                   </button>
                   <button onClick={() => remove(article.id)} className="p-2.5 rounded-lg hover:bg-red-100 border border-red-200 transition-colors" title="Delete">
@@ -2132,14 +2168,11 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
     setUploading(true);
     const added: any[] = [];
     for (const file of Array.from(files)) {
-      // Friendly format/size guidance instead of silently skipping files.
-      const imgErr = validateImage(file);
-      if (imgErr) { setToast({ message: imgErr, type: "error" }); continue; }
-      // TIFF photos are converted to JPEG in the browser before upload; HEIC
-      // is rejected with a clear message.
+      // Friendly type handling: bad formats are skipped loudly, TIFF is
+      // converted, and oversized photos are auto-compressed to fit the bucket.
       let uploadable: File;
       try {
-        uploadable = await normalizeImageFile(file);
+        uploadable = await prepareImageForUpload(file);
       } catch (err: any) {
         setToast({ message: err?.message || "Image could not be processed.", type: "error" });
         continue;
@@ -2147,7 +2180,7 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
       const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
       const path = `gallery/about-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
-      if (error) { setToast({ message: `Upload failed: ${error.message}`, type: "error" }); continue; }
+      if (error) { setToast({ message: errMsg(error, "Couldn't upload that file. Try again."), type: "error" }); continue; }
       const { data } = supabase.storage.from("uploads").getPublicUrl(path);
       added.push({ src: data.publicUrl, alt: file.name.replace(/\.[^.]+$/, ""), caption: "" });
     }
@@ -2161,7 +2194,7 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
    * order persists immediately, so a stray click can't lose it. */
   const persist = async (next: any[]) => {
     const { error } = await supabase.from("page_content").update({ content: { images: next } }).eq("id", row.id);
-    if (error) { setToast({ message: error.message, type: "error" }); return false; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return false; }
     onRefresh();
     return true;
   };
@@ -2200,7 +2233,7 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
   };
 
   return (
-    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+    <div className="admin-edit-form rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-display text-lg font-bold text-stone-900">Edit: {row.title || "Gallery"} (journal pages)</h4>
         <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
@@ -2277,14 +2310,14 @@ function LeadershipEditor({ row, onClose, onRefresh, setToast }: { row: any; onC
     }));
     const { error } = await supabase.from("page_content").update({ content: { leaders: cleaned } }).eq("id", row.id);
     setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Leadership saved", type: "success" });
     onRefresh();
     onClose();
   };
 
   return (
-    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+    <div className="admin-edit-form rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-display text-lg font-bold text-stone-900">Edit: School Leadership</h4>
         <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
@@ -2380,14 +2413,14 @@ function SportsEditor({ row, onClose, onRefresh, setToast }: { row: any; onClose
     }));
     const { error } = await supabase.from("page_content").update({ content: { items: cleaned } }).eq("id", row.id);
     setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Sports saved", type: "success" });
     onRefresh();
     onClose();
   };
 
   return (
-    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+    <div className="admin-edit-form rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-display text-lg font-bold text-stone-900">Edit: Our Sports</h4>
         <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
@@ -2532,7 +2565,7 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
     }
     const { error } = await supabase.from("page_content").update({ title: title.trim() || row.title, content }).eq("id", row.id);
     setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Content saved", type: "success" });
     onRefresh();
     onClose();
@@ -2541,7 +2574,7 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
   const label = (key: string) => key.split(".").pop()!.replace(/[._]/g, " ");
 
   return (
-    <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+    <div className="admin-edit-form rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-display text-lg font-bold text-stone-900">Edit: {row.title}</h4>
         <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
@@ -2644,6 +2677,10 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
     'giving': 'Giving',
     'academics': 'Academics',
     'mwosa': 'MWOSA Alumni',
+    'campus-news': 'Campus News',
+    'admissions': 'Admissions',
+    'calendar': 'Calendar',
+    'contact': 'Contact',
     'home': 'Homepage'
   };
   // Every CMS-backed journal gallery (page/section rows the gallery editor opens).
@@ -2673,7 +2710,7 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
               key={g.page}
               onClick={async () => {
                 const { error } = await supabase.from("page_content").insert({ page: g.page, section: 'gallery', title: g.label.replace('Add ', ''), content: { images: [] }, published: true });
-                if (error) { setToast({ message: error.message, type: "error" }); return; }
+                if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
                 setToast({ message: g.label.replace('Add ', '') + " section added", type: "success" });
                 onRefresh();
               }}
@@ -2725,7 +2762,7 @@ function StructuredContentEditor({ row, onClose, onRefresh, setToast }: { row: a
                   <button onClick={() => togglePublish(item.id, item.published)} className={`p-2.5 rounded-lg border transition-colors ${item.published ? "hover:bg-amber-100 border-amber-200" : "hover:bg-green-100 border-green-200"}`} title={item.published ? "Hide" : "Publish"}>
                     {item.published ? <Eye className="h-4 w-4 text-amber-600" /> : <Megaphone className="h-4 w-4 text-green-600" />}
                   </button>
-                  <button onClick={() => { if (item.section === 'gallery' || item.section === 'athlete') { setEditItem(null); setLeadershipEdit(null); setSportsEdit(null); setGalleryEdit(item); } else if (item.section === 'leadership') { setEditItem(null); setGalleryEdit(null); setSportsEdit(null); setLeadershipEdit(item); } else if (item.section === 'sports') { setEditItem(null); setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(item); } else { setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(null); setEditItem(item); } }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
+                  <button onClick={() => { if (item.section === 'gallery' || item.section === 'athlete') { setEditItem(null); setLeadershipEdit(null); setSportsEdit(null); setGalleryEdit(item); } else if (item.section === 'leadership') { setEditItem(null); setGalleryEdit(null); setSportsEdit(null); setLeadershipEdit(item); } else if (item.section === 'sports') { setEditItem(null); setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(item); } else { setGalleryEdit(null); setLeadershipEdit(null); setSportsEdit(null); setEditItem(item); scrollToEditForm(); } }} className="p-2.5 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors" title="Edit">
                     <Settings className="h-4 w-4 text-blue-600" />
                   </button>
                 </div>
@@ -2861,7 +2898,7 @@ function DonationsTab({ data, onRefresh, setToast }: { data: any[]; onRefresh: (
 
   const setStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("donations").update({ status }).eq("id", id);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: status === "matched" ? "Gift marked as matched" : "Gift moved back to received", type: "success" });
     onRefresh();
   };
@@ -3073,7 +3110,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
 
   useEffect(() => { load(); }, []);
 
-  const resetForm = () => { setEdit(null); setForm({}); setImageUrl(""); };
+  const resetForm = () => { setEdit(null); setForm({}); setImageUrl(""); scrollToEditForm(); };
   const startEdit = (item: any) => {
     const f: Record<string, string> = {};
     Object.entries(item || {}).forEach(([k, v]) => {
@@ -3082,6 +3119,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
     setEdit(item);
     setForm(f);
     setImageUrl(item?.image_url || "");
+    scrollToEditForm();
   };
 
   const tableFor = (sec: string) =>
@@ -3127,7 +3165,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
       ({ error } = await supabase.from(table).insert(payload));
     }
     setSaving(false);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: edit?.id ? "Updated" : "Added", type: "success" });
     resetForm();
     load();
@@ -3135,7 +3173,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
 
   const remove = async (id: string) => {
     const { error } = await supabase.from(tableFor(section)).delete().eq("id", id);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Deleted", type: "success" });
     load();
   };
@@ -3178,7 +3216,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
       ) : (
       <>
       {edit && (
-        <div className="rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
+        <div className="admin-edit-form rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-display text-lg font-bold text-stone-900">
               {edit.id ? `Edit: ${edit.label || edit.title || edit.value || "item"}` : "Add new"}
@@ -3241,7 +3279,7 @@ function MwosaTab({ setToast }: { setToast: (t: { message: string; type: "succes
 
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-stone-500">{rows.length} items</p>
-        <button onClick={() => { setEdit({}); setForm({}); setImageUrl(""); }}
+        <button onClick={() => { setEdit({}); setForm({}); setImageUrl(""); scrollToEditForm(); }}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors">
           <UserPlus className="h-4 w-4" /> Add {section === "stats" ? "Stat" : section === "updates" ? "Update" : "Link"}
         </button>
@@ -3326,8 +3364,9 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
   useEffect(() => { load(); }, [updateId]);
 
   const uploadFile = async (file: File): Promise<string> => {
-    // TIFF photos are converted to JPEG in the browser before upload.
-    const uploadable = await normalizeImageFile(file);
+    // TIFF is converted to JPEG in the browser; oversized photos are
+    // auto-compressed to fit the bucket limit.
+    const uploadable = await prepareImageForUpload(file);
     const path = `mwosa-updates/${Date.now()}-${uploadable.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
     const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
     if (error) throw error;
@@ -3388,7 +3427,7 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
       setToast({ message: "Media added", type: "success" });
       load();
     } catch (e: any) {
-      setToast({ message: e?.message || "Upload failed", type: "error" });
+      setToast({ message: errMsg(e, "Couldn't upload that file. Try again."), type: "error" });
     } finally {
       setUploading(false);
       if (photoRef.current) photoRef.current.value = "";
@@ -3414,7 +3453,7 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
         ? { youtube_url: youtubeWatchUrl(youtubeId(e.youtube.trim())!), media_url: youtubeWatchUrl(youtubeId(e.youtube.trim())!) }
         : { youtube_url: null }),
     }).eq("id", id);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Saved", type: "success" });
     load();
   };
@@ -3427,7 +3466,7 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
       setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || { caption: "", sort: "0", poster: "", youtube: "" }), poster: url } }));
       setToast({ message: "Poster uploaded — press Save on the row to keep it", type: "success" });
     } catch (e: any) {
-      setToast({ message: e?.message || "Poster upload failed", type: "error" });
+      setToast({ message: errMsg(e, "Couldn't upload that poster image. Try again."), type: "error" });
     } finally {
       setPosterUploading(null);
     }
@@ -3468,7 +3507,7 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
       setToast({ message: "YouTube video added", type: "success" });
       load();
     } catch (e: any) {
-      setToast({ message: e?.message || "Could not add the video", type: "error" });
+      setToast({ message: errMsg(e, "Couldn't add that video. Try again."), type: "error" });
     } finally {
       setUploading(false);
     }
@@ -3476,7 +3515,7 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
 
   const removeRow = async (id: string) => {
     const { error } = await supabase.from("mwosa_update_media").delete().eq("id", id);
-    if (error) { setToast({ message: error.message, type: "error" }); return; }
+    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Deleted", type: "success" });
     load();
   };
@@ -3936,7 +3975,7 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
       setEmail(""); setCode(""); setPassword(""); setSent(false); setUsePasscode(false); setUsePassword(false);
       onAuthed();
     } catch (e: any) {
-      setError(e?.message || "Could not sign in with that password.");
+      setError(friendlyError(e, "Couldn't sign in with that password. Try the one-time code instead."));
     } finally {
       setBusy(false);
     }
@@ -3957,7 +3996,7 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
       setEmail(""); setCode(""); setPasscode(""); setSent(false); setUsePasscode(false);
       onAuthed();
     } catch (e: any) {
-      setError(e?.message || "Could not sign in with the passcode.");
+      setError(friendlyError(e, "That passcode didn't work. Check it and try again."));
     } finally {
       setBusy(false);
     }
@@ -3979,7 +4018,7 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
       setSent(true);
       setNewUser(!!res.isNew);
     } catch (e: any) {
-      setError(e?.message || "Could not send the code. Try again.");
+      setError(friendlyError(e, "Couldn't send the code. Try again in a moment."));
     } finally {
       setBusy(false);
     }
@@ -4004,7 +4043,7 @@ function StaffLoginScreen({ onAuthed }: { onAuthed: () => void }) {
       setEmail(""); setCode(""); setSent(false);
       onAuthed();
     } catch (e: any) {
-      setError(e?.message || "That code did not work. Check it and try again.");
+      setError(friendlyError(e, "That code didn't work. Check it and try again."));
     } finally {
       setBusy(false);
     }
@@ -4472,6 +4511,12 @@ function AdminPage() {
           </div>
         ) : (
           <>
+            {tab !== "overview" && TAB_HELP[tab] && (
+              <div className="mb-6 rounded-xl border border-green-100 bg-green-50/60 px-4 py-3 text-sm text-stone-700">
+                <span className="font-semibold text-green-900">What you can do here: </span>
+                {TAB_HELP[tab]}
+              </div>
+            )}
             {tab === "overview" && <OverviewView stats={stats} roles={sessionRoles} onNavigate={(k) => setTab(k)} />}
             {tab === "clubs" && <ClubsTab clubs={clubs} members={members} onRefresh={fetchData} reviewerName={session.user?.name || session.user?.email || "Admin"} setToast={setToast} />}
             {tab === "alumni" && (

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { clearStaffSession, readStaffSession } from "@/lib/staff-session";
+import { friendlyError } from "@/lib/friendly-error";
 
 /**
  * Staff → Pulse bridge.
@@ -115,7 +116,7 @@ export const staffPulseAccess = createServerFn({ method: "POST" })
       if (error || !created) {
         return {
           ok: false as const,
-          reason: error?.message || "Could not create your alumni profile.",
+          reason: friendlyError(error, "Couldn't create your alumni profile. Try again."),
         };
       }
       profile = created;

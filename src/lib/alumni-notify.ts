@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { readStaffSession } from "@/lib/staff-session";
+import { friendlyError } from "@/lib/friendly-error";
 
 /**
  * Email notifications for alumni submissions (registrations, business
@@ -189,7 +190,7 @@ export const notifyAlumniApprover = createServerFn({ method: "POST" })
     await sendResendEmail(recipients, `${title}: ${subtitle}`, html);
   } catch (e: any) {
     console.error("notifyAlumniApprover:", e?.message || e);
-    return { ok: false as const, reason: "Email could not be sent." };
+    return { ok: false as const, reason: friendlyError(e, "The notification email couldn't be sent. Please try again in a moment.") };
   }
 
   return { ok: true as const, notified: recipients.length };
@@ -280,7 +281,7 @@ export const notifyAlumniApplicant = createServerFn({ method: "POST" })
       );
     } catch (e: any) {
       console.error("notifyAlumniApplicant:", e?.message || e);
-      return { ok: false as const, reason: "Email could not be sent." };
+      return { ok: false as const, reason: friendlyError(e, "The notification email couldn't be sent. Please try again in a moment.") };
     }
 
     return { ok: true as const, notified: 1 };
@@ -392,7 +393,7 @@ export const notifyBusinessApplicant = createServerFn({ method: "POST" })
       );
     } catch (e: any) {
       console.error("notifyBusinessApplicant:", e?.message || e);
-      return { ok: false as const, reason: "Email could not be sent." };
+      return { ok: false as const, reason: friendlyError(e, "The notification email couldn't be sent. Please try again in a moment.") };
     }
 
     return { ok: true as const, notified: to.length };

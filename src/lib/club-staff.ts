@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { clearStaffSession, readStaffSession } from "@/lib/staff-session";
+import { friendlyError } from "@/lib/friendly-error";
 
 /**
  * Staff cookie → club editor bridge.
@@ -84,7 +85,7 @@ export const staffClubAccess = createServerFn({ method: "POST" })
     if (linkErr || !hashedToken) {
       return {
         ok: false as const,
-        reason: linkErr?.message || "Could not prepare your editor session.",
+        reason: friendlyError(linkErr, "Couldn't prepare your editor session. Try again."),
       };
     }
     const { data: verified, error: verifyErr } = await supabase.auth.verifyOtp({
@@ -94,7 +95,7 @@ export const staffClubAccess = createServerFn({ method: "POST" })
     if (verifyErr || !verified?.session || !verified.user) {
       return {
         ok: false as const,
-        reason: verifyErr?.message || "Could not start your editor session.",
+        reason: friendlyError(verifyErr, "Couldn't start your editor session. Try again."),
       };
     }
 

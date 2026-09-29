@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { adminAcceptInvite, adminSession } from "@/lib/supabase";
+import { friendlyError } from "@/lib/friendly-error";
 import { ShieldCheck, KeyRound, CheckCircle2, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/accept-invite")({
@@ -62,7 +63,7 @@ function AcceptInvitePage() {
       setDone(true);
       setTimeout(() => navigate({ to: "/admin" }), 900);
     } catch (e: any) {
-      setError(e?.message || "That did not work. Ask your super admin to resend the invite.");
+      setError(friendlyError(e, "That didn't work. Ask your super admin to resend the invite."));
     } finally {
       setBusy(false);
     }
