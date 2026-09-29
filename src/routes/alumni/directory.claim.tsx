@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
 import { friendlyError } from "@/lib/friendly-error";
-import { IMAGE_ACCEPT } from "@/lib/upload-guide";
+import { IMAGE_ACCEPT, UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { prepareImageForUpload } from "@/lib/image-convert";
 
 import type { AlumniProfile } from "@/hooks/useAlumniAuth";
@@ -82,7 +82,7 @@ function ClaimContent() {
   const uploadFile = async (file: File, bucket: string, folder: string): Promise<string | null> => {
     const ext = file.name.split(".").pop();
     const path = folder + "/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
-    const { error } = await supabase.storage.from(bucket).upload(path, file);
+    const { error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: UPLOAD_CACHE_CONTROL });
     if (error) throw error;
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;

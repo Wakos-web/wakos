@@ -6,7 +6,7 @@ import { staffPulseAccess, staffPulseSignOut } from "@/lib/alumni-staff";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { useAlumniAuth } from "@/hooks/useAlumniAuth";
 import { friendlyError } from "@/lib/friendly-error";
-import { IMAGE_ACCEPT } from "@/lib/upload-guide";
+import { IMAGE_ACCEPT, UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { prepareImageForUpload } from "@/lib/image-convert";
 import {
   Send, Calendar, BookOpen, Users, Heart, Award, Building2, Clock, ThumbsUp,
@@ -131,7 +131,7 @@ function playChime() {
 async function uploadFileToBucket(bucket: string, folder: string, file: File): Promise<string> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-  const { error } = await supabase.storage.from(bucket).upload(path, file);
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: UPLOAD_CACHE_CONTROL });
   if (error) throw error;
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;

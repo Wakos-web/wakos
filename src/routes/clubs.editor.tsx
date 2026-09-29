@@ -5,6 +5,7 @@ import { notifyClubPatron } from "@/lib/club-notify";
 import { staffClubAccess, staffClubSignOut } from "@/lib/club-staff";
 import { youtubeId } from "@/lib/youtube";
 import { prepareImageForUpload } from "@/lib/image-convert";
+import { UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { useOtpResend } from "@/hooks/useOtpResend";
 import { friendlyError } from "@/lib/friendly-error";
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
@@ -66,7 +67,7 @@ function statusMeta(status: string) {
   const path = "club-posts/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
   const { error } = await supabase.storage
     .from("class-notes-photos")
-    .upload(path, uploadable, { contentType: uploadable.type });
+    .upload(path, uploadable, { contentType: uploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
   if (error) throw error;
   const { data } = supabase.storage.from("class-notes-photos").getPublicUrl(path);
   return data.publicUrl;

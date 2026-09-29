@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { notifyAlumniApprover } from "@/lib/alumni-notify";
 import { friendlyError } from "@/lib/friendly-error";
 import { useOtpResend } from "@/hooks/useOtpResend";
-import { IMAGE_ACCEPT } from "@/lib/upload-guide";
+import { IMAGE_ACCEPT, UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { prepareImageForUpload } from "@/lib/image-convert";
 import {
   ArrowLeft, Mail, Send, ShieldCheck, Building2, ImagePlus, GraduationCap,
@@ -31,7 +31,7 @@ const cardCls = "overflow-hidden rounded-3xl border border-white/10 bg-white/[0.
 async function uploadToBucket(bucket: string, folder: string, file: File): Promise<string> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-  const { error } = await supabase.storage.from(bucket).upload(path, file);
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: UPLOAD_CACHE_CONTROL });
   if (error) throw error;
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;

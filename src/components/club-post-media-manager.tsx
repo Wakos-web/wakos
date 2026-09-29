@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
 import { prepareImageForUpload } from "@/lib/image-convert";
-import { VIDEO_TYPES, VIDEO_MAX_MB, validateMedia } from "@/lib/upload-guide";
+import { VIDEO_TYPES, VIDEO_MAX_MB, validateMedia, UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import { friendlyError } from "@/lib/friendly-error";
 import { Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, Trash2 } from "lucide-react";
@@ -48,7 +48,7 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
     const uploadable = await prepareImageForUpload(file);
     const ext = uploadable.name.split(".").pop();
     const path = "club-posts-media/" + Date.now() + "_" + Math.random().toString(36).substring(7) + "." + ext;
-    const { error } = await supabase.storage.from("class-notes-photos").upload(path, uploadable, { contentType: uploadable.type });
+    const { error } = await supabase.storage.from("class-notes-photos").upload(path, uploadable, { contentType: uploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
     if (error) throw error;
     const { data } = supabase.storage.from("class-notes-photos").getPublicUrl(path);
     return data.publicUrl;

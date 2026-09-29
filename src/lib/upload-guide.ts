@@ -13,6 +13,16 @@ export const IMAGE_MAX_MB = 5;
 export const VIDEO_TYPES = "MP4 or WebM";
 export const VIDEO_MAX_MB = 5;
 
+/**
+ * cacheControl sent with every upload (seconds). Site uploads get unique,
+ * timestamped names (Date.now()-prefixed), so they are immutable in practice
+ * and safe to cache for a week. Hand-named files (admin "uploads/" gallery
+ * slots that may be overwritten in place) go stale at worst one week.
+ * Supabase caps public-object CDN caching at 1 hour regardless, so this
+ * raises browser caching from the storage-js 1-hour default to 7 days.
+ */
+export const UPLOAD_CACHE_CONTROL = "604800";
+
 /** Accept hints for the file picker (TIFF is listed because it is auto-converted). */
 export const IMAGE_ACCEPT =
   "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,.tif,.tiff";

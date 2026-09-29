@@ -8,7 +8,7 @@ import { useOtpResend } from "@/hooks/useOtpResend";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
 import { prepareImageForUpload } from "@/lib/image-convert";
-import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, VIDEO_ACCEPT, VIDEO_TYPES, VIDEO_MAX_MB, fileSizeMb, validateMedia } from "@/lib/upload-guide";
+import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, VIDEO_ACCEPT, VIDEO_TYPES, VIDEO_MAX_MB, fileSizeMb, validateMedia, UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { friendlyError } from "@/lib/friendly-error";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import { ClubPostMediaManager } from "@/components/club-post-media-manager";
@@ -730,7 +730,7 @@ function ClubsTab({ clubs, members, onRefresh, reviewerName, setToast }: { clubs
       const path = `club-heroes/${club.slug}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("club-images")
-        .upload(path, uploadable, { contentType: uploadable.type || "image/jpeg" });
+        .upload(path, uploadable, { contentType: uploadable.type || "image/jpeg", cacheControl: UPLOAD_CACHE_CONTROL });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("club-images").getPublicUrl(path);
       const { error: dbErr } = await supabase
@@ -1540,7 +1540,7 @@ function SettingsTab() {
       const uploadable = await prepareImageForUpload(file);
       const ext = uploadable.name.split(".").pop();
       const path = key + "/" + Date.now() + "." + ext;
-      const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
+      const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
       if (!error) {
         const { data } = supabase.storage.from("uploads").getPublicUrl(path);
         update(key, data.publicUrl);
@@ -1961,8 +1961,7 @@ function ImageUpload({ value, onChange, label, setToast }: { value: string; onCh
       e.target.value = "";
       return;
     }
-    const fileName = `uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;
-    const { error } = await supabase.storage.from("uploads").upload(fileName, file, { contentType: file.type });
+    const fileName = `uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`;     const { error } = await supabase.storage.from("uploads").upload(fileName, file, { contentType: file.type, cacheControl: UPLOAD_CACHE_CONTROL });
     if (error) {
       setToast?.({ message: errMsg(error, "Couldn't upload that image. Try again."), type: "error" });
       setUploading(false);
@@ -2179,7 +2178,7 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
       }
       const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
       const path = `gallery/about-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type });
+      const { error } = await supabase.storage.from("uploads").upload(path, uploadable, { contentType: uploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
       if (error) { setToast({ message: errMsg(error, "Couldn't upload that file. Try again."), type: "error" }); continue; }
       const { data } = supabase.storage.from("uploads").getPublicUrl(path);
       added.push({ src: data.publicUrl, alt: file.name.replace(/\.[^.]+$/, ""), caption: "" });
