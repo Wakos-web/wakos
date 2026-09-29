@@ -4455,6 +4455,9 @@ function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
+    // Never touch the URL while a child route (/admin/accept-invite) is
+    // active — rewriting to /admin would cancel the invitee's form.
+    if (isAcceptInvite) return;
     navigate({ to: "/admin", search: tab === "overview" ? {} : { tab }, replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
