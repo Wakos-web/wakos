@@ -1709,6 +1709,8 @@ function HeroPlaylistManager() {
   const [items, setItems] = useState<HeroClip[]>([]);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  // First row's grip handle — refocused after keyboard reorders so ↑/↓ keeps working.
+  const handleRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -1998,6 +2000,17 @@ function HeroPlaylistManager() {
     await persist(next, "Order saved");
   };
 
+  /* Keyboard reorder: ↑/↓ on a row's grip handle swaps with the neighbour,
+   * persisting the whole list — the same write as drag-drop, so keyboard
+   * users keep the ability the old arrow buttons gave them. */
+  const move = async (idx: number, dir: -1 | 1) => {
+    const to = idx + dir;
+    if (to < 0 || to >= items.length || busy) return;
+    const next = [...items];
+    [next[idx], next[to]] = [next[to]!, next[idx]!];
+    await persist(next, "Order saved");
+  };
+
   const removeAt = async (idx: number) => {
     if (busy) return;
     const item = items[idx]!;
@@ -2018,7 +2031,7 @@ function HeroPlaylistManager() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-green-800">hero playlist</p>
-          <p className="text-sm text-stone-500 mt-1">These videos play fullscreen on the homepage in this order, looping forever. Drag a row onto another to reorder — the order saves as you drop. MP4 or WebM up to {HERO_VIDEO_MAX_MB}MB each — keep clips short (10–20 seconds) so they load fast on phones. Use <span className="font-medium text-stone-600">Swap video</span> to replace a clip without redoing its caption and poster.</p>
+          <p className="text-sm text-stone-500 mt-1">These videos play fullscreen on the homepage in this order, looping forever. Drag a row onto another — or focus a row's handle and press ↑/↓ — to reorder; the order saves as you drop. MP4 or WebM up to {HERO_VIDEO_MAX_MB}MB each — keep clips short (10–20 seconds) so they load fast on phones. Use <span className="font-medium text-stone-600">Swap video</span> to replace a clip without redoing its caption and poster.</p>
         </div>
         {status && <span className={`text-xs font-semibold ${status.type === "success" ? "text-green-700" : "text-red-600"}`}>{status.message}</span>}
       </div>
@@ -2043,7 +2056,23 @@ function HeroPlaylistManager() {
             className={`rounded-xl border p-2 cursor-grab active:cursor-grabbing transition-all ${dragIdx === i ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverIdx === i && dragIdx !== null && dragIdx !== i ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
           >
             <div className="flex items-center gap-3">
-              <GripVertical className="h-4 w-4 text-stone-300 shrink-0" />
+              <button
+                type="button"
+                onClick={() => handleRef.current?.focus()}
+                onKeyDown={(e) => {
+                  // No disabled-while-saving here: disabling a focused button
+                  // blurs it, stranding keyboard users mid-reorder. Presses
+                  // during a save simply no-op via move()'s busy guard.
+                  if (e.key === "ArrowUp") { e.preventDefault(); move(i, -1); }
+                  else if (e.key === "ArrowDown") { e.preventDefault(); move(i, 1); }
+                }}
+                className="p-1 -m-1 rounded-md text-stone-300 hover:text-stone-500 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 transition-colors shrink-0 cursor-grab active:cursor-grabbing"
+                title={`Reorder: press ↑/↓, or drag (clip ${i + 1})`}
+                aria-label={`Reorder clip ${i + 1}, ${item.name || "clip"}. Press ArrowUp or ArrowDown to move it.`}
+                ref={i === 0 ? handleRef : undefined}
+              >
+                <GripVertical className="h-4 w-4 pointer-events-none" aria-hidden />
+              </button>
               <span className="w-6 text-center text-xs font-bold text-stone-400 shrink-0">{i + 1}</span>
               {previewing === i ? (
                 <div className="relative shrink-0">
