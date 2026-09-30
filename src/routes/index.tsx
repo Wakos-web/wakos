@@ -17,31 +17,40 @@ import { ARTICLES, HERO_POSTER, HERO_VIDEO, IMAGES, STATS, DEFAULT_STATS, getSet
 import { supabase } from "@/lib/supabase";
 import { JournalGallery } from "@/components/journal-gallery";
 import { usePageContent } from "@/hooks/usePageContent";
-import { fetchPageContent } from "@/lib/cms";
+import { fetchPageContent, fetchHeroPlaylistHead } from "@/lib/cms";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "M.M College Wairaka ,  Where Your Child Becomes Someone" },
-      {
-        name: "description",
-        content:
-          "Government-aided boarding school in Jinja. 73 years. Olympic champion alumni. Bursaries for bright students. Your child earns their future here.",
-      },
-      { property: "og:title", content: "M.M College Wairaka" },
-      {
-        property: "og:description",
-        content:
-          "Government-aided boarding school in Jinja. 73 years. Olympic champion alumni. Bursaries for bright students.",
-      },
-      { property: "og:url", content: "/" },
-    ],
-    links: [
-      { rel: "canonical", href: "/" },
-      { rel: "preload", as: "image", href: HERO_POSTER },
-      { rel: "preload", as: "video", href: HERO_VIDEO },
-    ],
-  }),
+  head: async () => {
+    // When a curated playlist exists, the default hero video must not be
+    // preloaded — visitors would download multi-MB video the player never
+    // shows. Posters of the first two clips (tiny stills) preload instead.
+    const playlist = await fetchHeroPlaylistHead();
+    const hasPlaylist = playlist.length > 0;
+    return {
+      meta: [
+        { title: "M.M College Wairaka ,  Where Your Child Becomes Someone" },
+        {
+          name: "description",
+          content:
+            "Government-aided boarding school in Jinja. 73 years. Olympic champion alumni. Bursaries for bright students. Your child earns their future here.",
+        },
+        { property: "og:title", content: "M.M College Wairaka" },
+        {
+          property: "og:description",
+          content:
+            "Government-aided boarding school in Jinja. 73 years. Olympic champion alumni. Bursaries for bright students.",
+        },
+        { property: "og:url", content: "/" },
+      ],
+      links: [
+        { rel: "canonical", href: "/" },
+        { rel: "preload", as: "image", href: HERO_POSTER },
+        ...(hasPlaylist
+          ? playlist.slice(0, 2).filter((c) => c.poster).map((c) => ({ rel: "preload", as: "image", href: c.poster! }))
+          : [{ rel: "preload", as: "video", href: HERO_VIDEO }]),
+      ],
+    };
+  },
   // Loader runs during SSR so CMS images (gallery, mission) are in the first paint.
   loader: async () => ({ cms: await fetchPageContent("home") }),
   component: HomePage,
@@ -68,6 +77,28 @@ function HeroSection() {
   // carry an optional loading poster and caption. One clip or zero falls
   // back to the classic single looping video.
   const [playlist, setPlaylist] = useState<{ src: string; poster?: string; caption?: string }[]>([]);
+
+  // Data-saver mode: phones on cellular / metered connections only download
+  // the clip actually on screen — the hidden layer mounts without a src and
+  // gets its clip at the moment of transition. Desktop and Wi-Fi keep the
+  // preload-ahead that makes transitions stall-free.
+  const [dataSaver, setDataSaver] = useState(false);
+  useEffect(() => {
+    // ?saver=1 forces the mode (QA/support can reproduce phone behavior on
+    // a desktop); otherwise the connection heuristics decide.
+    if (new URLSearchParams(window.location.search).get("saver") === "1") {
+      setDataSaver(true);
+      return;
+    }
+    const conn = (navigator as any).connection;
+    const nav = navigator as any;
+    setDataSaver(
+      conn?.saveData === true ||
+      conn?.effectiveType === "slow-2g" ||
+      conn?.effectiveType === "2g" ||
+      /Android|iPhone|iPad|iPod/i.test(nav.userAgent || ""),
+    );
+  }, []);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [activeLayer, setActiveLayer] = useState(0);
   const [fading, setFading] = useState(false);
@@ -78,6 +109,8 @@ function HeroSection() {
   const activeRef = useRef(0);
   const fadingRef = useRef(false);
   const userPausedRef = useRef(false);
+  const dataSaverRef = useRef(false);
+  dataSaverRef.current = dataSaver;
   playlistRef.current = playlist;
   currentRef.current = currentIdx;
   activeRef.current = activeLayer;
@@ -140,6 +173,8 @@ function HeroSection() {
     const backLayer = 1 - activeRef.current;
     const back = layerRef(backLayer).current;
     if (back) {
+      // Data-saver mode keeps the hidden layer src-less until this exact
+      // moment; assigning src now starts the fetch for the clip on deck.
       back.src = list[nextIdx]!.src;
       if (list[nextIdx]!.poster) back.poster = list[nextIdx]!.poster!;
       back.muted = true;
@@ -153,9 +188,10 @@ function HeroSection() {
       fadingRef.current = false;
       layerRef(1 - backLayer).current?.pause();
       // Preload the clip after next onto the now-hidden layer so the
-      // following transition starts without a loading stall.
+      // following transition starts without a loading stall — desktop only;
+      // data-saver devices keep the hidden layer empty to save data.
       const upcoming = layerRef(1 - backLayer).current;
-      if (upcoming && list.length > 1) {
+      if (upcoming && list.length > 1 && !dataSaverRef.current) {
         upcoming.src = list[(nextIdx + 1) % list.length]!.src;
         if (list[(nextIdx + 1) % list.length]!.poster) upcoming.poster = list[(nextIdx + 1) % list.length]!.poster!;
       }
@@ -199,20 +235,25 @@ function HeroSection() {
       <div className="absolute inset-0">
         {[0, 1].map((layer) => {
           const list = playlist.length > 0 ? playlist : [{ src: heroVideo }];
-          const clip = list[layer === activeLayer ? currentIdx % list.length : (currentIdx + 1) % list.length]!;
-          const isFront = layer === activeLayer && !fading;
-          const isFadingIn = layer !== activeLayer && fading;
+          const isActive = layer === activeLayer;
+          const clip = list[isActive ? currentIdx % list.length : (currentIdx + 1) % list.length]!;
+          // Data-saver: the hidden layer mounts src-less (poster only) so no
+          // clip data is fetched until the transition assigns src. The active
+          // layer always carries its clip.
+          const src = isActive || !dataSaver ? clip.src : undefined;
+          const isFront = isActive && !fading;
+          const isFadingIn = !isActive && fading;
           return (
             <video
               key={layer}
               ref={layerRef(layer)}
-              src={clip.src}
+              src={src}
               poster={clip.poster || heroPoster}
               autoPlay={layer === 0}
               muted
               loop={list.length <= 1}
               playsInline
-              preload={layer === activeLayer ? "auto" : "auto"}
+              preload={isActive ? "auto" : dataSaver ? "none" : "auto"}
               {...({ fetchPriority: layer === 0 ? "high" : "low" } as any)}
               onEnded={advance}
               className={`absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%] transition-opacity duration-1000 ${
