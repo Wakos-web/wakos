@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
-  CalendarCheck, ChevronDown, ArrowUp, ArrowDown, Replace, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
+  CalendarCheck, ChevronDown, ArrowUp, ArrowDown, Replace, Play, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
   Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
   Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare,
   ExternalLink, LayoutGrid, Inbox, Newspaper, AlertTriangle
@@ -1711,6 +1711,8 @@ function HeroPlaylistManager() {
   const lastSavedRef = useRef("");
   const [uploadingPoster, setUploadingPoster] = useState<number | null>(null);
   const [swapping, setSwapping] = useState<number | null>(null);
+  // Row index currently expanded into a watchable player (null = thumbnails).
+  const [previewing, setPreviewing] = useState<number | null>(null);
   // Legacy entries (saved before size/duration were recorded) are probed
   // live: duration from the row's preview video, size from a HEAD request.
   const [probeDur, setProbeDur] = useState<Record<string, number>>({});
@@ -1773,6 +1775,7 @@ function HeroPlaylistManager() {
     if (error) { setStatus({ message: friendlyError(error, "Couldn't save the playlist. Try again."), type: "error" }); return false; }
     lastSavedRef.current = json;
     setItems(next);
+    setPreviewing(null);
     setStatus({ message: okMessage, type: "success" });
     return true;
   };
@@ -1932,18 +1935,40 @@ function HeroPlaylistManager() {
           <div key={item.src} className="rounded-xl border border-stone-200 bg-white p-2">
             <div className="flex items-center gap-3">
               <span className="w-6 text-center text-xs font-bold text-stone-400 shrink-0">{i + 1}</span>
-              <video
-                src={item.src + "#t=0.5"}
-                poster={item.poster || undefined}
-                muted
-                playsInline
-                preload="metadata"
-                onLoadedMetadata={(e) => {
-                  const d = e.currentTarget.duration;
-                  if (Number.isFinite(d) && d > 0) setProbeDur(prev => (prev[item.src] ? prev : { ...prev, [item.src]: Math.round(d * 10) / 10 }));
-                }}
-                className="h-14 w-24 rounded-lg object-cover bg-stone-100 shrink-0"
-              />
+              {previewing === i ? (
+                <div className="relative shrink-0">
+                  <video
+                    key={"preview-" + item.src}
+                    src={item.src}
+                    poster={item.poster || undefined}
+                    controls
+                    autoPlay
+                    playsInline
+                    preload="auto"
+                    onEnded={() => setPreviewing(null)}
+                    className="h-14 w-32 rounded-lg object-cover bg-stone-100"
+                  />
+                  <button onClick={() => setPreviewing(null)} className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-stone-800 text-white hover:bg-stone-600 transition-colors" title="Close preview" aria-label="Close preview"><X className="h-3 w-3" /></button>
+                </div>
+              ) : (
+                <button onClick={() => setPreviewing(i)} className="group/thumb relative shrink-0" title="Watch this clip" aria-label={`Watch ${item.name || "clip"}`}>
+                  <video
+                    src={item.src + "#t=0.5"}
+                    poster={item.poster || undefined}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    onLoadedMetadata={(e) => {
+                      const d = e.currentTarget.duration;
+                      if (Number.isFinite(d) && d > 0) setProbeDur(prev => (prev[item.src] ? prev : { ...prev, [item.src]: Math.round(d * 10) / 10 }));
+                    }}
+                    className="h-14 w-24 rounded-lg object-cover bg-stone-100"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30 opacity-0 transition-opacity group-hover/thumb:opacity-100">
+                    <Play className="h-5 w-5 text-white drop-shadow" />
+                  </span>
+                </button>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm text-stone-700">{item.name || item.src.split("/").pop()}</p>
                 {(durLabel || sizeLabel) && (
