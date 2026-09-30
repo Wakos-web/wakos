@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useMatch, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { adminSupabase as supabase, adminLogin, adminLogout, adminPasscodeLogin, adminSession, adminListStaff, adminInviteStaff, adminResendInviteCode, adminRevokeStaff, adminSendLoginCode, adminVerifyLoginCode } from "@/lib/supabase";
 import { notifyClubEditor } from "@/lib/club-notify";
 import { notifyAlumniApplicant, notifyBusinessApplicant } from "@/lib/alumni-notify";
@@ -24,6 +24,7 @@ import {
 import { SOCIAL_PLATFORMS, platformLabel } from "@/components/social-links";
 import { askConfirm, ConfirmDialog } from "@/components/confirm-dialog";
 import { ActionBtn } from "@/components/action-button";
+import { hasUnsavedChanges, installUnsavedNavGuard, registerUnsavedProbe } from "@/components/unsaved-changes";
 
 /**
  * Scroll the viewport to the tab's edit/add form so the user never has to hunt
@@ -2316,6 +2317,13 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Unsaved-changes guard: dirty when an upload is in flight (closing now
+  // would orphan the upload) or the working list differs from the saved row.
+  const dirty = uploading || JSON.stringify(images) !== JSON.stringify(row.content?.images || []);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => registerUnsavedProbe(() => dirtyRef.current), []);
+
   const uploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     if (maxImages && images.length >= maxImages) {
@@ -2389,11 +2397,20 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
     if (ok) { setToast({ message: "Gallery updated", type: "success" }); onClose(); }
   };
 
+  // Leave-confirm wrapper for the editor's own close buttons (X / Cancel).
+  const requestClose = useCallback(async () => {
+    if (dirtyRef.current) {
+      const ok = await askConfirm("You have unsaved changes in this gallery editor. Close anyway?", { confirmLabel: "Close without saving", danger: true });
+      if (!ok) return;
+    }
+    onClose();
+  }, [onClose]);
+
   return (
     <div className="admin-edit-form rounded-xl bg-white border border-stone-200 p-5 mb-6 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-display text-lg font-bold text-stone-900">Edit: {row.title || "Gallery"} (journal pages)</h4>
-        <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="h-5 w-5" /></button>
+        <button onClick={requestClose} className="text-stone-400 hover:text-stone-600" aria-label="Close editor"><X className="h-5 w-5" /></button>
       </div>
       <p className="text-xs text-stone-500">Upload photos (multiple allowed), give each a caption, and drag the handle to reorder — the order is saved as you drop. They appear as the paper pages in the Campus Gallery on the About page.</p>
       <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => uploadFiles(e.target.files)} />
@@ -2436,7 +2453,7 @@ function GallerySectionEditor({ row, maxImages, onClose, onRefresh, setToast }: 
       </div>
       <div className="flex gap-3">
         <button onClick={save} disabled={saving || uploading} className="px-6 py-2 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">{saving ? "Saving..." : "Save gallery"}</button>
-        <button onClick={onClose} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+        <button onClick={requestClose} className="px-6 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
       </div>
     </div>
   );
@@ -4446,6 +4463,11 @@ function AdminPage() {
   useEffect(() => {
     if (!isMobile) setMoreOpen(false); // close the sheet when switching to desktop
   }, [isMobile]);
+
+  // Unsaved-changes guard: one capture-phase interceptor holds every chrome
+  // escape (tab switches, "All pages", sign-out, Back to Site, overview feed
+  // rows) while any editor is dirty, offering "Leave without saving" first.
+  useEffect(() => installUnsavedNavGuard(), []);
 
   // Restore a deep-linked tab once on mount (/admin?tab=pages etc.), then
   // keep the URL in sync so any tab can be bookmarked or shared with staff.
