@@ -206,6 +206,13 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
 
   if (!item) return null;
 
+  // Two verdict shapes live in this dashboard: the alumni tables carry an
+  // `approved` boolean plus `rejected_notes`, while the SubmissionsList tables
+  // (club_applications, mentorship_requests, sports_scholarships) carry a text
+  // `status` column and nowhere to store notes — writing the alumni shape
+  // there fails with "column does not exist", so match each table's own shape.
+  const usesStatus = ["club_applications", "mentorship_requests", "sports_scholarships"].includes(item.table);
+
   // Registration and business-listing decisions get an email to the applicant
   // (server fns are gated on the staff session cookie; DB state must already
   // match the verdict). Business emails go to the owner's primary address with
@@ -224,7 +231,8 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
 
   const handleApprove = async () => {
     setSaving(true);
-    const { error } = await supabase.from(item.table).update({ approved: true, rejected_notes: null }).eq("id", item.id);
+    const payload = usesStatus ? { status: "approved" } : { approved: true, rejected_notes: null };
+    const { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
     setSaving(false);
     if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Submission approved", type: "success" });
@@ -234,9 +242,10 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
   };
 
   const handleReject = async () => {
-    if (!rejectNotes.trim()) { setToast({ message: "Please add rejection notes", type: "error" }); return; }
+    if (!usesStatus && !rejectNotes.trim()) { setToast({ message: "Please add rejection notes", type: "error" }); return; }
     setSaving(true);
-    const { error } = await supabase.from(item.table).update({ approved: false, rejected_notes: rejectNotes.trim() }).eq("id", item.id);
+    const payload = usesStatus ? { status: "rejected" } : { approved: false, rejected_notes: rejectNotes.trim() };
+    const { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
     setSaving(false);
     if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Submission rejected", type: "success" });
@@ -279,7 +288,7 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
               <p className="text-stone-700">{String(val)}</p>
             </div>
           ))}
-          {item.approved === false && item.rejected_notes && (
+          {item.approved === false && item.rejected_notes && !usesStatus && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1">Rejection Notes</p>
               <p className="text-sm text-red-700">{item.rejected_notes}</p>
@@ -307,12 +316,14 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
             </div>
           ) : (
             <div className="space-y-3">
-              <textarea
-                value={rejectNotes}
-                onChange={(e) => setRejectNotes(e.target.value)}
-                placeholder="Add rejection notes (required)..."
-                className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[80px]"
-              />
+              {!usesStatus && (
+                <textarea
+                  value={rejectNotes}
+                  onChange={(e) => setRejectNotes(e.target.value)}
+                  placeholder="Add rejection notes (required)..."
+                  className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[80px]"
+                />
+              )}
               <div className="flex gap-3">
                 <button onClick={handleReject} disabled={saving} className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold disabled:opacity-50 transition-colors">
                   {saving ? "Rejecting..." : "Confirm Reject"}
@@ -1578,7 +1589,7 @@ function GivingTab({ setToast }: { setToast: (t: { message: string; type: "succe
           <h2 className="font-display text-xl font-bold text-stone-900">Giving Engine</h2>
           <p className="text-sm text-stone-500 mt-1">Cards, stats, donation accounts, mobile money and the contact person shown on /giving. Donations are manual — update these anytime.</p>
         </div>
-        <button onClick={() => startEdit(null)}
+        <button onClick={() => startEdit({})}
           className="rounded-xl bg-green-900 text-white px-5 py-2.5 text-sm font-semibold hover:bg-green-800 transition-colors inline-flex items-center gap-2">
           + Add
         </button>
@@ -1594,8 +1605,10 @@ function GivingTab({ setToast }: { setToast: (t: { message: string; type: "succe
         ))}
       </div>
 
-      {/* Edit form (when adding/editing) */}
-      {form && Object.keys(form).length > 0 && (
+      {/* Edit form (when adding/editing). edit is null when closed, {} for a
+       * new item — an empty-object sentinel, because gating on the form object
+       * itself kept the Add form from ever rendering (empty form = no keys). */}
+      {edit && (
         <div className="rounded-2xl bg-white border border-stone-200 p-6">
           <h3 className="font-display font-bold text-stone-900 mb-4">{edit?.id ? "Edit" : "Add"} {sectionTabs.find(t => t.key === section)?.label}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
