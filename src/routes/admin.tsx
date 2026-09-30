@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
-  CalendarCheck, ChevronDown, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
+  CalendarCheck, ChevronDown, ArrowUp, ArrowDown, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
   Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
   Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare,
   ExternalLink, LayoutGrid, Inbox, Newspaper, AlertTriangle
@@ -1667,6 +1667,137 @@ function GivingTab({ setToast }: { setToast: (t: { message: string; type: "succe
   );
 }
 
+/** Cap on hero playlist clips — enough variety, small enough to load fast. */
+const MAX_HERO_VIDEOS = 6;
+/** hero-media bucket allows 100MB per object; stay just under it. */
+const HERO_VIDEO_MAX_MB = 95;
+
+/* ------------------------------------------------------------------ */
+/* Homepage hero playlist: multiple looping videos managed as an       */
+/* ordered list in site_settings.hero_playlist (JSON). Every action    */
+/* persists immediately — the same model as the story media manager —  */
+/* so a stray refresh can't lose a curator's work. The homepage        */
+/* crossfades through the clips in this order, forever.                */
+/* ------------------------------------------------------------------ */
+function HeroPlaylistManager() {
+  const [items, setItems] = useState<{ src: string; name?: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    supabase.from("site_settings").select("value").eq("key", "hero_playlist").maybeSingle().then(({ data, error }) => {
+      if (error) setStatus({ message: friendlyError(error, "Couldn't load the hero playlist."), type: "error" });
+      try {
+        const parsed = JSON.parse(data?.value || "[]");
+        setItems(Array.isArray(parsed) ? parsed.filter((v: any) => v && typeof v.src === "string") : []);
+      } catch {
+        setItems([]);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const persist = async (next: { src: string; name?: string }[], okMessage: string) => {
+    setBusy(true);
+    const { error } = await supabase.from("site_settings").upsert({ key: "hero_playlist", value: JSON.stringify(next) }, { onConflict: "key" });
+    setBusy(false);
+    if (error) { setStatus({ message: friendlyError(error, "Couldn't save the playlist. Try again."), type: "error" }); return false; }
+    setItems(next);
+    setStatus({ message: okMessage, type: "success" });
+    return true;
+  };
+
+  const addFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (items.length + files.length > MAX_HERO_VIDEOS) {
+      setStatus({ message: `The hero holds up to ${MAX_HERO_VIDEOS} videos. Remove one first.`, type: "error" });
+      return;
+    }
+    setBusy(true);
+    const added: { src: string; name?: string }[] = [];
+    for (const file of Array.from(files)) {
+      const okType = /\.(mp4|webm)$/i.test(file.name) || /video\/(mp4|webm)/i.test(file.type);
+      if (!okType) { setStatus({ message: `"${file.name}" is not an MP4/WebM video. Convert it and try again.`, type: "error" }); continue; }
+      if (file.size > HERO_VIDEO_MAX_MB * 1024 * 1024) { setStatus({ message: `"${file.name}" is ${fileSizeMb(file.size)} — hero clips must be ${HERO_VIDEO_MAX_MB}MB or smaller. Trim or compress it first.`, type: "error" }); continue; }
+      const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
+      const path = `hero/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      // Hero clips live in the dedicated hero-media bucket (mp4/webm allowed,
+      // 100MB objects) — the general "uploads" bucket is image-only.
+      const { error } = await supabase.storage.from("hero-media").upload(path, file, { contentType: file.type || "video/mp4", cacheControl: UPLOAD_CACHE_CONTROL });
+      if (error) { setStatus({ message: friendlyError(error, `Couldn't upload "${file.name}". Try again.`), type: "error" }); continue; }
+      const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
+      added.push({ src: data.publicUrl, name: file.name.replace(/\.[^.]+$/, "") });
+    }
+    setBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+    if (added.length) await persist([...items, ...added], added.length === 1 ? "Hero video added" : `${added.length} hero videos added`);
+  };
+
+  /* Touch-friendly reorder: swap with the neighbour, persist the whole list
+   * (same write pattern as the story media manager's arrows). */
+  const move = async (idx: number, dir: -1 | 1) => {
+    const to = idx + dir;
+    if (to < 0 || to >= items.length || busy) return;
+    const next = [...items];
+    [next[idx], next[to]] = [next[to]!, next[idx]!];
+    await persist(next, "Order saved");
+  };
+
+  const removeAt = async (idx: number) => {
+    if (busy) return;
+    const item = items[idx]!;
+    // Best-effort storage cleanup: the playlist keeps working even if the
+    // object is already gone or the URL isn't a storage path.
+    try {
+      const marker = "/storage/v1/object/public/hero-media/";
+      if (item.src.includes(marker)) {
+        const objPath = item.src.split(marker)[1]!;
+        await supabase.storage.from("hero-media").remove([objPath]);
+      }
+    } catch { /* non-fatal */ }
+    await persist(items.filter((_, i) => i !== idx), "Hero video removed");
+  };
+
+  if (loading) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" /></div>;
+
+  return (
+    <div className="rounded-2xl bg-white border border-stone-200 p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-green-800">hero playlist</p>
+          <p className="text-sm text-stone-500 mt-1">These videos play fullscreen on the homepage in this order, looping forever. MP4 or WebM up to {HERO_VIDEO_MAX_MB}MB each — keep clips short (10–20 seconds) so they load fast on phones.</p>
+        </div>
+        {status && <span className={`text-xs font-semibold ${status.type === "success" ? "text-green-700" : "text-red-600"}`}>{status.message}</span>}
+      </div>
+      <div className="space-y-2 mt-4">
+        {items.length === 0 && (
+          <p className="text-sm text-stone-400 py-3">No playlist videos yet — the homepage plays the bundled hero video. Add one below.</p>
+        )}
+        {items.map((item, i) => (
+          <div key={item.src} className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-2">
+            <span className="w-6 text-center text-xs font-bold text-stone-400 shrink-0">{i + 1}</span>
+            <video src={item.src + "#t=0.5"} muted playsInline preload="metadata" className="h-14 w-24 rounded-lg object-cover bg-stone-100 shrink-0" />
+            <span className="flex-1 min-w-0 truncate text-sm text-stone-700">{item.name || item.src.split("/").pop()}</span>
+            <div className="flex items-center gap-1 shrink-0">
+              <button disabled={busy || i === 0} onClick={() => move(i, -1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move up"><ArrowUp className="h-4 w-4 text-stone-500" /></button>
+              <button disabled={busy || i === items.length - 1} onClick={() => move(i, 1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move down"><ArrowDown className="h-4 w-4 text-stone-500" /></button>
+              <button disabled={busy} onClick={() => removeAt(i)} className="p-2 rounded-lg hover:bg-red-100 transition-colors" title="Remove"><Trash2 className="h-4 w-4 text-red-400" /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <label className="mt-4 inline-flex cursor-pointer">
+        <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${busy ? "bg-green-800/60" : "bg-green-800 hover:bg-green-900"}`}>
+          <Upload className="h-4 w-4" />{busy ? "Uploading..." : "+ Add hero videos"}
+        </span>
+        <input ref={fileRef} type="file" accept={VIDEO_ACCEPT} multiple className="hidden" disabled={busy} onChange={(e) => addFiles(e.target.files)} />
+      </label>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -1780,6 +1911,8 @@ function SettingsTab() {
           {saving ? "Saving..." : success ? "Saved!" : "Save All"}
         </button>
       </div>
+      {/* Multi-video hero playlist (ordered, loops on the homepage). */}
+      <HeroPlaylistManager />
       <div className="space-y-8">
         {Object.entries(categories).map(([cat, fields]) => (
           <div key={cat} className="rounded-2xl bg-white border border-stone-200 p-6">

@@ -57,7 +57,6 @@ const STAT_ICONS: Record<string, typeof MapPin> = {
 };
 
 function HeroSection() {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
   const [heroTitle, setHeroTitle] = useState('Where your child becomes someone');
@@ -65,40 +64,115 @@ function HeroSection() {
   const [heroVideo, setHeroVideo] = useState(HERO_VIDEO);
   const [heroPoster, setHeroPoster] = useState(HERO_POSTER);
 
+  // Ordered hero playlist (admin → Settings → Hero playlist). One clip or
+  // zero falls back to the classic single looping video.
+  const [playlist, setPlaylist] = useState<string[]>([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [activeLayer, setActiveLayer] = useState(0);
+  const [fading, setFading] = useState(false);
+  const layerRefs = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)] as const;
+  const layerRef = (i: number) => layerRefs[(i % 2) as 0 | 1];
+  const playlistRef = useRef<string[]>([]);
+  const currentRef = useRef(0);
+  const activeRef = useRef(0);
+  const fadingRef = useRef(false);
+  const userPausedRef = useRef(false);
+  playlistRef.current = playlist;
+  currentRef.current = currentIdx;
+  activeRef.current = activeLayer;
+
   useEffect(() => {
     getSettings().then(s => {
       if (s.hero_title) setHeroTitle(s.hero_title);
       if (s.hero_subtitle) setHeroSubtitle(s.hero_subtitle);
       if (s.hero_video) setHeroVideo(s.hero_video);
       if (s.hero_poster) setHeroPoster(s.hero_poster);
+      try {
+        const parsed = JSON.parse(s.hero_playlist || "[]");
+        if (Array.isArray(parsed)) {
+          const urls = parsed.map((v: any) => v?.src).filter((u: any) => typeof u === "string" && u.startsWith("http"));
+          setPlaylist(urls);
+        }
+      } catch { /* legacy settings only — single-video mode */ }
     });
   }, []);
 
   const sectionRef = useRef<HTMLElement>(null);
 
+  const activeVideo = () => layerRef(activeRef.current).current;
+
   const togglePlay = useCallback(() => {
-    const v = videoRef.current;
+    const v = activeVideo();
     if (!v) return;
     if (v.paused) {
+      userPausedRef.current = false;
       v.play().then(() => setPaused(false)).catch(() => setPaused(true));
     } else {
+      userPausedRef.current = true;
       v.pause();
       setPaused(true);
     }
   }, []);
 
   const toggleMute = useCallback(() => {
-    const v = videoRef.current;
+    const v = activeVideo();
     if (!v) return;
     v.muted = !v.muted;
     setMuted(v.muted);
   }, []);
 
+  /* Crossfade to the next playlist clip: start it paused-hidden on the back
+   * layer, fade it in over 1s, then swap the layers. The previous clip stays
+   * frozen underneath until the fade completes, so there is never a black
+   * flash between clips. */
+  const advance = useCallback(() => {
+    const list = playlistRef.current;
+    if (list.length < 2 || fadingRef.current) return;
+    fadingRef.current = true;
+    const nextIdx = (currentRef.current + 1) % list.length;
+    const backLayer = 1 - activeRef.current;
+    const back = layerRef(backLayer).current;
+    if (back) {
+      back.src = list[nextIdx]!;
+      back.muted = true;
+      back.play().catch(() => {});
+    }
+    setFading(true);
+    window.setTimeout(() => {
+      setActiveLayer(backLayer);
+      setCurrentIdx(nextIdx);
+      setFading(false);
+      fadingRef.current = false;
+      layerRef(1 - backLayer).current?.pause();
+      // Preload the clip after next onto the now-hidden layer so the
+      // following transition starts without a loading stall.
+      const upcoming = layerRef(1 - backLayer).current;
+      if (upcoming && list.length > 1) upcoming.src = list[(nextIdx + 1) % list.length]!;
+    }, 1100);
+  }, []);
+
+  // Clip finished (or mobile suspended playback) — move to the next one.
+  // A watchdog covers browsers that never fire `ended` for suspended
+  // background videos; a user pause is always respected.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (userPausedRef.current || fadingRef.current) return;
+      const v = layerRef(activeRef.current).current;
+      if (!v) return;
+      if (v.ended || (v.paused && v.readyState >= 2 && !v.hasAttribute("data-starting"))) {
+        if (playlistRef.current.length > 1) advance();
+        else v.play().catch(() => {});
+      }
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [advance]);
+
   // Autoplay with fallback
   useEffect(() => {
-    const v = videoRef.current;
+    const v = layerRef(0).current;
     if (!v) return;
-    v.play().then(() => setPaused(false)).catch(() => setPaused(true));
+    v.setAttribute("data-starting", "");
+    v.play().then(() => { setPaused(false); v.removeAttribute("data-starting"); }).catch(() => { setPaused(true); v.removeAttribute("data-starting"); });
   }, []);
 
   const scrollToContent = () => {
@@ -108,21 +182,34 @@ function HeroSection() {
 
   return (
     <section ref={sectionRef} className="relative h-screen min-h-[600px] max-h-[1100px] overflow-hidden bg-foreground">
-      {/* Video / Poster */}
+      {/* Video / Poster — two stacked layers so consecutive playlist clips
+          crossfade instead of cutting. A single clip (or none, which falls
+          back to the bundled hero video) simply loops on the front layer. */}
       <div className="absolute inset-0">
-        <video
-          ref={videoRef}
-          src={heroVideo}
-          poster={heroPoster}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          {...({ fetchPriority: "high" } as any)}
-          className="absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%]"
-        />
-
+        {[0, 1].map((layer) => {
+          const list = playlist.length > 0 ? playlist : [heroVideo];
+          const url = list[layer === activeLayer ? currentIdx % list.length : (currentIdx + 1) % list.length]!;
+          const isFront = layer === activeLayer && !fading;
+          const isFadingIn = layer !== activeLayer && fading;
+          return (
+            <video
+              key={layer}
+              ref={layerRef(layer)}
+              src={url}
+              poster={heroPoster}
+              autoPlay={layer === 0}
+              muted
+              loop={list.length <= 1}
+              playsInline
+              preload={layer === activeLayer ? "auto" : "auto"}
+              {...({ fetchPriority: layer === 0 ? "high" : "low" } as any)}
+              onEnded={advance}
+              className={`absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%] transition-opacity duration-1000 ${
+                isFront ? "opacity-100 z-10" : isFadingIn ? "opacity-100 z-20" : "opacity-0 z-0"
+              }`}
+            />
+          );
+        })}
       </div>
 
       {/* Layered overlays */}
