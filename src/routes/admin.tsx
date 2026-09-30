@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
-  CalendarCheck, ChevronDown, ArrowUp, ArrowDown, Replace, Play, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
+  CalendarCheck, ChevronDown, Replace, Play, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
   Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
   Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare,
   ExternalLink, LayoutGrid, Inbox, Newspaper, AlertTriangle
@@ -1707,6 +1707,8 @@ const fmtDuration = (s: number) => (s < 60 ? `${Math.round(s)}s` : `${Math.floor
 /* ------------------------------------------------------------------ */
 function HeroPlaylistManager() {
   const [items, setItems] = useState<HeroClip[]>([]);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -1969,13 +1971,30 @@ function HeroPlaylistManager() {
     if (added.length) await persist([...items, ...added], added.length === 1 ? "Hero video added" : `${added.length} hero videos added`);
   };
 
-  /* Touch-friendly reorder: swap with the neighbour, persist the whole list
-   * (same write pattern as the story media manager's arrows). */
-  const move = async (idx: number, dir: -1 | 1) => {
-    const to = idx + dir;
-    if (to < 0 || to >= items.length || busy) return;
+  /* Drag-to-reorder (same pattern as the gallery editor): drop a row on
+   * another and the new order persists immediately — the same write the old
+   * up/down arrows did, so a stray refresh can't lose it. */
+  const onDragStart = (e: React.DragEvent, idx: number) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(idx));
+    setDragIdx(idx);
+  };
+
+  const onDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (idx !== dragIdx) setDragOverIdx(idx);
+  };
+
+  const onDrop = async (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    const from = dragIdx;
+    setDragIdx(null); setDragOverIdx(null);
+    if (from === null || from === targetIdx || busy) return;
     const next = [...items];
-    [next[idx], next[to]] = [next[to]!, next[idx]!];
+    const [moved] = next.splice(from, 1);
+    if (!moved) return;
+    next.splice(targetIdx, 0, moved);
     await persist(next, "Order saved");
   };
 
@@ -1999,7 +2018,7 @@ function HeroPlaylistManager() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-green-800">hero playlist</p>
-          <p className="text-sm text-stone-500 mt-1">These videos play fullscreen on the homepage in this order, looping forever. MP4 or WebM up to {HERO_VIDEO_MAX_MB}MB each — keep clips short (10–20 seconds) so they load fast on phones. Use <span className="font-medium text-stone-600">Swap video</span> to replace a clip without redoing its caption and poster.</p>
+          <p className="text-sm text-stone-500 mt-1">These videos play fullscreen on the homepage in this order, looping forever. Drag a row onto another to reorder — the order saves as you drop. MP4 or WebM up to {HERO_VIDEO_MAX_MB}MB each — keep clips short (10–20 seconds) so they load fast on phones. Use <span className="font-medium text-stone-600">Swap video</span> to replace a clip without redoing its caption and poster.</p>
         </div>
         {status && <span className={`text-xs font-semibold ${status.type === "success" ? "text-green-700" : "text-red-600"}`}>{status.message}</span>}
       </div>
@@ -2014,8 +2033,17 @@ function HeroPlaylistManager() {
           const durLabel = dur !== undefined ? fmtDuration(dur) : "";
           const sizeLabel = sizeBytes !== undefined ? fileSizeMb(sizeBytes) : "";
           return (
-          <div key={item.src} className="rounded-xl border border-stone-200 bg-white p-2">
+          <div
+            key={item.src}
+            draggable
+            onDragStart={(e) => onDragStart(e, i)}
+            onDragOver={(e) => onDragOver(e, i)}
+            onDrop={(e) => onDrop(e, i)}
+            onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+            className={`rounded-xl border p-2 cursor-grab active:cursor-grabbing transition-all ${dragIdx === i ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverIdx === i && dragIdx !== null && dragIdx !== i ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
+          >
             <div className="flex items-center gap-3">
+              <GripVertical className="h-4 w-4 text-stone-300 shrink-0" />
               <span className="w-6 text-center text-xs font-bold text-stone-400 shrink-0">{i + 1}</span>
               {previewing === i ? (
                 <div className="relative shrink-0">
@@ -2077,8 +2105,6 @@ function HeroPlaylistManager() {
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button disabled={busy || i === 0} onClick={() => move(i, -1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move up"><ArrowUp className="h-4 w-4 text-stone-500" /></button>
-                <button disabled={busy || i === items.length - 1} onClick={() => move(i, 1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move down"><ArrowDown className="h-4 w-4 text-stone-500" /></button>
                 <button disabled={busy} onClick={() => removeAt(i)} className="p-2 rounded-lg hover:bg-red-100 transition-colors" title="Remove"><Trash2 className="h-4 w-4 text-red-400" /></button>
               </div>
             </div>
