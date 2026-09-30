@@ -13,6 +13,8 @@ import { friendlyError } from "@/lib/friendly-error";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import { ClubPostMediaManager } from "@/components/club-post-media-manager";
 import { ImageCropDialog } from "@/components/image-crop-dialog";
+import { FocusPicker, type FocusPoint } from "@/components/focus-picker";
+import { HeroPreviewModal } from "@/components/hero-preview-modal";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
@@ -1674,7 +1676,7 @@ const MAX_HERO_VIDEOS = 6;
 const HERO_VIDEO_MAX_MB = 95;
 
 /** One hero playlist entry: the clip plus its optional loading poster/caption. */
-type HeroClip = { src: string; name?: string; poster?: string; poster_original?: string; caption?: string; size?: number; duration?: number };
+type HeroClip = { src: string; name?: string; poster?: string; poster_original?: string; caption?: string; size?: number; duration?: number; focus?: FocusPoint };
 
 /** Above these a clip is flagged "heavy" in the manager — phones pay for it. */
 const HERO_HEAVY_MB = 20;
@@ -1718,6 +1720,9 @@ function HeroPlaylistManager() {
   // single-video fallback poster in the hero settings category.
   const [cropTarget, setCropTarget] = useState<number | "hero-poster" | null>(null);
   const [cropImage, setCropImage] = useState<File | string | null>(null);
+  // Focal point + preview dialogs (per-clip; the fallback video's live in SettingsTab).
+  const [focusTarget, setFocusTarget] = useState<number | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<number | null>(null);
   // Refs so finishCrop can tell a fresh pick from a re-crop of a stored original.
   const originalFileRef = useRef<File | null>(null);
   const cropImageRef = useRef<File | string | null>(null);
@@ -1900,6 +1905,24 @@ function HeroPlaylistManager() {
     await uploadPoster(idx, cropped, original);
   };
 
+  const saveFocus = async (f: FocusPoint) => {
+    const target = focusTarget;
+    setFocusTarget(null);
+    if (target === null) return;
+    await persist(items.map((c, i) => {
+      if (i !== target) return c;
+      const next: HeroClip = { src: c.src };
+      if (c.poster !== undefined) next.poster = c.poster;
+      if (c.poster_original !== undefined) next.poster_original = c.poster_original;
+      if (c.name !== undefined) next.name = c.name;
+      if (c.caption !== undefined) next.caption = c.caption;
+      if (c.size !== undefined) next.size = c.size;
+      if (c.duration !== undefined) next.duration = c.duration;
+      next.focus = f;
+      return next;
+    }), "Focal point saved");
+  };
+
   const removePoster = async (idx: number) => {
     const old = items[idx]?.poster;
     // Rebuild without the poster key (exactOptionalPropertyTypes forbids
@@ -2061,6 +2084,8 @@ function HeroPlaylistManager() {
                 {item.poster && item.poster_original && (
                   <button onClick={() => beginCrop(i)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="Re-crop from the original upload">Re-crop</button>
                 )}
+                <button onClick={() => setFocusTarget(i)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="Choose which part of the shot stays in view on phones">Focus{item.focus ? ` ${item.focus.x}·${item.focus.y}` : ""}</button>
+                <button onClick={() => setPreviewTarget(i)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="See this clip in the real hero">Preview</button>
                 <label className="cursor-pointer">
                   <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
                     <Replace className="h-3.5 w-3.5" />{swapping === i ? "Swapping..." : "Swap video"}
@@ -2093,6 +2118,21 @@ function HeroPlaylistManager() {
           title={typeof cropTarget === "number" ? `Crop poster — ${items[cropTarget]?.name || "clip"}` : "Crop hero poster"}
           onCancel={() => { setCropTarget(null); setCropImage(null); }}
           onCropped={finishCrop}
+        />
+      )}
+      {focusTarget !== null && (
+        <FocusPicker
+          media={{ kind: "video", src: items[focusTarget]!.src, poster: items[focusTarget]!.poster || undefined }}
+          initial={items[focusTarget]!.focus ?? null}
+          onCancel={() => setFocusTarget(null)}
+          onSave={saveFocus}
+        />
+      )}
+      {previewTarget !== null && (
+        <HeroPreviewModal
+          media={{ kind: "video", src: items[previewTarget]!.src, poster: items[previewTarget]!.poster || undefined }}
+          focus={items[previewTarget]!.focus ?? null}
+          onClose={() => setPreviewTarget(null)}
         />
       )}
     </div>
@@ -2136,6 +2176,21 @@ function SettingsTab() {
   const [heroCropOpen, setHeroCropOpen] = useState(false);
   const [heroCropImage, setHeroCropImage] = useState<File | string | null>(null);
   const heroCropOriginalRef = useRef<File | null>(null);
+  // Focal point + preview for the fallback hero video / poster.
+  const [heroFocusOpen, setHeroFocusOpen] = useState(false);
+  const [heroFocusMedia, setHeroFocusMedia] = useState<{ kind: "video" | "image"; src: string; poster?: string | undefined } | null>(null);
+  const [heroPreviewOpen, setHeroPreviewOpen] = useState(false);
+  const heroFocus = (() => {
+    const v = settings["hero_video_focus"];
+    if (!v) return null;
+    const [x, y] = v.split(/\s+/).map(Number);
+    return typeof x === "number" && typeof y === "number" ? { x, y } : null;
+  })();
+  const heroMedia = settings["hero_video"]?.startsWith("http")
+    ? { kind: "video" as const, src: settings["hero_video"]!, poster: settings["hero_poster"]?.startsWith("http") ? settings["hero_poster"]! : undefined }
+    : settings["hero_poster"]?.startsWith("http")
+      ? { kind: "image" as const, src: settings["hero_poster"]! }
+      : null;
 
   const uploadCroppedHeroPoster = async (cropped: File, original?: File | null) => {
     setUploading("hero_poster");
@@ -2261,7 +2316,15 @@ function SettingsTab() {
                   {f.type === "video" ? (
                     <div>
                       {!!settings[f.key] && settings[f.key]!.startsWith("http") && (
-                        <video src={settings[f.key]!} className="w-full max-h-48 rounded-xl mb-2 object-cover" controls />)
+                        <div className="mb-2">
+                          <video src={settings[f.key]!} className="w-full max-h-48 rounded-xl object-cover" controls />
+                          {f.key === "hero_video" && (
+                            <div className="mt-2 flex gap-2">
+                              <button onClick={() => { setHeroFocusMedia({ kind: "video", src: settings["hero_video"]!, poster: settings["hero_poster"]?.startsWith("http") ? settings["hero_poster"]! : undefined }); setHeroFocusOpen(true); }} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="Choose which part of the shot stays in view on phones">Focus{heroFocus ? ` ${heroFocus.x}·${heroFocus.y}` : ""}</button>
+                              <button onClick={() => setHeroPreviewOpen(true)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">Preview</button>
+                            </div>
+                          )}
+                        </div>)
                       }
                       <div className="flex items-center gap-3">
                         <label className="flex-1">
@@ -2313,6 +2376,31 @@ function SettingsTab() {
           title="Crop hero poster"
           onCancel={() => { setHeroCropOpen(false); setHeroCropImage(null); }}
           onCropped={(cropped) => { setHeroCropOpen(false); setHeroCropImage(null); uploadCroppedHeroPoster(cropped, heroCropOriginalRef.current); }}
+        />
+      )}
+      {heroFocusOpen && heroFocusMedia && (
+        <FocusPicker
+          media={heroFocusMedia}
+          initial={heroFocus}
+          onCancel={() => { setHeroFocusOpen(false); setHeroFocusMedia(null); }}
+          onSave={async (f) => {
+            setHeroFocusOpen(false);
+            setHeroFocusMedia(null);
+            const { error } = await supabase.from("site_settings").upsert({ key: "hero_video_focus", value: `${f.x} ${f.y}` }, { onConflict: "key" });
+            if (error) window.alert("Couldn't save the focal point. Try again.");
+            else {
+              setSettings(prev => ({ ...prev, hero_video_focus: `${f.x} ${f.y}` }));
+              setSuccess(true);
+              setTimeout(() => setSuccess(false), 2000);
+            }
+          }}
+        />
+      )}
+      {heroPreviewOpen && (
+        <HeroPreviewModal
+          media={heroMedia ?? { kind: "image", src: "/hero-poster.png", poster: undefined }}
+          focus={heroFocus ?? { x: 50, y: 50 }}
+          onClose={() => setHeroPreviewOpen(false)}
         />
       )}
     </div>

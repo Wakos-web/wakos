@@ -74,9 +74,12 @@ function HeroSection() {
   const [heroPoster, setHeroPoster] = useState(HERO_POSTER);
 
   // Ordered hero playlist (admin → Settings → Hero playlist). Each clip may
-  // carry an optional loading poster and caption. One clip or zero falls
-  // back to the classic single looping video.
-  const [playlist, setPlaylist] = useState<{ src: string; poster?: string; caption?: string }[]>([]);
+  // carry an optional loading poster, caption, and focal point (which part
+  // of the shot survives the phone crop). One clip or zero falls back to the
+  // classic single looping video.
+  const [playlist, setPlaylist] = useState<{ src: string; poster?: string; caption?: string; focus?: { x: number; y: number } }[]>([]);
+  // Focal point of the fallback video (admin → hero settings).
+  const [fallbackFocus, setFallbackFocus] = useState<{ x: number; y: number } | null>(null);
 
   // Data-saver mode: phones on cellular / metered connections only download
   // the clip actually on screen — the hidden layer mounts without a src and
@@ -126,12 +129,18 @@ function HeroSection() {
         if (Array.isArray(parsed)) {
           const clips = parsed
             .filter((v: any) => v && typeof v.src === "string" && v.src.startsWith("http"))
-            .map((v: any) => ({
-              src: v.src as string,
-              poster: typeof v.poster === "string" && v.poster.startsWith("http") ? v.poster : undefined,
-              caption: typeof v.caption === "string" ? v.caption : undefined,
-            }));
+            .map((v: any) => {
+              const clip: { src: string; poster?: string; caption?: string; focus?: { x: number; y: number } } = { src: v.src as string };
+              if (typeof v.poster === "string" && v.poster.startsWith("http")) clip.poster = v.poster;
+              if (typeof v.caption === "string") clip.caption = v.caption;
+              if (v.focus && Number.isFinite(v.focus.x) && Number.isFinite(v.focus.y)) clip.focus = { x: v.focus.x, y: v.focus.y };
+              return clip;
+            });
           setPlaylist(clips);
+        }
+        if (typeof s.hero_video_focus === "string") {
+          const [fx, fy] = s.hero_video_focus.split(/\s+/).map(Number);
+          if (typeof fx === "number" && typeof fy === "number") setFallbackFocus({ x: fx, y: fy });
         }
       } catch { /* legacy settings only — single-video mode */ }
     });
@@ -237,6 +246,9 @@ function HeroSection() {
           const list = playlist.length > 0 ? playlist : [{ src: heroVideo }];
           const isActive = layer === activeLayer;
           const clip = list[isActive ? currentIdx % list.length : (currentIdx + 1) % list.length]!;
+          // Focal point: per-clip when set, else the fallback hero focus.
+          const focusPos = clip.focus ?? fallbackFocus ?? null;
+          const objPos = `${focusPos ? focusPos.x : 50}% ${focusPos ? focusPos.y : 50}%`;
           // Data-saver: the hidden layer mounts src-less (poster only) so no
           // clip data is fetched until the transition assigns src. The active
           // layer always carries its clip.
@@ -256,7 +268,8 @@ function HeroSection() {
               preload={isActive ? "auto" : dataSaver ? "none" : "auto"}
               {...({ fetchPriority: layer === 0 ? "high" : "low" } as any)}
               onEnded={advance}
-              className={`absolute inset-0 h-full w-full object-cover object-[50%_50%] lg:object-[50%_40%] transition-opacity duration-1000 ${
+              style={{ objectPosition: objPos }}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
                 isFront ? "opacity-100 z-10" : isFadingIn ? "opacity-100 z-20" : "opacity-0 z-0"
               }`}
             />
