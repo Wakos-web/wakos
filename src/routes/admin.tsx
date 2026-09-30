@@ -1672,6 +1672,9 @@ const MAX_HERO_VIDEOS = 6;
 /** hero-media bucket allows 100MB per object; stay just under it. */
 const HERO_VIDEO_MAX_MB = 95;
 
+/** One hero playlist entry: the clip plus its optional loading poster/caption. */
+type HeroClip = { src: string; name?: string; poster?: string; caption?: string };
+
 /* ------------------------------------------------------------------ */
 /* Homepage hero playlist: multiple looping videos managed as an       */
 /* ordered list in site_settings.hero_playlist (JSON). Every action    */
@@ -1680,33 +1683,102 @@ const HERO_VIDEO_MAX_MB = 95;
 /* crossfades through the clips in this order, forever.                */
 /* ------------------------------------------------------------------ */
 function HeroPlaylistManager() {
-  const [items, setItems] = useState<{ src: string; name?: string }[]>([]);
+  const [items, setItems] = useState<HeroClip[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const lastSavedRef = useRef("");
+  const [uploadingPoster, setUploadingPoster] = useState<number | null>(null);
 
   useEffect(() => {
     supabase.from("site_settings").select("value").eq("key", "hero_playlist").maybeSingle().then(({ data, error }) => {
       if (error) setStatus({ message: friendlyError(error, "Couldn't load the hero playlist."), type: "error" });
       try {
         const parsed = JSON.parse(data?.value || "[]");
-        setItems(Array.isArray(parsed) ? parsed.filter((v: any) => v && typeof v.src === "string") : []);
+        const clips: HeroClip[] = Array.isArray(parsed) ? parsed.filter((v: any) => v && typeof v.src === "string") : [];
+        setItems(clips);
+        lastSavedRef.current = JSON.stringify(clips);
       } catch {
         setItems([]);
+        lastSavedRef.current = "[]";
       }
       setLoading(false);
     });
   }, []);
 
-  const persist = async (next: { src: string; name?: string }[], okMessage: string) => {
+  /* Captions are saved automatically: local state updates on every keystroke,
+   * then a short debounce persists the list once typing pauses — no separate
+   * save button to forget. Structural changes (add/move/remove/poster) go
+   * through persist(), which keeps lastSavedRef in sync so this effect is a
+   * no-op right after them. */
+  useEffect(() => {
+    if (loading) return;
+    const json = JSON.stringify(items);
+    if (json === lastSavedRef.current) return;
+    const t = window.setTimeout(async () => {
+      const { error } = await supabase.from("site_settings").upsert({ key: "hero_playlist", value: json }, { onConflict: "key" });
+      if (error) { setStatus({ message: friendlyError(error, "Couldn't save the captions. Try again."), type: "error" }); return; }
+      lastSavedRef.current = json;
+      setStatus({ message: "Captions saved", type: "success" });
+    }, 700);
+    return () => window.clearTimeout(t);
+  }, [items, loading]);
+
+  const updateItem = (idx: number, patch: Partial<HeroClip>) =>
+    setItems(prev => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+
+  const persist = async (next: HeroClip[], okMessage: string) => {
     setBusy(true);
-    const { error } = await supabase.from("site_settings").upsert({ key: "hero_playlist", value: JSON.stringify(next) }, { onConflict: "key" });
+    const json = JSON.stringify(next);
+    const { error } = await supabase.from("site_settings").upsert({ key: "hero_playlist", value: json }, { onConflict: "key" });
     setBusy(false);
     if (error) { setStatus({ message: friendlyError(error, "Couldn't save the playlist. Try again."), type: "error" }); return false; }
+    lastSavedRef.current = json;
     setItems(next);
     setStatus({ message: okMessage, type: "success" });
     return true;
+  };
+
+  /* Poster for a clip's loading frame: runs through prepareImageForUpload so
+   * posters get the same auto-resize/convert treatment as every other image. */
+  const uploadPoster = async (idx: number, file?: File | null) => {
+    if (!file) return;
+    setUploadingPoster(idx);
+    try {
+      const uploadable = await prepareImageForUpload(file);
+      const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `hero/posters/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("hero-media").upload(path, uploadable, { contentType: uploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
+      if (error) { setStatus({ message: friendlyError(error, `Couldn't upload that poster. Try again.`), type: "error" }); return; }
+      const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
+      const old = items[idx]?.poster;
+      const ok = await persist(items.map((c, i) => (i === idx ? { ...c, poster: data.publicUrl } : c)), "Poster saved");
+      if (ok && old) {
+        const marker = "/storage/v1/object/public/hero-media/";
+        if (old.includes(marker)) { try { await supabase.storage.from("hero-media").remove([old.split(marker)[1]!]); } catch { /* non-fatal */ } }
+      }
+    } catch (err: any) {
+      setStatus({ message: err?.message || "Image could not be processed.", type: "error" });
+    }
+    setUploadingPoster(null);
+  };
+
+  const removePoster = async (idx: number) => {
+    const old = items[idx]?.poster;
+    // Rebuild without the poster key (exactOptionalPropertyTypes forbids
+    // assigning explicit undefined to optional props).
+    const ok = await persist(items.map((c, i) => {
+      if (i !== idx) return c;
+      const next: HeroClip = { src: c.src };
+      if (c.name !== undefined) next.name = c.name;
+      if (c.caption !== undefined) next.caption = c.caption;
+      return next;
+    }), "Poster removed");
+    if (ok && old) {
+      const marker = "/storage/v1/object/public/hero-media/";
+      if (old.includes(marker)) { try { await supabase.storage.from("hero-media").remove([old.split(marker)[1]!]); } catch { /* non-fatal */ } }
+    }
   };
 
   const addFiles = async (files: FileList | null) => {
@@ -1716,7 +1788,7 @@ function HeroPlaylistManager() {
       return;
     }
     setBusy(true);
-    const added: { src: string; name?: string }[] = [];
+    const added: HeroClip[] = [];
     for (const file of Array.from(files)) {
       const okType = /\.(mp4|webm)$/i.test(file.name) || /video\/(mp4|webm)/i.test(file.type);
       if (!okType) { setStatus({ message: `"${file.name}" is not an MP4/WebM video. Convert it and try again.`, type: "error" }); continue; }
@@ -1750,13 +1822,9 @@ function HeroPlaylistManager() {
     const item = items[idx]!;
     // Best-effort storage cleanup: the playlist keeps working even if the
     // object is already gone or the URL isn't a storage path.
-    try {
-      const marker = "/storage/v1/object/public/hero-media/";
-      if (item.src.includes(marker)) {
-        const objPath = item.src.split(marker)[1]!;
-        await supabase.storage.from("hero-media").remove([objPath]);
-      }
-    } catch { /* non-fatal */ }
+    const marker = "/storage/v1/object/public/hero-media/";
+    const leftovers = [item.src, item.poster].filter((u): u is string => !!u && u.includes(marker)).map((u) => u.split(marker)[1]!);
+    if (leftovers.length) { try { await supabase.storage.from("hero-media").remove(leftovers); } catch { /* non-fatal */ } }
     await persist(items.filter((_, i) => i !== idx), "Hero video removed");
   };
 
@@ -1776,14 +1844,37 @@ function HeroPlaylistManager() {
           <p className="text-sm text-stone-400 py-3">No playlist videos yet — the homepage plays the bundled hero video. Add one below.</p>
         )}
         {items.map((item, i) => (
-          <div key={item.src} className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-2">
-            <span className="w-6 text-center text-xs font-bold text-stone-400 shrink-0">{i + 1}</span>
-            <video src={item.src + "#t=0.5"} muted playsInline preload="metadata" className="h-14 w-24 rounded-lg object-cover bg-stone-100 shrink-0" />
-            <span className="flex-1 min-w-0 truncate text-sm text-stone-700">{item.name || item.src.split("/").pop()}</span>
-            <div className="flex items-center gap-1 shrink-0">
-              <button disabled={busy || i === 0} onClick={() => move(i, -1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move up"><ArrowUp className="h-4 w-4 text-stone-500" /></button>
-              <button disabled={busy || i === items.length - 1} onClick={() => move(i, 1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move down"><ArrowDown className="h-4 w-4 text-stone-500" /></button>
-              <button disabled={busy} onClick={() => removeAt(i)} className="p-2 rounded-lg hover:bg-red-100 transition-colors" title="Remove"><Trash2 className="h-4 w-4 text-red-400" /></button>
+          <div key={item.src} className="rounded-xl border border-stone-200 bg-white p-2">
+            <div className="flex items-center gap-3">
+              <span className="w-6 text-center text-xs font-bold text-stone-400 shrink-0">{i + 1}</span>
+              <video src={item.src + "#t=0.5"} poster={item.poster || undefined} muted playsInline preload="metadata" className="h-14 w-24 rounded-lg object-cover bg-stone-100 shrink-0" />
+              <span className="flex-1 min-w-0 truncate text-sm text-stone-700">{item.name || item.src.split("/").pop()}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                <button disabled={busy || i === 0} onClick={() => move(i, -1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move up"><ArrowUp className="h-4 w-4 text-stone-500" /></button>
+                <button disabled={busy || i === items.length - 1} onClick={() => move(i, 1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move down"><ArrowDown className="h-4 w-4 text-stone-500" /></button>
+                <button disabled={busy} onClick={() => removeAt(i)} className="p-2 rounded-lg hover:bg-red-100 transition-colors" title="Remove"><Trash2 className="h-4 w-4 text-red-400" /></button>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2 sm:pl-9">
+              <input
+                value={item.caption || ""}
+                onChange={(e) => updateItem(i, { caption: e.target.value })}
+                placeholder="Caption (shown while this clip loads) — optional"
+                maxLength={90}
+                className="flex-1 min-w-0 p-2 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <div className="flex items-center gap-2 shrink-0">
+                {item.poster && <img src={item.poster} alt="" className="h-8 w-12 rounded object-cover ring-1 ring-stone-200" />}
+                <label className="cursor-pointer">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
+                    <ImageIcon className="h-3.5 w-3.5" />{uploadingPoster === i ? "Uploading..." : item.poster ? "Replace poster" : "+ Poster"}
+                  </span>
+                  <input type="file" accept={IMAGE_ACCEPT} className="hidden" disabled={uploadingPoster === i} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; uploadPoster(i, f); }} />
+                </label>
+                {item.poster && (
+                  <button onClick={() => removePoster(i)} className="p-2 rounded-lg hover:bg-red-100 transition-colors" title="Remove poster"><X className="h-3.5 w-3.5 text-red-400" /></button>
+                )}
+              </div>
             </div>
           </div>
         ))}

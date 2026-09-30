@@ -64,15 +64,16 @@ function HeroSection() {
   const [heroVideo, setHeroVideo] = useState(HERO_VIDEO);
   const [heroPoster, setHeroPoster] = useState(HERO_POSTER);
 
-  // Ordered hero playlist (admin → Settings → Hero playlist). One clip or
-  // zero falls back to the classic single looping video.
-  const [playlist, setPlaylist] = useState<string[]>([]);
+  // Ordered hero playlist (admin → Settings → Hero playlist). Each clip may
+  // carry an optional loading poster and caption. One clip or zero falls
+  // back to the classic single looping video.
+  const [playlist, setPlaylist] = useState<{ src: string; poster?: string; caption?: string }[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [activeLayer, setActiveLayer] = useState(0);
   const [fading, setFading] = useState(false);
   const layerRefs = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)] as const;
   const layerRef = (i: number) => layerRefs[(i % 2) as 0 | 1];
-  const playlistRef = useRef<string[]>([]);
+  const playlistRef = useRef<{ src: string; poster?: string; caption?: string }[]>([]);
   const currentRef = useRef(0);
   const activeRef = useRef(0);
   const fadingRef = useRef(false);
@@ -90,8 +91,14 @@ function HeroSection() {
       try {
         const parsed = JSON.parse(s.hero_playlist || "[]");
         if (Array.isArray(parsed)) {
-          const urls = parsed.map((v: any) => v?.src).filter((u: any) => typeof u === "string" && u.startsWith("http"));
-          setPlaylist(urls);
+          const clips = parsed
+            .filter((v: any) => v && typeof v.src === "string" && v.src.startsWith("http"))
+            .map((v: any) => ({
+              src: v.src as string,
+              poster: typeof v.poster === "string" && v.poster.startsWith("http") ? v.poster : undefined,
+              caption: typeof v.caption === "string" ? v.caption : undefined,
+            }));
+          setPlaylist(clips);
         }
       } catch { /* legacy settings only — single-video mode */ }
     });
@@ -133,7 +140,8 @@ function HeroSection() {
     const backLayer = 1 - activeRef.current;
     const back = layerRef(backLayer).current;
     if (back) {
-      back.src = list[nextIdx]!;
+      back.src = list[nextIdx]!.src;
+      if (list[nextIdx]!.poster) back.poster = list[nextIdx]!.poster!;
       back.muted = true;
       back.play().catch(() => {});
     }
@@ -147,7 +155,10 @@ function HeroSection() {
       // Preload the clip after next onto the now-hidden layer so the
       // following transition starts without a loading stall.
       const upcoming = layerRef(1 - backLayer).current;
-      if (upcoming && list.length > 1) upcoming.src = list[(nextIdx + 1) % list.length]!;
+      if (upcoming && list.length > 1) {
+        upcoming.src = list[(nextIdx + 1) % list.length]!.src;
+        if (list[(nextIdx + 1) % list.length]!.poster) upcoming.poster = list[(nextIdx + 1) % list.length]!.poster!;
+      }
     }, 1100);
   }, []);
 
@@ -187,16 +198,16 @@ function HeroSection() {
           back to the bundled hero video) simply loops on the front layer. */}
       <div className="absolute inset-0">
         {[0, 1].map((layer) => {
-          const list = playlist.length > 0 ? playlist : [heroVideo];
-          const url = list[layer === activeLayer ? currentIdx % list.length : (currentIdx + 1) % list.length]!;
+          const list = playlist.length > 0 ? playlist : [{ src: heroVideo }];
+          const clip = list[layer === activeLayer ? currentIdx % list.length : (currentIdx + 1) % list.length]!;
           const isFront = layer === activeLayer && !fading;
           const isFadingIn = layer !== activeLayer && fading;
           return (
             <video
               key={layer}
               ref={layerRef(layer)}
-              src={url}
-              poster={heroPoster}
+              src={clip.src}
+              poster={clip.poster || heroPoster}
               autoPlay={layer === 0}
               muted
               loop={list.length <= 1}
@@ -211,6 +222,20 @@ function HeroSection() {
           );
         })}
       </div>
+      {/* Caption for the clip on screen — shown while it loads/buffers, or
+          persistently when it has no poster (never obscured by one). Sits in
+          the clear upper-left band so it can never collide with the hero
+          title/CTAs at the bottom or the video controls. */}
+      {playlist.length > 0 && (() => {
+        const clip = playlist[currentIdx % playlist.length];
+        const caption = clip?.caption?.trim();
+        if (!caption) return null;
+        return (
+          <div className={`absolute left-6 right-6 top-24 sm:left-10 sm:top-28 lg:left-16 xl:left-24 z-30 transition-opacity duration-1000 ${fading ? "opacity-0" : "opacity-100"}`}>
+            <p className="max-w-xl text-sm font-medium uppercase tracking-[0.25em] text-white/85 drop-shadow-md sm:text-base">{caption}</p>
+          </div>
+        );
+      })()}
 
       {/* Layered overlays */}
       <div className="absolute inset-0 bg-black/30" />
