@@ -1673,7 +1673,27 @@ const MAX_HERO_VIDEOS = 6;
 const HERO_VIDEO_MAX_MB = 95;
 
 /** One hero playlist entry: the clip plus its optional loading poster/caption. */
-type HeroClip = { src: string; name?: string; poster?: string; caption?: string };
+type HeroClip = { src: string; name?: string; poster?: string; caption?: string; size?: number; duration?: number };
+
+/** Above these a clip is flagged "heavy" in the manager — phones pay for it. */
+const HERO_HEAVY_MB = 20;
+const HERO_HEAVY_SECONDS = 45;
+
+/** Read a video File's duration (seconds) from its metadata; undefined if unreadable. */
+function readVideoDuration(file: File): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    const finish = (d: number | undefined) => { URL.revokeObjectURL(url); resolve(d); };
+    const timer = window.setTimeout(() => finish(undefined), 4000);
+    v.preload = "metadata";
+    v.onloadedmetadata = () => { window.clearTimeout(timer); const d = v.duration; finish(Number.isFinite(d) ? Math.round(d * 10) / 10 : undefined); };
+    v.onerror = () => { window.clearTimeout(timer); finish(undefined); };
+    v.src = url;
+  });
+}
+
+const fmtDuration = (s: number) => (s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
 
 /* ------------------------------------------------------------------ */
 /* Homepage hero playlist: multiple looping videos managed as an       */
@@ -1690,6 +1710,11 @@ function HeroPlaylistManager() {
   const fileRef = useRef<HTMLInputElement>(null);
   const lastSavedRef = useRef("");
   const [uploadingPoster, setUploadingPoster] = useState<number | null>(null);
+  // Legacy entries (saved before size/duration were recorded) are probed
+  // live: duration from the row's preview video, size from a HEAD request.
+  const [probeDur, setProbeDur] = useState<Record<string, number>>({});
+  const [probeSize, setProbeSize] = useState<Record<string, number>>({});
+  const probedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     supabase.from("site_settings").select("value").eq("key", "hero_playlist").maybeSingle().then(({ data, error }) => {
@@ -1727,6 +1752,17 @@ function HeroPlaylistManager() {
 
   const updateItem = (idx: number, patch: Partial<HeroClip>) =>
     setItems(prev => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+
+  useEffect(() => {
+    items.forEach((item) => {
+      if (item.size !== undefined || probedRef.current.has(item.src)) return;
+      probedRef.current.add(item.src);
+      fetch(item.src, { method: "HEAD" }).then((r) => {
+        const len = Number(r.headers.get("content-length"));
+        if (Number.isFinite(len) && len > 0) setProbeSize(prev => (prev[item.src] ? prev : { ...prev, [item.src]: len }));
+      }).catch(() => { /* size stays unknown — display handles it */ });
+    });
+  }, [items]);
 
   const persist = async (next: HeroClip[], okMessage: string) => {
     setBusy(true);
@@ -1793,6 +1829,7 @@ function HeroPlaylistManager() {
       const okType = /\.(mp4|webm)$/i.test(file.name) || /video\/(mp4|webm)/i.test(file.type);
       if (!okType) { setStatus({ message: `"${file.name}" is not an MP4/WebM video. Convert it and try again.`, type: "error" }); continue; }
       if (file.size > HERO_VIDEO_MAX_MB * 1024 * 1024) { setStatus({ message: `"${file.name}" is ${fileSizeMb(file.size)} — hero clips must be ${HERO_VIDEO_MAX_MB}MB or smaller. Trim or compress it first.`, type: "error" }); continue; }
+      const duration = await readVideoDuration(file);
       const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
       const path = `hero/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       // Hero clips live in the dedicated hero-media bucket (mp4/webm allowed,
@@ -1800,7 +1837,9 @@ function HeroPlaylistManager() {
       const { error } = await supabase.storage.from("hero-media").upload(path, file, { contentType: file.type || "video/mp4", cacheControl: UPLOAD_CACHE_CONTROL });
       if (error) { setStatus({ message: friendlyError(error, `Couldn't upload "${file.name}". Try again.`), type: "error" }); continue; }
       const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
-      added.push({ src: data.publicUrl, name: file.name.replace(/\.[^.]+$/, "") });
+      const clip: HeroClip = { src: data.publicUrl, name: file.name.replace(/\.[^.]+$/, ""), size: file.size };
+      if (duration !== undefined) clip.duration = duration;
+      added.push(clip);
     }
     setBusy(false);
     if (fileRef.current) fileRef.current.value = "";
@@ -1830,6 +1869,8 @@ function HeroPlaylistManager() {
 
   if (loading) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-2 border-green-800 border-t-transparent" /></div>;
 
+  const totalBytes = items.reduce((n, it) => n + (it.size ?? probeSize[it.src] ?? 0), 0);
+
   return (
     <div className="rounded-2xl bg-white border border-stone-200 p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1843,12 +1884,36 @@ function HeroPlaylistManager() {
         {items.length === 0 && (
           <p className="text-sm text-stone-400 py-3">No playlist videos yet — the homepage plays the bundled hero video. Add one below.</p>
         )}
-        {items.map((item, i) => (
+        {items.map((item, i) => {
+          const dur = item.duration ?? probeDur[item.src];
+          const sizeBytes = item.size ?? probeSize[item.src];
+          const heavy = (sizeBytes !== undefined && sizeBytes > HERO_HEAVY_MB * 1024 * 1024) || (dur !== undefined && dur > HERO_HEAVY_SECONDS);
+          const durLabel = dur !== undefined ? fmtDuration(dur) : "";
+          const sizeLabel = sizeBytes !== undefined ? fileSizeMb(sizeBytes) : "";
+          return (
           <div key={item.src} className="rounded-xl border border-stone-200 bg-white p-2">
             <div className="flex items-center gap-3">
               <span className="w-6 text-center text-xs font-bold text-stone-400 shrink-0">{i + 1}</span>
-              <video src={item.src + "#t=0.5"} poster={item.poster || undefined} muted playsInline preload="metadata" className="h-14 w-24 rounded-lg object-cover bg-stone-100 shrink-0" />
-              <span className="flex-1 min-w-0 truncate text-sm text-stone-700">{item.name || item.src.split("/").pop()}</span>
+              <video
+                src={item.src + "#t=0.5"}
+                poster={item.poster || undefined}
+                muted
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={(e) => {
+                  const d = e.currentTarget.duration;
+                  if (Number.isFinite(d) && d > 0) setProbeDur(prev => (prev[item.src] ? prev : { ...prev, [item.src]: Math.round(d * 10) / 10 }));
+                }}
+                className="h-14 w-24 rounded-lg object-cover bg-stone-100 shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm text-stone-700">{item.name || item.src.split("/").pop()}</p>
+                {(durLabel || sizeLabel) && (
+                  <p className={`mt-0.5 text-xs ${heavy ? "font-medium text-amber-600" : "text-stone-400"}`}>
+                    {[durLabel, sizeLabel].filter(Boolean).join(" · ")}{heavy ? " — heavy: consider a shorter, smaller clip" : ""}
+                  </p>
+                )}
+              </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button disabled={busy || i === 0} onClick={() => move(i, -1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move up"><ArrowUp className="h-4 w-4 text-stone-500" /></button>
                 <button disabled={busy || i === items.length - 1} onClick={() => move(i, 1)} className="p-2 rounded-lg hover:bg-stone-100 disabled:opacity-30 transition-colors" title="Move down"><ArrowDown className="h-4 w-4 text-stone-500" /></button>
@@ -1877,8 +1942,14 @@ function HeroPlaylistManager() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
+      {items.length > 0 && totalBytes > 0 && (
+        <p className="mt-3 text-xs text-stone-400">
+          Playlist total: {fileSizeMb(totalBytes)} — a phone visitor streams one clip at a time, so each clip's own size is what matters.
+        </p>
+      )}
       <label className="mt-4 inline-flex cursor-pointer">
         <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${busy ? "bg-green-800/60" : "bg-green-800 hover:bg-green-900"}`}>
           <Upload className="h-4 w-4" />{busy ? "Uploading..." : "+ Add hero videos"}
