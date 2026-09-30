@@ -12,6 +12,7 @@ import { IMAGE_ACCEPT, IMAGE_TYPES, IMAGE_MAX_MB, VIDEO_ACCEPT, VIDEO_TYPES, VID
 import { friendlyError } from "@/lib/friendly-error";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import { ClubPostMediaManager } from "@/components/club-post-media-manager";
+import { ImageCropDialog } from "@/components/image-crop-dialog";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
@@ -1673,7 +1674,7 @@ const MAX_HERO_VIDEOS = 6;
 const HERO_VIDEO_MAX_MB = 95;
 
 /** One hero playlist entry: the clip plus its optional loading poster/caption. */
-type HeroClip = { src: string; name?: string; poster?: string; caption?: string; size?: number; duration?: number };
+type HeroClip = { src: string; name?: string; poster?: string; poster_original?: string; caption?: string; size?: number; duration?: number };
 
 /** Above these a clip is flagged "heavy" in the manager — phones pay for it. */
 const HERO_HEAVY_MB = 20;
@@ -1713,6 +1714,14 @@ function HeroPlaylistManager() {
   const [swapping, setSwapping] = useState<number | null>(null);
   // Row index currently expanded into a watchable player (null = thumbnails).
   const [previewing, setPreviewing] = useState<number | null>(null);
+  // Crop-dialog target: an index to crop-for, or "hero-poster" for the
+  // single-video fallback poster in the hero settings category.
+  const [cropTarget, setCropTarget] = useState<number | "hero-poster" | null>(null);
+  const [cropImage, setCropImage] = useState<File | string | null>(null);
+  // Refs so finishCrop can tell a fresh pick from a re-crop of a stored original.
+  const originalFileRef = useRef<File | null>(null);
+  const cropImageRef = useRef<File | string | null>(null);
+  cropImageRef.current = cropImage;
   // Legacy entries (saved before size/duration were recorded) are probed
   // live: duration from the row's preview video, size from a HEAD request.
   const [probeDur, setProbeDur] = useState<Record<string, number>>({});
@@ -1780,23 +1789,52 @@ function HeroPlaylistManager() {
     return true;
   };
 
-  /* Poster for a clip's loading frame: runs through prepareImageForUpload so
-   * posters get the same auto-resize/convert treatment as every other image. */
-  const uploadPoster = async (idx: number, file?: File | null) => {
-    if (!file) return;
+  /* Poster for a clip's loading frame. Two files are stored per poster: the
+   * admin's crop (hero-aspect, shown everywhere) plus the uncropped
+   * original, kept so the crop can be redone later without re-uploading.
+   * Both run through prepareImageForUpload for convert/resize safety. */
+  const uploadPoster = async (idx: number, cropped: File, original?: File | string | null) => {
+    if (!cropped) return;
     setUploadingPoster(idx);
     try {
-      const uploadable = await prepareImageForUpload(file);
+      const uploadable = await prepareImageForUpload(cropped);
       const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
       const path = `hero/posters/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error } = await supabase.storage.from("hero-media").upload(path, uploadable, { contentType: uploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
       if (error) { setStatus({ message: friendlyError(error, `Couldn't upload that poster. Try again.`), type: "error" }); return; }
       const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
-      const old = items[idx]?.poster;
-      const ok = await persist(items.map((c, i) => (i === idx ? { ...c, poster: data.publicUrl } : c)), "Poster saved");
-      if (ok && old) {
+      let originalUrl: string | undefined = typeof original === "string" ? original : undefined;
+      if (original instanceof File) {
+        const origUploadable = await prepareImageForUpload(original);
+        const oext = (origUploadable.name.split(".").pop() || "jpg").toLowerCase();
+        const opath = `hero/posters/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${oext}`;
+        // NOTE: check .error, not the response object — upload() always
+        // resolves to { data, error } even on success.
+        const ores = await supabase.storage.from("hero-media").upload(opath, origUploadable, { contentType: origUploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
+        if (!ores.error) {
+          const odata = supabase.storage.from("hero-media").getPublicUrl(opath);
+          originalUrl = odata.data.publicUrl;
+        } else {
+          console.warn("poster original upload failed (poster still saved):", ores.error.message);
+        }
+      }
+      const item = items[idx];
+      const oldPoster = item?.poster;
+      const oldOriginal = item?.poster_original;
+      const ok = await persist(items.map((c, i) => {
+        if (i !== idx) return c;
+        const next: HeroClip = { src: c.src, poster: data.publicUrl };
+        if (c.name !== undefined) next.name = c.name;
+        if (c.caption !== undefined) next.caption = c.caption;
+        if (c.size !== undefined) next.size = c.size;
+        if (c.duration !== undefined) next.duration = c.duration;
+        if (originalUrl !== undefined) next.poster_original = originalUrl;
+        return next;
+      }), "Poster saved");
+      if (ok) {
         const marker = "/storage/v1/object/public/hero-media/";
-        if (old.includes(marker)) { try { await supabase.storage.from("hero-media").remove([old.split(marker)[1]!]); } catch { /* non-fatal */ } }
+        const leftovers = [oldPoster, oldOriginal].filter((u): u is string => !!u && u.includes(marker) && u !== data.publicUrl && u !== originalUrl).map((u) => u.split(marker)[1]!);
+        if (leftovers.length) { try { await supabase.storage.from("hero-media").remove(leftovers); } catch { /* non-fatal */ } }
       }
     } catch (err: any) {
       setStatus({ message: err?.message || "Image could not be processed.", type: "error" });
@@ -1828,6 +1866,7 @@ function HeroPlaylistManager() {
         if (duration !== undefined) swapped.duration = duration;
         if (c.poster !== undefined) swapped.poster = c.poster;
         if (c.caption !== undefined) swapped.caption = c.caption;
+        if (c.poster_original !== undefined) swapped.poster_original = c.poster_original;
         return swapped;
       });
       const ok = await persist(next, "Video swapped — caption and poster kept");
@@ -1839,6 +1878,26 @@ function HeroPlaylistManager() {
       setStatus({ message: err?.message || "Video could not be processed.", type: "error" });
     }
     setSwapping(null);
+  };
+
+  /* Open the crop dialog for a clip's poster. A fresh file goes straight to
+   * the dialog; "Re-crop" passes the stored original for a re-frame. */
+  const beginCrop = (idx: number, file?: File | null) => {
+    if (!file && !items[idx]?.poster_original) return;
+    originalFileRef.current = file ?? null;
+    setCropTarget(idx);
+    setCropImage(file ?? items[idx]!.poster_original!);
+  };
+
+  const finishCrop = async (cropped: File) => {
+    const idx = cropTarget;
+    setCropTarget(null);
+    setCropImage(null);
+    if (idx === null || idx === "hero-poster") return;
+    const original = typeof cropImageRef.current === "string"
+      ? cropImageRef.current // re-crop from the stored original
+      : originalFileRef.current; // fresh pick — keep the uncropped file
+    await uploadPoster(idx, cropped, original);
   };
 
   const removePoster = async (idx: number) => {
@@ -1995,10 +2054,13 @@ function HeroPlaylistManager() {
                 {item.poster && <img src={item.poster} alt="" className="h-8 w-12 rounded object-cover ring-1 ring-stone-200" />}
                 <label className="cursor-pointer">
                   <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
-                    <ImageIcon className="h-3.5 w-3.5" />{uploadingPoster === i ? "Uploading..." : item.poster ? "Replace poster" : "+ Poster"}
+                    <ImageIcon className="h-3.5 w-3.5" />{uploadingPoster === i ? "Uploading..." : item.poster ? "Replace poster" : "+ Crop poster"}
                   </span>
-                  <input type="file" accept={IMAGE_ACCEPT} className="hidden" disabled={uploadingPoster === i} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; uploadPoster(i, f); }} />
+                  <input type="file" accept={IMAGE_ACCEPT} className="hidden" disabled={uploadingPoster === i} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; beginCrop(i, f); }} />
                 </label>
+                {item.poster && item.poster_original && (
+                  <button onClick={() => beginCrop(i)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="Re-crop from the original upload">Re-crop</button>
+                )}
                 <label className="cursor-pointer">
                   <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
                     <Replace className="h-3.5 w-3.5" />{swapping === i ? "Swapping..." : "Swap video"}
@@ -2025,6 +2087,14 @@ function HeroPlaylistManager() {
         </span>
         <input ref={fileRef} type="file" accept={VIDEO_ACCEPT} multiple className="hidden" disabled={busy} onChange={(e) => addFiles(e.target.files)} />
       </label>
+      {cropTarget !== null && cropImage && (
+        <ImageCropDialog
+          image={cropImage}
+          title={typeof cropTarget === "number" ? `Crop poster — ${items[cropTarget]?.name || "clip"}` : "Crop hero poster"}
+          onCancel={() => { setCropTarget(null); setCropImage(null); }}
+          onCropped={finishCrop}
+        />
+      )}
     </div>
   );
 }
@@ -2059,6 +2129,42 @@ function SettingsTab() {
     setSaving(false);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2000);
+  };
+
+  // Hero poster crops open the drag-and-zoom dialog instead of uploading
+  // directly; the uncropped original is stored alongside for re-cropping.
+  const [heroCropOpen, setHeroCropOpen] = useState(false);
+  const [heroCropImage, setHeroCropImage] = useState<File | string | null>(null);
+  const heroCropOriginalRef = useRef<File | null>(null);
+
+  const uploadCroppedHeroPoster = async (cropped: File, original?: File | null) => {
+    setUploading("hero_poster");
+    try {
+      const uploadable = await prepareImageForUpload(cropped);
+      const ext = (uploadable.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `hero/posters/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("hero-media").upload(path, uploadable, { contentType: uploadable.type, cacheControl: UPLOAD_CACHE_CONTROL });
+      if (error) { window.alert(`We couldn't upload that poster. Try again.`); return; }
+      const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
+      update("hero_poster", data.publicUrl);
+      if (original) {
+        const orig = await prepareImageForUpload(original);
+        const oext = (orig.name.split(".").pop() || "jpg").toLowerCase();
+        const opath = `hero/posters/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${oext}`;
+        // NOTE: check .error, not the response object (upload() always
+        // resolves to { data, error } even on success).
+        const ores = await supabase.storage.from("hero-media").upload(opath, orig, { contentType: orig.type, cacheControl: UPLOAD_CACHE_CONTROL });
+        if (!ores.error) {
+          const odata = supabase.storage.from("hero-media").getPublicUrl(opath);
+          update("hero_poster_original", odata.data.publicUrl);
+        } else {
+          console.warn("hero poster original upload failed (poster still saved):", ores.error.message);
+        }
+      }
+    } catch (err: any) {
+      window.alert(err?.message || "Image could not be processed.");
+    }
+    setUploading(null);
   };
 
   const uploadFile = async (key: string, file: File) => {
@@ -2169,14 +2275,24 @@ function SettingsTab() {
                   ) : f.type === "image" ? (
                     <div>
                       {!!settings[f.key] && settings[f.key]!.startsWith("http") && (
-                        <img src={settings[f.key]!} className="w-full max-h-48 rounded-xl mb-2 object-cover" alt={f.label} />)
+                        <div className="flex items-center gap-3 mb-2">
+                          <img src={settings[f.key]!} className="w-full max-h-48 rounded-xl object-cover" alt={f.label} />
+                          {f.key === "hero_poster" && settings["hero_poster_original"]?.startsWith("http") && (
+                            <button
+                              onClick={() => { heroCropOriginalRef.current = null; setHeroCropImage(settings["hero_poster_original"]!); setHeroCropOpen(true); }}
+                              className="shrink-0 px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors"
+                            >
+                              Re-crop
+                            </button>
+                          )}
+                        </div>)
                       }
                       <div className="flex items-center gap-3">
                         <label className="flex-1">
                           <span className="block w-full rounded-xl border border-dashed border-stone-300 px-4 py-3 text-sm text-stone-500 text-center cursor-pointer hover:border-green-800 hover:text-green-800 transition-colors">
-                            {uploading === f.key ? "Uploading..." : "Click to upload image (JPG/PNG/WebP)"}
+                            {uploading === f.key ? "Uploading..." : f.key === "hero_poster" ? "Click to choose an image, then crop it" : "Click to upload image (JPG/PNG/WebP)"}
                           </span>
-                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => e.target.files?.[0] && uploadFile(f.key, e.target.files[0])} />
+                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; if (f.key === "hero_poster") { heroCropOriginalRef.current = file; setHeroCropImage(file); setHeroCropOpen(true); } else uploadFile(f.key, file); }} />
                         </label>
                       </div>
                     </div>
@@ -2191,6 +2307,14 @@ function SettingsTab() {
           </div>
         ))}
       </div>
+      {heroCropOpen && heroCropImage && (
+        <ImageCropDialog
+          image={heroCropImage}
+          title="Crop hero poster"
+          onCancel={() => { setHeroCropOpen(false); setHeroCropImage(null); }}
+          onCropped={(cropped) => { setHeroCropOpen(false); setHeroCropImage(null); uploadCroppedHeroPoster(cropped, heroCropOriginalRef.current); }}
+        />
+      )}
     </div>
   );
 }
