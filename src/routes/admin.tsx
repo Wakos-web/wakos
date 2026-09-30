@@ -193,27 +193,36 @@ type ReviewItem = {
   /** Text verdict on the SubmissionsList tables (club_applications etc.). */
   status?: string;
   rejected_notes?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
   table: string;
 };
 
-function ReviewModal({ item, onClose, onRefresh, setToast }: {
+function ReviewModal({ item, onClose, onRefresh, setToast, reviewerName }: {
   item: ReviewItem | null;
   onClose: () => void;
   onRefresh: () => void;
   setToast: (t: { message: string; type: "success" | "error" } | null) => void;
+  reviewerName?: string | undefined;
 }) {
   const [rejectNotes, setRejectNotes] = useState("");
   const [action, setAction] = useState<"approve" | "reject" | null>(null);
   const [saving, setSaving] = useState(false);
+  // Filled by applyVerdict when a degraded (pre-migration) payload succeeded;
+  // prefixed onto the success toast so the admin knows stamps/notes were dropped.
+  const degradeNote = useRef("");
 
   if (!item) return null;
 
   // Two verdict shapes live in this dashboard: the alumni tables carry an
   // `approved` boolean plus `rejected_notes`, while the SubmissionsList tables
   // (club_applications, mentorship_requests, sports_scholarships) carry a text
-  // `status` column and nowhere to store notes — writing the alumni shape
-  // there fails with "column does not exist", so match each table's own shape.
+  // `status` column — writing the alumni shape there fails with "column does
+  // not exist", so match each table's own shape.
   const usesStatus = ["club_applications", "mentorship_requests", "sports_scholarships"].includes(item.table);
+  // Only the SubmissionsList tables record who decided (alumni tables have no
+  // reviewed_by/reviewed_at columns).
+  const hasStamps = usesStatus;
 
   // Registration and business-listing decisions get an email to the applicant
   // (server fns are gated on the staff session cookie; DB state must already
@@ -231,21 +240,47 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
     }
   };
 
+  // Try verdict payloads from most- to least-complete so a database that
+  // hasn't had migrations 033/034 applied yet still records the verdict and
+  // whatever columns it does have — unknown columns are stripped step by step.
+  // The handles overwrite the toast afterwards, so degradation is surfaced via
+  // a pre-message that prefixes the success toast.
+  const applyVerdict = async (candidates: Record<string, unknown>[]): Promise<boolean> => {
+    let lastError: any = null;
+    for (let k = 0; k < candidates.length; k++) {
+      const payload = candidates[k];
+      if (!payload) continue;
+      const { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
+      if (!error) {
+        if (k > 0 && hasStamps) {
+          degradeNote.current = k === 1
+            ? " (saved without rejection notes — run migration 033)"
+            : " (saved without reviewer stamps or notes — run migrations 033/034)";
+        } else {
+          degradeNote.current = "";
+        }
+        return true;
+      }
+      lastError = error;
+    }
+    setToast({ message: errMsg(lastError, "Couldn't save that change. Try again."), type: "error" });
+    return false;
+  };
+
   const handleApprove = async () => {
     setSaving(true);
-    // Migration 033 gave the status tables a rejected_notes column; clear any
-    // stale note on approve, falling back to the bare verdict if the column
-    // isn't applied yet (pre-migration databases reject unknown columns).
-    let payload: Record<string, unknown> = usesStatus
-      ? { status: "approved", rejected_notes: null }
-      : { approved: true, rejected_notes: null };
-    let { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
-    if (error && usesStatus && /rejected_notes/i.test(error.message)) {
-      ({ error } = await supabase.from(item.table).update({ status: "approved" }).eq("id", item.id));
-    }
+    degradeNote.current = "";
+    const stamp = { reviewed_by: reviewerName || "Admin", reviewed_at: new Date().toISOString() };
+    const ok = usesStatus
+      ? await applyVerdict([
+          { status: "approved", rejected_notes: null, ...stamp },
+          { status: "approved", ...stamp }, // pre-033 database (notes column missing)
+          { status: "approved" }, // pre-034 database (stamps missing too)
+        ])
+      : await applyVerdict([{ approved: true, rejected_notes: null }]);
     setSaving(false);
-    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
-    setToast({ message: "Submission approved", type: "success" });
+    if (!ok) return;
+    setToast({ message: "Submission approved" + degradeNote.current, type: degradeNote.current ? "error" : "success" });
     await notifyApplicant("approved");
     onRefresh();
     onClose();
@@ -254,19 +289,19 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
   const handleReject = async () => {
     if (!rejectNotes.trim() && !usesStatus) { setToast({ message: "Please add rejection notes", type: "error" }); return; }
     setSaving(true);
-    // Status tables store the note too (migration 033); if that column isn't
-    // applied yet, reject anyway — the verdict must not be lost to feedback.
-    let payload: Record<string, unknown> = usesStatus
-      ? { status: "rejected", rejected_notes: rejectNotes.trim() || null }
-      : { approved: false, rejected_notes: rejectNotes.trim() };
-    let { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
-    if (error && usesStatus && /rejected_notes/i.test(error.message)) {
-      ({ error } = await supabase.from(item.table).update({ status: "rejected" }).eq("id", item.id));
-      if (!error) setToast({ message: "Rejected, but the note couldn't be stored — run migration 033 to enable feedback.", type: "error" });
-    }
+    degradeNote.current = "";
+    const stamp = { reviewed_by: reviewerName || "Admin", reviewed_at: new Date().toISOString() };
+    const note = rejectNotes.trim() || null;
+    const ok = usesStatus
+      ? await applyVerdict([
+          { status: "rejected", rejected_notes: note, ...stamp },
+          { status: "rejected", ...stamp }, // pre-033 database (notes column missing)
+          { status: "rejected" }, // pre-034 database (stamps missing too)
+        ])
+      : await applyVerdict([{ approved: false, rejected_notes: rejectNotes.trim() }]);
     setSaving(false);
-    if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
-    setToast({ message: "Submission rejected", type: "success" });
+    if (!ok) return;
+    setToast({ message: "Submission rejected" + degradeNote.current, type: degradeNote.current ? "error" : "success" });
     await notifyApplicant("rejected");
     onRefresh();
     onClose();
@@ -298,6 +333,15 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
             <div>
               <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Content</p>
               <p className="text-stone-700 whitespace-pre-wrap">{item.content}</p>
+            </div>
+          )}
+          {(item.reviewed_by || item.reviewed_at) && (
+            <div className="rounded-xl bg-stone-50 border border-stone-200 px-4 py-3">
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Previously reviewed</p>
+              <p className="text-sm text-stone-700">
+                {item.reviewed_by || "Unknown"}
+                {item.reviewed_at ? ` · ${new Date(item.reviewed_at).toLocaleString()}` : ""}
+              </p>
             </div>
           )}
           {item.details && Object.entries(item.details).map(([key, val]) => (
@@ -1444,11 +1488,7 @@ function NotesTab({ notes, onRefresh, setToast }: { notes: any[]; onRefresh: () 
             </div>
           ))}
         </div>
-      )}
-      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
-    </div>
-  );
-}
+      )}<ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />     </div>   ); } 
 
 function InquiriesTab({ inquiries, onRefresh }: { inquiries: any[]; onRefresh: () => void }) {
   const remove = async (id: string) => {
@@ -2592,11 +2632,7 @@ function BusinessesTab({ businesses, onRefresh, setToast }: { businesses: any[];
             </div>
           ))}
         </div>
-      )}
-      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
-    </div>
-  );
-}
+      )}<ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />     </div>   ); } 
 
 function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
@@ -2772,11 +2808,7 @@ function AlumniTab({ alumni, onRefresh, setToast }: { alumni: any[]; onRefresh: 
             </div>
           </div>
         </div>
-      )}
-      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
-    </div>
-  );
-}
+      )}<ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />     </div>   ); } 
 
 function ImageUpload({ value, onChange, label, setToast }: { value: string; onChange: (url: string) => void; label?: string; setToast?: (t: { message: string; type: "success" | "error" } | null) => void }) {
   const [uploading, setUploading] = useState(false);
@@ -3668,7 +3700,7 @@ function PagesTab({ pages, onRefresh, setToast }: { pages: any[]; onRefresh: () 
   );
 }
 
-function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, setToast }: { title: string; icon: any; data: any[]; columns: { key: string; label: string }[]; table: string; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void }) {
+function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, setToast, reviewerName }: { title: string; icon: any; data: any[]; columns: { key: string; label: string }[]; table: string; onRefresh: () => void; setToast: (t: { message: string; type: "success" | "error" } | null) => void; reviewerName?: string | undefined }) {
   const [filter, setFilter] = useState("all");
   const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
   const filtered = filter === "all" ? data : data.filter((d: any) => d.status === filter);
@@ -3692,6 +3724,8 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
       approved: item.status === "approved",
       status: item.status,
       rejected_notes: item.rejected_notes,
+      reviewed_by: item.reviewed_by,
+      reviewed_at: item.reviewed_at,
       table
     });
   };
@@ -3737,11 +3771,7 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
             </div>
           ))}
         </div>
-      )}
-      <ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />
-    </div>
-  );
-}
+      )}<ReviewModal item={reviewItem} onClose={() => setReviewItem(null)} onRefresh={onRefresh} setToast={setToast} />     </div>   ); } 
 
 /* ------------------------------------------------------------------ */
 /* Donations review: every thank-you form submission, with payment      */
@@ -5587,10 +5617,10 @@ function AdminPage() {
             {tab === "articles" && <ArticlesTab articles={articles} onRefresh={fetchData} setToast={setToast} />}
             {tab === "businesses" && <BusinessesTab businesses={businesses} onRefresh={fetchData} setToast={setToast} />}
             {tab === "pages" && <PagesTab pages={pageContent} onRefresh={fetchData} setToast={setToast} />}
-            {tab === "applications" && <SubmissionsList title="Club Applications" icon={Users} data={applications} columns={[{ key: "club_name", label: "Club" }, { key: "student_name", label: "Student" }, { key: "class_level", label: "Class" }, { key: "reason", label: "Reason" }]} table="club_applications" onRefresh={fetchData} setToast={setToast} />}
-            {tab === "mentorship" && <SubmissionsList title="Mentorship Requests" icon={Heart} data={mentorship} columns={[{ key: "mentor_name", label: "Name" }, { key: "mentor_email", label: "Email" }, { key: "club_interest", label: "Club" }, { key: "graduation_year", label: "Class Of" }, { key: "expertise", label: "Expertise" }]} table="mentorship_requests" onRefresh={fetchData} setToast={setToast} />}
+            {tab === "applications" && <SubmissionsList title="Club Applications" icon={Users} data={applications} columns={[{ key: "club_name", label: "Club" }, { key: "student_name", label: "Student" }, { key: "class_level", label: "Class" }, { key: "reason", label: "Reason" }]} table="club_applications" onRefresh={fetchData} setToast={setToast} reviewerName={session.user?.name || session.user?.email || "Admin"} />}
+            {tab === "mentorship" && <SubmissionsList title="Mentorship Requests" icon={Heart} data={mentorship} columns={[{ key: "mentor_name", label: "Name" }, { key: "mentor_email", label: "Email" }, { key: "club_interest", label: "Club" }, { key: "graduation_year", label: "Class Of" }, { key: "expertise", label: "Expertise" }]} table="mentorship_requests" onRefresh={fetchData} setToast={setToast} reviewerName={session.user?.name || session.user?.email || "Admin"} />}
             {tab === "donations" && <DonationsTab data={donations} onRefresh={fetchData} setToast={setToast} />}
-            {tab === "scholarships" && <SubmissionsList title="Sports Scholarships" icon={GraduationCap} data={scholarships} columns={[{ key: "student_name", label: "Student" }, { key: "parent_name", label: "Parent" }, { key: "phone", label: "Phone" }, { key: "sport", label: "Sport" }, { key: "achievement", label: "Achievement" }]} table="sports_scholarships" onRefresh={fetchData} setToast={setToast} />}
+            {tab === "scholarships" && <SubmissionsList title="Sports Scholarships" icon={GraduationCap} data={scholarships} columns={[{ key: "student_name", label: "Student" }, { key: "parent_name", label: "Parent" }, { key: "phone", label: "Phone" }, { key: "sport", label: "Sport" }, { key: "achievement", label: "Achievement" }]} table="sports_scholarships" onRefresh={fetchData} setToast={setToast} reviewerName={session.user?.name || session.user?.email || "Admin"} />}
             {tab === "comments" && <CommentsTab comments={noteComments} onRefresh={fetchData} setToast={setToast} />}
             {tab === "giving" && <GivingTab setToast={setToast} />}
             {tab === "mwosa" && <MwosaTab setToast={setToast} />}
