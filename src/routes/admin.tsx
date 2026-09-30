@@ -190,6 +190,8 @@ type ReviewItem = {
   content?: string;
   details?: Record<string, any>;
   approved?: boolean;
+  /** Text verdict on the SubmissionsList tables (club_applications etc.). */
+  status?: string;
   rejected_notes?: string;
   table: string;
 };
@@ -231,8 +233,16 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
 
   const handleApprove = async () => {
     setSaving(true);
-    const payload = usesStatus ? { status: "approved" } : { approved: true, rejected_notes: null };
-    const { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
+    // Migration 033 gave the status tables a rejected_notes column; clear any
+    // stale note on approve, falling back to the bare verdict if the column
+    // isn't applied yet (pre-migration databases reject unknown columns).
+    let payload: Record<string, unknown> = usesStatus
+      ? { status: "approved", rejected_notes: null }
+      : { approved: true, rejected_notes: null };
+    let { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
+    if (error && usesStatus && /rejected_notes/i.test(error.message)) {
+      ({ error } = await supabase.from(item.table).update({ status: "approved" }).eq("id", item.id));
+    }
     setSaving(false);
     if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Submission approved", type: "success" });
@@ -242,10 +252,18 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
   };
 
   const handleReject = async () => {
-    if (!usesStatus && !rejectNotes.trim()) { setToast({ message: "Please add rejection notes", type: "error" }); return; }
+    if (!rejectNotes.trim() && !usesStatus) { setToast({ message: "Please add rejection notes", type: "error" }); return; }
     setSaving(true);
-    const payload = usesStatus ? { status: "rejected" } : { approved: false, rejected_notes: rejectNotes.trim() };
-    const { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
+    // Status tables store the note too (migration 033); if that column isn't
+    // applied yet, reject anyway — the verdict must not be lost to feedback.
+    let payload: Record<string, unknown> = usesStatus
+      ? { status: "rejected", rejected_notes: rejectNotes.trim() || null }
+      : { approved: false, rejected_notes: rejectNotes.trim() };
+    let { error } = await supabase.from(item.table).update(payload).eq("id", item.id);
+    if (error && usesStatus && /rejected_notes/i.test(error.message)) {
+      ({ error } = await supabase.from(item.table).update({ status: "rejected" }).eq("id", item.id));
+      if (!error) setToast({ message: "Rejected, but the note couldn't be stored — run migration 033 to enable feedback.", type: "error" });
+    }
     setSaving(false);
     if (error) { setToast({ message: errMsg(error, "Couldn't save that change. Try again."), type: "error" }); return; }
     setToast({ message: "Submission rejected", type: "success" });
@@ -288,7 +306,7 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
               <p className="text-stone-700">{String(val)}</p>
             </div>
           ))}
-          {item.approved === false && item.rejected_notes && !usesStatus && (
+          {(item.approved === false || (usesStatus && item.status === "rejected")) && item.rejected_notes && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1">Rejection Notes</p>
               <p className="text-sm text-red-700">{item.rejected_notes}</p>
@@ -316,14 +334,12 @@ function ReviewModal({ item, onClose, onRefresh, setToast }: {
             </div>
           ) : (
             <div className="space-y-3">
-              {!usesStatus && (
-                <textarea
-                  value={rejectNotes}
-                  onChange={(e) => setRejectNotes(e.target.value)}
-                  placeholder="Add rejection notes (required)..."
-                  className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[80px]"
-                />
-              )}
+              <textarea
+                value={rejectNotes}
+                onChange={(e) => setRejectNotes(e.target.value)}
+                placeholder={usesStatus ? "Add rejection notes (stored with the application)..." : "Add rejection notes (required)..."}
+                className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[80px]"
+              />
               <div className="flex gap-3">
                 <button onClick={handleReject} disabled={saving} className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold disabled:opacity-50 transition-colors">
                   {saving ? "Rejecting..." : "Confirm Reject"}
@@ -3674,6 +3690,7 @@ function SubmissionsList({ title, icon: Icon, data, columns, table, onRefresh, s
       content: item.reason || item.message || item.purpose || item.experience || item.achievement || "",
       details,
       approved: item.status === "approved",
+      status: item.status,
       rejected_notes: item.rejected_notes,
       table
     });
