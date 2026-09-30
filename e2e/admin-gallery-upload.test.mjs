@@ -94,6 +94,9 @@ test("admin gallery upload keeps its real MIME type through the proxy", { timeou
   let testUserId = null;
   let chrome = null;
   let uploadedPath = null;
+  let galleryRowId = null;
+  let gallerySnapshot = null;
+  let existingObjs = [];
   try {
     // ---- seed a pending admin invite with a known code ----
     const created = await service.auth.admin.createUser({
@@ -171,24 +174,40 @@ test("admin gallery upload keeps its real MIME type through the proxy", { timeou
     assert.equal(openedRow, "clicked", "gallery row edit button not found");
     await page.waitFor("document.body.innerText.includes('Upload photos')", { timeout: 15000 });
 
+    // ---- snapshot the gallery row + existing storage so prod content survives ----
+    const { data: galleryBefore } = await service
+      .from("page_content")
+      .select("id, content")
+      .eq("page", "about")
+      .eq("section", "gallery")
+      .single();
+    galleryRowId = galleryBefore?.id || null;
+    gallerySnapshot = galleryBefore?.content || { images: [] };
+    existingObjs = ((await service.storage.from("uploads").list("gallery", { limit: 200 })).data || []).map((o) => o.name);
+
     // ---- attach a real PNG to the upload input ----
     const fileInputs = await page.eval("document.querySelectorAll('input[type=file]').length");
     assert.ok(fileInputs >= 1, "no file input in the gallery editor");
+    const baselineRows = await page.eval("document.querySelectorAll('input[placeholder^=\"Caption\"]').length");
     const attached = await attachPng(page, 0);
     assert.match(String(attached), /^attached\+handler:1:image\/png$/, "file attach failed: " + attached);
 
-    // ---- upload must succeed: a caption row appears, no error toast ----
-    // Success signal: each uploaded photo gets a caption + alt input row.
-    await page.waitFor("document.querySelectorAll('input').length >= 3", {
+    // ---- upload must succeed: ONE MORE caption row appears, no error toast ----
+    // Count caption rows, not raw inputs: when the gallery already holds real
+    // photos the raw-input count passes instantly and races the Save button
+    // while it is still disabled (silent no-op click) — this bit us on prod.
+    await page.waitFor(`document.querySelectorAll('input[placeholder^="Caption"]').length >= ${baselineRows + 1}`, {
       timeout: 45000,
     });
     assert.ok(!/Upload failed/i.test(await page.text()), "upload failed toast shown");
-    const body = await page.text();
-    assert.ok(!/Upload failed/i.test(body), "upload failed toast shown: " + body.slice(-200));
 
-    // ---- save and read back the stored object's content-type ----
+    // ---- save once the button is live, then read back the content-type ----
+    await page.waitFor(
+      "(() => { const b = Array.from(document.querySelectorAll('button')).find(x => (x.innerText||'').trim().includes('Save gallery')); return !!b && !b.disabled; })()",
+      { timeout: 30000 },
+    );
     await page.clickByText("Save gallery");
-    await page.waitFor("document.body.innerText.includes('Gallery saved') || !document.body.innerText.includes('Upload photos')", { timeout: 30000 });
+    await page.waitFor("document.body.innerText.includes('Gallery updated') || !document.body.innerText.includes('Upload photos')", { timeout: 30000 });
 
     const { data: row } = await service
       .from("page_content")
@@ -218,20 +237,30 @@ test("admin gallery upload keeps its real MIME type through the proxy", { timeou
     assert.equal(pub.status, 200, `uploaded object is not publicly readable: ${lastBody}`);
     assert.match(ctype, /^image\/(png|jpeg|webp)/, `stored content-type is ${ctype} — MIME was lost`);
 
-    // reset the section back to empty (bundled defaults return on the page)
-    await service
-      .from("page_content")
-      .update({ content: { images: [] } })
-      .eq("page", "about")
-      .eq("section", "gallery");
   } finally {
     if (chrome) await chrome.page.close();
+    try {
+      // Restore the gallery row to its pre-run content — never reset prod photos.
+      if (galleryRowId) {
+        await service.from("page_content").update({ content: gallerySnapshot }).eq("id", galleryRowId);
+      }
+    } catch (e) {
+      console.error("gallery restore error (non-fatal):", e.message);
+    }
     try {
       if (uploadedPath) {
         await service.storage.from(uploadedPath.split("/")[0]).remove([uploadedPath.split("/").slice(1).join("/")]);
       }
     } catch (e) {
       console.error("storage cleanup error (non-fatal):", e.message);
+    }
+    try {
+      // Sweep any storage objects this run created that weren't there before.
+      const afterNames = ((await service.storage.from("uploads").list("gallery", { limit: 200 })).data || []).map((o) => o.name);
+      const newcomers = afterNames.filter((n) => !existingObjs.includes(n) && /\.png$/i.test(n));
+      if (newcomers.length) await service.storage.from("uploads").remove(newcomers.map((n) => "gallery/" + n));
+    } catch (e) {
+      console.error("storage sweep error (non-fatal):", e.message);
     }
     try {
       if (testUserId) await service.auth.admin.deleteUser(testUserId);
