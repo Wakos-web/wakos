@@ -535,7 +535,7 @@ function ClubEditorTools({ club, reviewerName }: { club: any; reviewerName: stri
             </div>
           </div>
           <div className="border-t border-green-200/70 pt-4">
-            <ClubPostMediaManager postId={editingPost.id} notice={(text, kind) => flash(text, kind)} />
+            <ClubPostMediaManager postId={editingPost.id} db={supabase} notice={(text, kind) => flash(text, kind)} />
           </div>
           <div className="flex gap-2">
             <button onClick={savePost} disabled={postSaving} className="px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">{postSaving ? "Saving..." : "Save story"}</button>
@@ -4206,6 +4206,8 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
   const [posterUploading, setPosterUploading] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  // First row's grip handle — refocused after keyboard reorders so ↑/↓ keeps working.
+  const handleRef = useRef<HTMLButtonElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
 
@@ -4418,11 +4420,40 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
     load();
   };
 
+  /* Keyboard reorder: ↑/↓ on a row's grip handle swaps with the neighbour and
+   * rewrites sort_order in the same one-batch write as drag-drop. The handle
+   * is never disabled — disabling a focused button blurs it — and the post
+   * save reload is silent (no spinner): the loading early-return unmounts the
+   * list, which would drop keyboard focus mid-reorder. */
+  const reloadSilently = async () => {
+    const { data } = await supabase.from("mwosa_update_media").select("*").eq("update_id", updateId).order("sort_order", { ascending: true });
+    setItems(data || []);
+    const e: Record<string, { caption: string; sort: string; poster: string; youtube: string }> = {};
+    (data || []).forEach((m: any) => { e[m.id] = { caption: m.caption || "", sort: String(m.sort_order ?? 0), poster: m.poster_url || "", youtube: m.youtube_url || "" }; });
+    setEdits(e);
+  };
+  const move = async (id: string, dir: -1 | 1) => {
+    const from = items.findIndex((m) => m.id === id);
+    const to = from + dir;
+    if (from === -1 || to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    if (!moved) return;
+    next.splice(to, 0, moved);
+    setItems(next);
+    const updates = next.map((m, i) =>
+      supabase.from("mwosa_update_media").update({ sort_order: i + 1 }).eq("id", m.id),
+    );
+    await Promise.all(updates);
+    setToast({ message: "Order saved", type: "success" });
+    await reloadSilently();
+  };
+
   return (
     <div>
       <p className="text-sm font-semibold text-stone-700 mb-1">Story media (photos & videos with captions)</p>
       <p className="text-xs text-stone-400 mb-4">
-        These appear on the update's detailed page. Upload a photo or video, give it a caption, and reorder.
+        These appear on the update's detailed page. Upload a photo or video, give it a caption, and reorder by dragging a row onto another — or focus a row's handle and press ↑/↓.
       </p>
 
       <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 mb-4 space-y-3">
@@ -4472,7 +4503,7 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
         </div>
       ) : (
         <div className="space-y-2">
-          {items.map((m) => (
+          {items.map((m, i) => (
             <div
               key={m.id}
               draggable
@@ -4482,7 +4513,20 @@ function UpdateMediaManager({ updateId, setToast }: { updateId: string; setToast
               onDragEnd={() => { setDragId(null); setDragOverId(null); }}
               className={`rounded-xl border p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all ${dragId === m.id ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverId === m.id && dragId !== m.id ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
             >
-              <GripVertical className="h-5 w-5 text-stone-400 shrink-0" />
+              <button
+                type="button"
+                onClick={() => handleRef.current?.focus()}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowUp") { e.preventDefault(); move(m.id, -1); }
+                  else if (e.key === "ArrowDown") { e.preventDefault(); move(m.id, 1); }
+                }}
+                className="p-1 -m-1 rounded-md text-stone-400 hover:text-stone-600 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 transition-colors cursor-grab active:cursor-grabbing shrink-0"
+                title={`Reorder: press ↑/↓, or drag (item ${i + 1})`}
+                aria-label={`Reorder item ${i + 1}. Press ArrowUp or ArrowDown to move it.`}
+                ref={i === 0 ? handleRef : undefined}
+              >
+                <GripVertical className="h-5 w-5 pointer-events-none" aria-hidden />
+              </button>
               <div className="w-28 h-20 shrink-0 rounded-lg overflow-hidden bg-stone-100 border border-stone-200 flex items-center justify-center">
                 {m.media_type === "video" ? (
                   youtubeId(m.youtube_url || m.media_url) ? (

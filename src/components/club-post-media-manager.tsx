@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase as publicSupabase } from "@/lib/supabase";
+import { adminSupabase } from "@/lib/supabase";
 import { youtubeId, youtubeThumbUrl, youtubeWatchUrl } from "@/lib/youtube";
 import { prepareImageForUpload } from "@/lib/image-convert";
 import { VIDEO_TYPES, VIDEO_MAX_MB, validateMedia, UPLOAD_CACHE_CONTROL } from "@/lib/upload-guide";
 import { YoutubeLinkInput } from "@/components/youtube-link-input";
 import { friendlyError } from "@/lib/friendly-error";
 import { askConfirm } from "@/components/confirm-dialog";
-import { ChevronUp, ChevronDown, Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, Trash2 } from "lucide-react";
+import { Image as ImageIcon, Video as VideoIcon, PlayCircle, GripVertical, Trash2 } from "lucide-react";
 
 type Notice = (text: string, kind: "ok" | "err") => void;
 
@@ -19,7 +20,13 @@ type Notice = (text: string, kind: "ok" | "err") => void;
  *  - the club editor studio (/clubs/editor) for co-editors, and
  *  - the admin dashboard Clubs tab, so admins can edit any post's story page.
  */
-export function ClubPostMediaManager({ postId, notice }: { postId: string; notice: Notice }) {
+export function ClubPostMediaManager({ postId, notice, db }: { postId: string; notice: Notice; db?: typeof publicSupabase }) {
+  // Calls from the admin dashboard must go through the service-role proxy:
+  // RLS lets the public client read published posts' media but silently
+  // no-ops its writes (0-row updates report as success), which made reorders
+  // and caption saves fake-success there. Authenticated callers (club editor
+  // studio) keep the public client.
+  const supabase = db || publicSupabase;
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState<Record<string, { caption: string; sort: string }>>({});
@@ -28,6 +35,8 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
   const [uploading, setUploading] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  // First row's grip handle — refocused after keyboard reorders so ↑/↓ keeps working.
+  const handleRef = useRef<HTMLButtonElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
 
@@ -187,14 +196,32 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
     load();
   };
 
-  /* Touch-friendly reorder: swaps with the neighbor row and persists the
-   * whole list's sort_order in one batch (same write pattern as drag).   */
+  /* Silent resync after a reorder: refreshes rows + renumbers the sort
+   * fields WITHOUT the loading spinner — the spinner early-return unmounts
+   * the list and would drop keyboard focus mid-reorder — and merges DB state
+   * over local edits so unsaved caption drafts survive. */
+  const reloadSilently = async () => {
+    const { data } = await supabase.from("club_post_media").select("*").eq("post_id", postId).order("sort_order", { ascending: true });
+    setItems(data || []);
+    setEdits((prev) => {
+      const upd = { ...prev };
+      (data || []).forEach((m: any) => {
+        const cur = upd[m.id];
+        upd[m.id] = { caption: cur ? cur.caption : (m.caption || ""), sort: String(m.sort_order ?? 0) };
+      });
+      return upd;
+    });
+  };
+
+  /* Keyboard reorder: ↑/↓ on a row's grip handle swaps with the neighbor and
+   * persists the whole list's sort_order in one batch (same write as drag). */
   const moveRow = async (id: string, dir: -1 | 1) => {
     const from = items.findIndex((m) => m.id === id);
     const to = from + dir;
     if (from === -1 || to < 0 || to >= items.length) return;
     const next = [...items];
     const [moved] = next.splice(from, 1);
+    if (!moved) return;
     next.splice(to, 0, moved);
     setItems(next);
     setEdits((prev) => {
@@ -211,11 +238,11 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
       // Surface the failure instead of pretending the order saved.
       const err = (failed as PromiseFulfilledResult<any>).value.error;
       notice(friendlyError(err, "Couldn't save the new order. Try again."), "err");
-      load(); // resync UI with what the DB actually has
+      await reloadSilently(); // resync UI with what the DB actually has
       return;
     }
     notice("Order saved", "ok");
-    load();
+    await reloadSilently();
   };
 
   /* Drag-to-reorder (same pattern as the MWOSA media manager): on drop the
@@ -272,7 +299,7 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
     <div className="rounded-xl bg-stone-50 border border-stone-200 p-4">
       <p className="text-sm font-semibold text-stone-700 mb-1">Story media (photos & videos with captions)</p>
       <p className="text-xs text-stone-400 mb-4">
-        These appear on the post's detailed page as a captioned gallery: photos bundle into one swipeable carousel under a single caption, and videos play inline (upload a file or paste a YouTube link). Reorder with the arrows (or drag on a computer).
+        These appear on the post's detailed page as a captioned gallery: photos bundle into one swipeable carousel under a single caption, and videos play inline (upload a file or paste a YouTube link). Reorder by dragging a row onto another — or focus a row's handle and press ↑/↓.
       </p>
 
       <div className="rounded-xl bg-white border border-stone-200 p-3 mb-4 space-y-3">
@@ -333,14 +360,24 @@ export function ClubPostMediaManager({ postId, notice }: { postId: string; notic
               className={`flex flex-col md:flex-row md:items-start gap-3 rounded-lg border p-2.5 cursor-grab active:cursor-grabbing transition-all ${dragId === item.id ? "opacity-40 ring-2 ring-green-800 ring-offset-1" : "bg-white border-stone-200"} ${dragOverId === item.id && dragId !== item.id ? "ring-2 ring-green-600 ring-offset-1 bg-green-50/60" : ""}`}
             >
               <div className="flex md:flex-col items-center gap-0.5 shrink-0">
-                <GripVertical className="h-4 w-4 text-stone-300 hidden md:block" />
-                <button onClick={() => moveRow(item.id, -1)} disabled={idx === 0} title="Move up" aria-label="Move up" className="p-0.5 rounded hover:bg-stone-200 text-stone-500 disabled:opacity-25">
-                  <ChevronUp className="h-4 w-4" />
+                <button
+                  type="button"
+                  onClick={() => handleRef.current?.focus()}
+                  onKeyDown={(e) => {
+                    // Never disabled while saving: disabling a focused button
+                    // blurs it and strands keyboard users mid-reorder. moveRow
+                    // re-syncs with the DB after every persist anyway.
+                    if (e.key === "ArrowUp") { e.preventDefault(); moveRow(item.id, -1); }
+                    else if (e.key === "ArrowDown") { e.preventDefault(); moveRow(item.id, 1); }
+                  }}
+                  className="p-1 -m-1 rounded-md text-stone-300 hover:text-stone-500 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 transition-colors cursor-grab active:cursor-grabbing"
+                  title={`Reorder: press ↑/↓, or drag (item ${idx + 1})`}
+                  aria-label={`Reorder item ${idx + 1}. Press ArrowUp or ArrowDown to move it.`}
+                  ref={idx === 0 ? handleRef : undefined}
+                >
+                  <GripVertical className="h-4 w-4 pointer-events-none" aria-hidden />
                 </button>
                 <span className="text-[10px] font-bold text-stone-400">{idx + 1}</span>
-                <button onClick={() => moveRow(item.id, 1)} disabled={idx === items.length - 1} title="Move down" aria-label="Move down" className="p-0.5 rounded hover:bg-stone-200 text-stone-500 disabled:opacity-25">
-                  <ChevronDown className="h-4 w-4" />
-                </button>
               </div>
               {item.media_type === "video" ? (
                 youtubeId(item.youtube_url || item.media_url) ? (
