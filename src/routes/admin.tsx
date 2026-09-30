@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, MessageSquare,
   Building2, GraduationCap, Heart, ChevronRight, Check, X,
   RefreshCw, Eye, Trash2, Settings, BarChart3, Megaphone, FileText,
-  CalendarCheck, ChevronDown, ArrowUp, ArrowDown, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
+  CalendarCheck, ChevronDown, ArrowUp, ArrowDown, Replace, Mail, LogOut, ShieldCheck, UserPlus, Send, KeyRound,
   Copy, Search, Clock, CheckCircle2, HandHeart, Link2, ListChecks, MoreHorizontal, ArrowLeft,
   Image as ImageIcon, Video as VideoIcon, Upload, GripVertical, PenSquare,
   ExternalLink, LayoutGrid, Inbox, Newspaper, AlertTriangle
@@ -1710,6 +1710,7 @@ function HeroPlaylistManager() {
   const fileRef = useRef<HTMLInputElement>(null);
   const lastSavedRef = useRef("");
   const [uploadingPoster, setUploadingPoster] = useState<number | null>(null);
+  const [swapping, setSwapping] = useState<number | null>(null);
   // Legacy entries (saved before size/duration were recorded) are probed
   // live: duration from the row's preview video, size from a HEAD request.
   const [probeDur, setProbeDur] = useState<Record<string, number>>({});
@@ -1800,6 +1801,43 @@ function HeroPlaylistManager() {
     setUploadingPoster(null);
   };
 
+  /* Swap the video file behind a clip while keeping its curated metadata —
+   * caption, poster and list position survive; name/size/duration update to
+   * the new file. The old object is deleted only after the new list persists. */
+  const swapVideo = async (idx: number, file?: File | null) => {
+    if (!file || busy) return;
+    const okType = /\.(mp4|webm)$/i.test(file.name) || /video\/(mp4|webm)/i.test(file.type);
+    if (!okType) { setStatus({ message: `"${file.name}" is not an MP4/WebM video. Convert it and try again.`, type: "error" }); return; }
+    if (file.size > HERO_VIDEO_MAX_MB * 1024 * 1024) { setStatus({ message: `"${file.name}" is ${fileSizeMb(file.size)} — hero clips must be ${HERO_VIDEO_MAX_MB}MB or smaller. Trim or compress it first.`, type: "error" }); return; }
+    if (!(await askConfirm(`Replace the video for "${items[idx]?.name || "this clip"}"? Its caption and poster are kept.`, { confirmLabel: "Replace video" }))) return;
+    const old = items[idx]!;
+    setSwapping(idx);
+    try {
+      const duration = await readVideoDuration(file);
+      const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
+      const path = `hero/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("hero-media").upload(path, file, { contentType: file.type || "video/mp4", cacheControl: UPLOAD_CACHE_CONTROL });
+      if (error) { setStatus({ message: friendlyError(error, `Couldn't upload "${file.name}". Try again.`), type: "error" }); return; }
+      const { data } = supabase.storage.from("hero-media").getPublicUrl(path);
+      const next = items.map((c, i) => {
+        if (i !== idx) return c;
+        const swapped: HeroClip = { src: data.publicUrl, name: file.name.replace(/\.[^.]+$/, ""), size: file.size };
+        if (duration !== undefined) swapped.duration = duration;
+        if (c.poster !== undefined) swapped.poster = c.poster;
+        if (c.caption !== undefined) swapped.caption = c.caption;
+        return swapped;
+      });
+      const ok = await persist(next, "Video swapped — caption and poster kept");
+      if (ok) {
+        const marker = "/storage/v1/object/public/hero-media/";
+        if (old.src.includes(marker)) { try { await supabase.storage.from("hero-media").remove([old.src.split(marker)[1]!]); } catch { /* non-fatal */ } }
+      }
+    } catch (err: any) {
+      setStatus({ message: err?.message || "Video could not be processed.", type: "error" });
+    }
+    setSwapping(null);
+  };
+
   const removePoster = async (idx: number) => {
     const old = items[idx]?.poster;
     // Rebuild without the poster key (exactOptionalPropertyTypes forbids
@@ -1876,7 +1914,7 @@ function HeroPlaylistManager() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-green-800">hero playlist</p>
-          <p className="text-sm text-stone-500 mt-1">These videos play fullscreen on the homepage in this order, looping forever. MP4 or WebM up to {HERO_VIDEO_MAX_MB}MB each — keep clips short (10–20 seconds) so they load fast on phones.</p>
+          <p className="text-sm text-stone-500 mt-1">These videos play fullscreen on the homepage in this order, looping forever. MP4 or WebM up to {HERO_VIDEO_MAX_MB}MB each — keep clips short (10–20 seconds) so they load fast on phones. Use <span className="font-medium text-stone-600">Swap video</span> to replace a clip without redoing its caption and poster.</p>
         </div>
         {status && <span className={`text-xs font-semibold ${status.type === "success" ? "text-green-700" : "text-red-600"}`}>{status.message}</span>}
       </div>
@@ -1935,6 +1973,12 @@ function HeroPlaylistManager() {
                     <ImageIcon className="h-3.5 w-3.5" />{uploadingPoster === i ? "Uploading..." : item.poster ? "Replace poster" : "+ Poster"}
                   </span>
                   <input type="file" accept={IMAGE_ACCEPT} className="hidden" disabled={uploadingPoster === i} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; uploadPoster(i, f); }} />
+                </label>
+                <label className="cursor-pointer">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
+                    <Replace className="h-3.5 w-3.5" />{swapping === i ? "Swapping..." : "Swap video"}
+                  </span>
+                  <input type="file" accept={VIDEO_ACCEPT} className="hidden" disabled={swapping === i || busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; swapVideo(i, f); }} />
                 </label>
                 {item.poster && (
                   <button onClick={() => removePoster(i)} className="p-2 rounded-lg hover:bg-red-100 transition-colors" title="Remove poster"><X className="h-3.5 w-3.5 text-red-400" /></button>
