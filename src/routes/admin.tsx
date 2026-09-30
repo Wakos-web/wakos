@@ -2039,7 +2039,7 @@ function HeroPlaylistManager() {
                 <button
                   onClick={() => setPreviewing(i)}
                   className="group/thumb relative shrink-0"
-                  title={item.focus ? `Watch this clip — focus ${item.focus.x}·${item.focus.y}` : "Watch this clip"}
+                  title={item.focus ? `Watch this clip — focus ${item.focus.x}·${item.focus.y}` : "Watch this clip — no focal point set (centers the shot)"}
                   aria-label={`Watch ${item.name || "clip"}`}
                 >
                   <video
@@ -2056,6 +2056,12 @@ function HeroPlaylistManager() {
                   />
                   {item.focus && (
                     <span className="pointer-events-none absolute z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.45)]" style={{ left: `${item.focus.x}%`, top: `${item.focus.y}%` }} />
+                  )}
+                  {!item.focus && (
+                    /* Ghost hint: without a saved focus the hero centers the
+                     * shot, so show an empty dashed reticle at that default
+                     * spot — under the hover play badge (z-10), out of the way. */
+                    <span className="pointer-events-none absolute left-1/2 top-1/2 z-[5] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-white/80 shadow-[0_0_0_2px_rgba(0,0,0,0.25)]" title="No focal point set" />
                   )}
                   <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30 opacity-0 transition-opacity group-hover/thumb:opacity-100">
                     <Play className="h-5 w-5 text-white drop-shadow" />
@@ -2095,7 +2101,7 @@ function HeroPlaylistManager() {
                 {item.poster && item.poster_original && (
                   <button onClick={() => beginCrop(i)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="Re-crop from the original upload">Re-crop</button>
                 )}
-                <button onClick={() => setFocusTarget(i)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="Choose which part of the shot stays in view on phones">Focus{item.focus ? ` ${item.focus.x}·${item.focus.y}` : ""}</button>
+                <button onClick={() => setFocusTarget(i)} className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${item.focus ? "border-stone-200 text-stone-600 hover:border-green-800 hover:text-green-800" : "border-dashed border-stone-300 text-stone-400 hover:border-green-800 hover:text-green-800"}`} title="Choose which part of the shot stays in view on phones">{item.focus ? `Focus ${item.focus.x}·${item.focus.y}` : "Set focus"}</button>
                 <button onClick={() => setPreviewTarget(i)} className="px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors" title="See this clip in the real hero">Preview</button>
                 <label className="cursor-pointer">
                   <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:border-green-800 hover:text-green-800 transition-colors">
