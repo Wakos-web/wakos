@@ -38,7 +38,7 @@ if (!SERVICE_KEY) {
 }
 
 /** Migrations known to be pending on the hosted DB (awaiting a manual SQL-editor run). */
-const EXPECTED_PENDING = ["033", "034"];
+const EXPECTED_PENDING = [];
 
 /** "033_submission_rejection_notes.sql" → "033" */
 function fileNumber(file) {
